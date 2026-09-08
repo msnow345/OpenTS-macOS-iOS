@@ -28,6 +28,20 @@ struct Win32Window
 	bool Enabled;
 };
 
+// The one bitmap a native build creates is the canvas the game draws a mouse cursor onto,
+// so a bitmap object carries only what a cursor is built from.
+struct Win32Bitmap
+{
+	int Width;
+	int Height;
+	int BitCount;
+	int Pitch;
+	bool TopDown;
+	unsigned char * Bits;
+};
+
+Win32Bitmap * Win32_Lookup_Bitmap(HBITMAP bitmap);
+
 Win32Window * Win32_Lookup(HWND window);
 HWND Win32_Main_Window(void);
 WNDPROC Win32_Class_Procedure(char const * name);

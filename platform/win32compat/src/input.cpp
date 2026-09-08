@@ -9,7 +9,10 @@
 
 #include "win32compat.h"
 
+#include <cstddef>
 #include <cstring>
+#include <new>
+#include <vector>
 
 // The virtual key codes the engine's keyboard queue is written against. They are stated
 // as numbers rather than taken from the engine's own header so that this layer does not
@@ -252,17 +255,45 @@ static int _CursorCount;
 static HWND _Capture;
 
 
-extern "C" HCURSOR SetCursor(HCURSOR cursor)
+// One record per cursor the game builds out of its own shape art. The game keeps the
+// handles and reselects them as the pointer changes shape, so a record lives until the
+// game destroys it.
+struct Win32Cursor
 {
-	// The game draws its own pointer from its own shapes, so the host's pointer is only
-	// ever shown or hidden and never replaced.
-	if (cursor == NULL) {
-		SDL_HideCursor();
-	} else {
-		SDL_ShowCursor();
+	SDL_Cursor * Cursor;
+};
+
+static std::vector<Win32Cursor *> _Cursors;
+static HCURSOR _CurrentCursor;
+
+
+static Win32Cursor * Lookup_Cursor(HCURSOR cursor)
+{
+	for (Win32Cursor * record : _Cursors) {
+		if ((HCURSOR)record == cursor) {
+			return(record);
+		}
 	}
 
 	return(NULL);
+}
+
+
+extern "C" HCURSOR SetCursor(HCURSOR cursor)
+{
+	HCURSOR const previous = _CurrentCursor;
+	Win32Cursor * record = Lookup_Cursor(cursor);
+
+	_CurrentCursor = record != NULL ? cursor : NULL;
+
+	if (record != NULL) {
+		SDL_SetCursor(record->Cursor);
+		SDL_ShowCursor();
+	} else {
+		SDL_HideCursor();
+	}
+
+	return(previous);
 }
 
 
@@ -324,6 +355,118 @@ extern "C" HWND GetCapture(void)
 
 extern "C" HCURSOR LoadCursor(HINSTANCE instance, LPCSTR name) { (void)instance; (void)name; return(NULL); }
 extern "C" HICON LoadIcon(HINSTANCE instance, LPCSTR name) { (void)instance; (void)name; return(NULL); }
-extern "C" HCURSOR CreateIconIndirect(ICONINFO * info) { (void)info; return(NULL); }
-extern "C" BOOL DestroyCursor(HCURSOR cursor) { (void)cursor; return(TRUE); }
 extern "C" BOOL DestroyIcon(HICON icon) { (void)icon; return(TRUE); }
+
+
+// A 32-bit device-independent bitmap holds its pixels as blue, green, red and alpha in
+// memory order, which is what the host calls ARGB8888 on a little-endian machine.
+static SDL_Surface * Surface_From_Bitmap(Win32Bitmap const * bitmap)
+{
+	SDL_Surface * surface = SDL_CreateSurface(bitmap->Width, bitmap->Height, SDL_PIXELFORMAT_ARGB8888);
+
+	if (surface == NULL) {
+		return(NULL);
+	}
+
+	for (int y = 0; y < bitmap->Height; y++) {
+		int const source = bitmap->TopDown ? y : bitmap->Height - 1 - y;
+		memcpy((unsigned char *)surface->pixels + (std::size_t)y * (std::size_t)surface->pitch,
+			bitmap->Bits + (std::size_t)source * (std::size_t)bitmap->Pitch,
+			(std::size_t)bitmap->Width * 4);
+	}
+
+	return(surface);
+}
+
+
+/*
+ * The game draws its pointer at the scale its frame is presented at, which is measured in
+ * physical pixels, while the host lays a cursor out in the points its display uses. The
+ * image is offered at the point size that matches, with the pixels the game drew carried
+ * alongside it so a dense display still shows all of them.
+ */
+extern "C" HCURSOR CreateIconIndirect(ICONINFO * info)
+{
+	if (info == NULL) {
+		return(NULL);
+	}
+
+	Win32Bitmap const * color = Win32_Lookup_Bitmap(info->hbmColor);
+
+	if (color == NULL || color->BitCount != 32) {
+		return(NULL);
+	}
+
+	SDL_Surface * pixels = Surface_From_Bitmap(color);
+
+	if (pixels == NULL) {
+		return(NULL);
+	}
+
+	float const density = Win32_Pixel_Density();
+	SDL_Surface * image = pixels;
+	int hotx = (int)info->xHotspot;
+	int hoty = (int)info->yHotspot;
+
+	if (density > 1.0f) {
+		int const width = (int)(pixels->w / density);
+		int const height = (int)(pixels->h / density);
+		SDL_Surface * scaled = width > 0 && height > 0
+			? SDL_ScaleSurface(pixels, width, height, SDL_SCALEMODE_NEAREST) : NULL;
+
+		if (scaled != NULL && SDL_AddSurfaceAlternateImage(scaled, pixels)) {
+			image = scaled;
+			hotx = (int)(hotx / density);
+			hoty = (int)(hoty / density);
+		} else if (scaled != NULL) {
+			SDL_DestroySurface(scaled);
+		}
+	}
+
+	if (hotx >= image->w) hotx = image->w - 1;
+	if (hoty >= image->h) hoty = image->h - 1;
+	if (hotx < 0) hotx = 0;
+	if (hoty < 0) hoty = 0;
+
+	SDL_Cursor * cursor = SDL_CreateColorCursor(image, hotx, hoty);
+
+	if (image != pixels) {
+		SDL_DestroySurface(image);
+	}
+	SDL_DestroySurface(pixels);
+
+	if (cursor == NULL) {
+		return(NULL);
+	}
+
+	Win32Cursor * record = new(std::nothrow) Win32Cursor;
+
+	if (record == NULL) {
+		SDL_DestroyCursor(cursor);
+		return(NULL);
+	}
+
+	record->Cursor = cursor;
+	_Cursors.push_back(record);
+	return((HCURSOR)record);
+}
+
+
+extern "C" BOOL DestroyCursor(HCURSOR cursor)
+{
+	for (auto it = _Cursors.begin(); it != _Cursors.end(); ++it) {
+		if ((HCURSOR)*it == cursor) {
+			if (_CurrentCursor == cursor) {
+				_CurrentCursor = NULL;
+				SDL_SetCursor(SDL_GetDefaultCursor());
+			}
+
+			SDL_DestroyCursor((*it)->Cursor);
+			delete *it;
+			_Cursors.erase(it);
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
