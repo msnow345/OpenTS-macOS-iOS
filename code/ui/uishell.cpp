@@ -21,10 +21,12 @@
 #include "uiinternal.h"
 #include "uirmlview.h"
 
+#include "_keyboar.h"
 #include "dbgprint.h"
 #include "hostclock.h"
 #include "conquer.h"
 #include "goptions.h"
+#include "keyboard.h"
 #include "mainloop.h"
 #include "msgloop.h"
 #include "session.h"
@@ -49,6 +51,12 @@ static unsigned int _LastTickTime = 0;
 // Set while a document is being shown or hidden, so the message pump that the keyboard
 // queue's own cleanup runs cannot re-enter the screen it is closing.
 static bool _Changing = false;
+
+// How many exclusive modal documents are shown. A modal takes every mouse and key message
+// the way IgnoreInput does around a legacy dialog, and screens nest, so this counts rather
+// than flags.
+static int _ModalDepth = 0;
+
 
 // The window holds the mouse capture while a gesture a toolkit consumed is in progress.
 // The owner of a press owns its release, so a press that crossed into the game or out of
@@ -413,10 +421,62 @@ static bool Handle_Developer_Key(WPARAM key)
 
 
 /// <summary>
+/// Opens an exclusive input scope for a modal document.
+/// The keyboard queue is cleared so a key pressed before the screen opened cannot be read
+/// by whatever runs underneath it, and the screen is marked changing first so that the
+/// message pump inside Keyboard->Clear() cannot re-enter it.
+/// </summary>
+static void Enter_Modal_Scope(void)
+{
+	bool const changing = _Changing;
+	_Changing = true;
+
+	_ModalDepth++;
+
+	if (Keyboard != nullptr) {
+		Keyboard->Clear();
+	}
+
+	_Changing = changing;
+}
+
+
+/// <summary>
+/// Closes the input scope a modal document opened, dropping any capture it still holds.
+/// </summary>
+static void Leave_Modal_Scope(void)
+{
+	if (_ModalDepth <= 0) {
+		return;
+	}
+
+	bool const changing = _Changing;
+	_Changing = true;
+
+	_ModalDepth--;
+
+	if (_CaptureButton != -1) {
+		_CaptureButton = -1;
+		if (GetCapture() == MainWindow) {
+			ReleaseCapture();
+		}
+	}
+
+	if (Keyboard != nullptr) {
+		Keyboard->Clear();
+	}
+
+	_Changing = changing;
+}
+
+
+/// <summary>
 /// Offers a window message to the toolkits before the game sees it.
 /// The order follows docs/UI_DESIGN.md: ImGui's capture flags first, then a modal
-/// document, then whatever an element under the cursor claims. A mouse move is always
-/// delivered and never consumed, so the game keeps tracking the cursor underneath.
+/// document, then whatever an element under the cursor claims. A modal document takes
+/// every mouse and key message, which is what IgnoreInput does around a legacy dialog.
+/// With none shown a mouse move is always delivered and never consumed, so the game keeps
+/// tracking the cursor underneath.
 /// </summary>
 /// <returns>bool; Was the message consumed? The window procedure returns without handling
 /// it when so, which is what keeps it out of the keyboard queue.</returns>
@@ -433,7 +493,7 @@ bool UI_Handle_Window_Message(HWND window, UINT message, WPARAM wparam, LPARAM l
 			POINT const point = Message_Point(message, lparam);
 			UI_Dev_Mouse_Position((float)point.x, (float)point.y);
 			_Context->ProcessMouseMove((int)point.x, (int)point.y, modifiers);
-			return(false);
+			return(_ModalDepth > 0);
 		}
 
 		case WM_LBUTTONDOWN:
@@ -456,7 +516,7 @@ bool UI_Handle_Window_Message(HWND window, UINT message, WPARAM wparam, LPARAM l
 
 			// A false return means the press reached an element, so the game must not see
 			// it. The press then owns its release wherever the cursor ends up.
-			bool const consumed = !_Context->ProcessMouseButtonDown(button, modifiers);
+			bool const consumed = !_Context->ProcessMouseButtonDown(button, modifiers) || _ModalDepth > 0;
 			if (consumed) {
 				_CaptureButton = button;
 				SetCapture(MainWindow);
@@ -485,7 +545,7 @@ bool UI_Handle_Window_Message(HWND window, UINT message, WPARAM wparam, LPARAM l
 				return(true);
 			}
 
-			return(UI_Dev_Wants_Mouse() || consumed);
+			return(_ModalDepth > 0 || UI_Dev_Wants_Mouse() || consumed);
 		}
 
 		case WM_MOUSEWHEEL: {
@@ -499,7 +559,7 @@ bool UI_Handle_Window_Message(HWND window, UINT message, WPARAM wparam, LPARAM l
 				return(true);
 			}
 
-			return(!_Context->ProcessMouseWheel(-notches, modifiers));
+			return(_ModalDepth > 0 || !_Context->ProcessMouseWheel(-notches, modifiers));
 		}
 
 		case WM_KEYDOWN:
@@ -515,21 +575,21 @@ bool UI_Handle_Window_Message(HWND window, UINT message, WPARAM wparam, LPARAM l
 
 			Rml::Input::KeyIdentifier const identifier = Key_Identifier(wparam);
 			if (identifier == Rml::Input::KI_UNKNOWN) {
-				return(false);
+				return(_ModalDepth > 0);
 			}
 
-			return(!_Context->ProcessKeyDown(identifier, modifiers));
+			return(_ModalDepth > 0 || !_Context->ProcessKeyDown(identifier, modifiers));
 		}
 
 		case WM_KEYUP:
 		case WM_SYSKEYUP: {
 			Rml::Input::KeyIdentifier const identifier = Key_Identifier(wparam);
 			if (identifier == Rml::Input::KI_UNKNOWN) {
-				return(false);
+				return(_ModalDepth > 0);
 			}
 
 			bool const consumed = !_Context->ProcessKeyUp(identifier, modifiers);
-			return(UI_Dev_Wants_Keyboard() || consumed);
+			return(_ModalDepth > 0 || UI_Dev_Wants_Keyboard() || consumed);
 		}
 
 		case WM_CHAR: {
@@ -540,10 +600,10 @@ bool UI_Handle_Window_Message(HWND window, UINT message, WPARAM wparam, LPARAM l
 			// Consuming the physical key never suppresses the text it generated, so this
 			// is decided on its own.
 			if (wparam < 32) {
-				return(false);
+				return(_ModalDepth > 0);
 			}
 
-			return(!_Context->ProcessTextInput((Rml::Character)wparam));
+			return(_ModalDepth > 0 || !_Context->ProcessTextInput((Rml::Character)wparam));
 		}
 
 		default:
@@ -559,8 +619,13 @@ bool UI_Handle_Window_Message(HWND window, UINT message, WPARAM wparam, LPARAM l
 
 UIRmlViewClass::UIRmlViewClass(UIPresenterClass & presenter, char const * document) :
 	Presenter(presenter),
-	Document(document != nullptr ? document : "")
+	Document(document != nullptr ? document : ""),
+	ModelName(Document)
 {
+	Rml::String::size_type const dot = ModelName.rfind('.');
+	if (dot != Rml::String::npos) {
+		ModelName.erase(dot);
+	}
 }
 
 
@@ -583,7 +648,7 @@ bool UIRmlViewClass::Prepare(bool modal)
 		return(false);
 	}
 
-	Rml::DataModelConstructor constructor = _Context->CreateDataModel(Document);
+	Rml::DataModelConstructor constructor = _Context->CreateDataModel(ModelName);
 	if (!constructor) {
 		DebugString("[UI] The data model for %s could not be created.\n", Document.c_str());
 		return(false);
@@ -594,12 +659,18 @@ bool UIRmlViewClass::Prepare(bool modal)
 
 	Element = _Context->LoadDocument(Document);
 	if (Element == nullptr) {
-		_Context->RemoveDataModel(Document);
+		_Context->RemoveDataModel(ModelName);
 		DebugString("[UI] The document %s could not be loaded.\n", Document.c_str());
 		return(false);
 	}
 
 	Element->Show(modal ? Rml::ModalFlag::Modal : Rml::ModalFlag::None);
+
+	if (modal) {
+		IsModal = true;
+		Enter_Modal_Scope();
+	}
+
 	Mark_Overlay_Dirty();
 	return(true);
 }
@@ -611,14 +682,22 @@ void UIRmlViewClass::Close(void)
 		return;
 	}
 
+	// The order docs/UI_DESIGN.md sets out: mark the screen closing and discard its
+	// intents, then drop focus and capture, then release the document while the storage its
+	// data model reads still lives, and only then clear the keyboard queue.
 	Presenter.IsClosing = true;
 	Presenter.Discard();
 
 	Element->Close();
 	Element = nullptr;
 
-	_Context->RemoveDataModel(Document);
+	_Context->RemoveDataModel(ModelName);
 	Model = Rml::DataModelHandle();
+
+	if (IsModal) {
+		IsModal = false;
+		Leave_Modal_Scope();
+	}
 
 	Mark_Overlay_Dirty();
 }

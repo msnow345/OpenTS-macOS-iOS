@@ -48,8 +48,17 @@ class UIRmlViewClass
 	protected:
 		UIPresenterClass & Presenter;
 		Rml::String Document;
+
+		// The document's name without its extension. A document names its model with this,
+		// and no two live screens may share one.
+		Rml::String ModelName;
+
 		Rml::ElementDocument * Element = nullptr;
 		Rml::DataModelHandle Model;
+
+		// Was the document shown exclusively? The shell's input scope is opened and closed
+		// with it, so this records what to undo rather than being asked again at close.
+		bool IsModal = false;
 };
 
 
