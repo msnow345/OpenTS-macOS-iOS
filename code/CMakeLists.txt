@@ -187,10 +187,15 @@ endif()
 
 message(STATUS "${PROJECT_NAME}: Adding compilier definitions...")
 target_compile_definitions(OpenTS PRIVATE
-    WIN32
-    _WINDOWS
     NOMINMAX
 )
+
+if(WIN32)
+    target_compile_definitions(OpenTS PRIVATE
+        WIN32
+        _WINDOWS
+    )
+endif()
 
 #
 # ---------------------------------------------------------
