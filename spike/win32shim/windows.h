@@ -171,3 +171,35 @@ OPENTS_SHIM_HANDLE(HTREEITEM);
 typedef struct _NMTREEVIEWA { void *opaque; } NMTREEVIEWA, *LPNMTREEVIEW;
 typedef struct DLGTEMPLATE { DWORD style, dwExtendedStyle; WORD cdit; short x, y, cx, cy; } DLGTEMPLATE, *LPDLGTEMPLATE;
 typedef const DLGTEMPLATE *LPCDLGTEMPLATE;
+
+// SAL-style annotations the tree spells out on parameters.
+#define IN
+#define OUT
+#define OPTIONAL
+#ifndef CONST
+#define CONST const
+#endif
+
+#define E_POINTER ((HRESULT)0x80004003L)
+#define E_NOTIMPL ((HRESULT)0x80004001L)
+#define CLSCTX_ALL 23
+#define CLSCTX_INPROC_SERVER 1
+#define IDOK 1
+#define IDCANCEL 2
+#define IDABORT 3
+#define IDRETRY 4
+#define IDIGNORE 5
+#define IDYES 6
+#define IDNO 7
+#define MB_OK 0x0
+#define MB_OKCANCEL 0x1
+#define MB_YESNO 0x4
+#define MB_ICONSTOP 0x10
+#define MB_ICONERROR 0x10
+#define MB_ICONQUESTION 0x20
+#define MB_ICONEXCLAMATION 0x30
+#define MB_ICONINFORMATION 0x40
+#define MB_SETFOREGROUND 0x10000
+#define MB_TASKMODAL 0x2000
+#define MB_SYSTEMMODAL 0x1000
+#define MB_APPLMODAL 0x0
