@@ -56,16 +56,26 @@ WNDPROC Win32_Class_Procedure(char const * name)
 }
 
 
+// Every position and size this layer reports is in physical pixels, because that is what
+// the engine measures its frame and its client area in. The host works in logical points,
+// so one density converts between them. It is read from the display rather than from the
+// window so that it answers the same before and after the window exists.
 float Win32_Pixel_Density(void)
 {
+	SDL_DisplayID display = SDL_GetPrimaryDisplay();
 	Win32Window * main = Win32_Lookup(_MainWindow);
 
-	if (main == NULL || main->Handle == NULL) {
+	if (main != NULL && main->Handle != NULL) {
+		display = SDL_GetDisplayForWindow(main->Handle);
+	}
+
+	SDL_DisplayMode const * mode = SDL_GetDesktopDisplayMode(display);
+
+	if (mode == NULL || mode->pixel_density <= 0.0f) {
 		return(1.0f);
 	}
 
-	float const density = SDL_GetWindowPixelDensity(main->Handle);
-	return(density > 0.0f ? density : 1.0f);
+	return(mode->pixel_density);
 }
 
 
@@ -102,8 +112,9 @@ extern "C" HWND CreateWindowEx(DWORD exstyle, LPCSTR classname, LPCSTR windownam
 
 	// A zero size is what the windowed path asks for before it measures the frame it wants,
 	// so the window opens at a size SDL accepts and is moved to the real one afterwards.
-	int const openwidth = width > 0 ? width : 640;
-	int const openheight = height > 0 ? height : 480;
+	float const density = Win32_Pixel_Density();
+	int const openwidth = width > 0 ? (int)(width / density) : 640;
+	int const openheight = height > 0 ? (int)(height / density) : 480;
 
 	SDL_WindowFlags flags = SDL_WINDOW_METAL | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 	if ((style & WS_POPUP) != 0) {
@@ -225,8 +236,9 @@ extern "C" BOOL MoveWindow(HWND handle, int x, int y, int width, int height, BOO
 		return(FALSE);
 	}
 
-	SDL_SetWindowPosition(window->Handle, x, y);
-	SDL_SetWindowSize(window->Handle, width, height);
+	float const density = Win32_Pixel_Density();
+	SDL_SetWindowPosition(window->Handle, (int)(x / density), (int)(y / density));
+	SDL_SetWindowSize(window->Handle, (int)(width / density), (int)(height / density));
 
 	if (repaint) {
 		UpdateWindow(handle);
@@ -246,12 +258,14 @@ extern "C" BOOL SetWindowPos(HWND handle, HWND after, int x, int y, int cx, int 
 		return(FALSE);
 	}
 
+	float const density = Win32_Pixel_Density();
+
 	if ((flags & SWP_NOMOVE) == 0) {
-		SDL_SetWindowPosition(window->Handle, x, y);
+		SDL_SetWindowPosition(window->Handle, (int)(x / density), (int)(y / density));
 	}
 
 	if ((flags & SWP_NOSIZE) == 0) {
-		SDL_SetWindowSize(window->Handle, cx, cy);
+		SDL_SetWindowSize(window->Handle, (int)(cx / density), (int)(cy / density));
 	}
 
 	return(TRUE);

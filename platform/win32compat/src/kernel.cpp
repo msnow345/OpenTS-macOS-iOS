@@ -627,7 +627,16 @@ extern "C" BOOL CreateDirectory(LPCSTR path, LPSECURITY_ATTRIBUTES attributes)
 	}
 
 	std::error_code error;
-	return(std::filesystem::create_directory(path, error) ? TRUE : FALSE);
+
+	if (std::filesystem::create_directory(path, error)) {
+		_LastError = ERROR_SUCCESS;
+		return(TRUE);
+	}
+
+	// A caller distinguishes "it is already there" from a real failure through the last
+	// error rather than through the result, so the two cases must not look alike.
+	_LastError = std::filesystem::is_directory(path, error) ? ERROR_ALREADY_EXISTS : ERROR_FILE_NOT_FOUND;
+	return(FALSE);
 }
 
 
