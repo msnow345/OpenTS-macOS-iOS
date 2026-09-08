@@ -11,6 +11,7 @@
 
 #include <SDL3/SDL_metal.h>
 
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -727,7 +728,9 @@ extern "C" int MessageBox(HWND handle, LPCSTR text, LPCSTR caption, UINT type)
 {
 	(void)handle;
 
-	SDL_Log("%s: %s", caption != NULL ? caption : "OpenTS", text != NULL ? text : "");
+	// Written with the C runtime rather than through the host's logger, which drops a
+	// message that is not valid UTF-8, and several of these carry legacy code page bytes.
+	std::fprintf(stderr, "%s: %s\n", caption != NULL ? caption : "OpenTS", text != NULL ? text : "");
 
 	if ((type & MB_YESNO) == MB_YESNO) {
 		return(IDYES);

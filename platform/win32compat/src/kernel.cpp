@@ -15,6 +15,7 @@
 #include <sys/timeb.h>
 
 #include <cerrno>
+#include <dlfcn.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -82,12 +83,78 @@ extern "C" void OutputDebugString(LPCSTR text)
 }
 
 
-// Handles stand in for modules so that a caller can tell "the running program" from
-// "some other module"; nothing here loads code.
-extern "C" HMODULE GetModuleHandle(LPCSTR name) { (void)name; return((HMODULE)(ULONG_PTR)1); }
-extern "C" HMODULE LoadLibrary(LPCSTR name) { (void)name; return(NULL); }
-extern "C" BOOL FreeLibrary(HMODULE module) { (void)module; return(TRUE); }
-extern "C" FARPROC GetProcAddress(HMODULE module, LPCSTR name) { (void)module; (void)name; return(NULL); }
+// A module named without a path is looked for beside the executable, under the host's own
+// library naming: the game asks for "Language.dll" and the build produces
+// "libLanguage.dylib" in the same directory.
+static std::string Host_Library_Name(char const * name)
+{
+	std::string stem(name != NULL ? name : "");
+	std::string::size_type const dot = stem.find_last_of('.');
+
+	if (dot != std::string::npos) {
+		stem = stem.substr(0, dot);
+	}
+
+#ifdef __APPLE__
+	return("lib" + stem + ".dylib");
+#else
+	return("lib" + stem + ".so");
+#endif
+}
+
+
+// A null name asks for the running program, which is the handle a caller compares against
+// rather than one it loads anything from.
+extern "C" HMODULE GetModuleHandle(LPCSTR name)
+{
+	if (name == NULL) {
+		return((HMODULE)(ULONG_PTR)1);
+	}
+
+	return((HMODULE)dlopen(Host_Library_Name(name).c_str(), RTLD_LAZY | RTLD_NOLOAD));
+}
+
+
+extern "C" HMODULE LoadLibrary(LPCSTR name)
+{
+	if (name == NULL) {
+		return(NULL);
+	}
+
+	std::string const library = Host_Library_Name(name);
+
+	char executable[MAX_PATH];
+	if (GetModuleFileName(NULL, executable, sizeof(executable)) != 0) {
+		std::filesystem::path beside(executable);
+		beside.replace_filename(library);
+
+		if (void * handle = dlopen(beside.c_str(), RTLD_LAZY)) {
+			return((HMODULE)handle);
+		}
+	}
+
+	return((HMODULE)dlopen(library.c_str(), RTLD_LAZY));
+}
+
+
+extern "C" BOOL FreeLibrary(HMODULE module)
+{
+	if (module == NULL || module == (HMODULE)(ULONG_PTR)1) {
+		return(TRUE);
+	}
+
+	return(dlclose((void *)module) == 0 ? TRUE : FALSE);
+}
+
+
+extern "C" FARPROC GetProcAddress(HMODULE module, LPCSTR name)
+{
+	if (module == NULL || module == (HMODULE)(ULONG_PTR)1 || name == NULL) {
+		return(NULL);
+	}
+
+	return((FARPROC)dlsym((void *)module, name));
+}
 
 
 extern "C" DWORD GetModuleFileName(HMODULE module, LPSTR name, DWORD size)
