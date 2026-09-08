@@ -62,6 +62,9 @@
  *   Is_Aftermath_Installed -- Function to determine the availability of the AM expansion.
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#include <filesystem>
+#include <system_error>
+
 #include "always.h"
 
 #include "conquer.h"
@@ -355,6 +358,7 @@ void Main_Game(int argc, char * argv[])
 	int ret = Init_Game(argc, argv);
 	if (ret) {
 		if (ret < 0) {
+#ifdef _WIN32
 			MSGBOXPARAMS params;
 			params.cbSize = sizeof(MSGBOXPARAMS);
 			params.hwndOwner = MainWindow;
@@ -367,6 +371,10 @@ void Main_Game(int argc, char * argv[])
 			params.lpfnMsgBoxCallback = NULL;
 			params.dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
 			MessageBoxIndirect(&params);
+#else
+			// No host message box yet, so the failure is reported where the launch happened.
+			fprintf(stderr, "%s: %s\n", Fetch_String(TXT_SHORT_TITLE), Fetch_String(TXT_INITGAME_FAILED));
+#endif
 		}
 		return;
 	}
@@ -1203,25 +1211,26 @@ TechnoTypeClass const * Fetch_Techno_Type(RTTIType type, int id)
  *=========================================================================*/
 unsigned int Disk_Space_Available(void)
 {
-	ULARGE_INTEGER freebytecount;		// Free bytes on disk available to caller (caller may not have access to entire disk).
-
 	DebugString("Checking available disk space\n");
 
 	/*
 	 * Measured where the game's saved games will actually go, which is not the current
 	 * directory once a player has one of their own.
 	 */
-	std::string const user_directory = User_File_Write_Name("");
-	LPCTSTR const disk = user_directory.empty() ? NULL : user_directory.c_str();
+	std::string user_directory = User_File_Write_Name("");
+	if (user_directory.empty()) {
+		user_directory = ".";
+	}
 
-	if (!GetDiskFreeSpaceEx(disk, &freebytecount, NULL, NULL)) {
-		DWORD const error = GetLastError();
-		DebugString("GetDiskFreeSpaceEx failed with error code %d - %s\n", error, Last_Error_Text(error));
+	std::error_code error;
+	std::filesystem::space_info const space = std::filesystem::space(user_directory, error);
+	if (error) {
+		DebugString("Free disk space unreadable - %s\n", error.message().c_str());
 		return(0);
 	}
 
 	// The kilobyte count saturates rather than wrapping.
-	unsigned int const diskspace = (unsigned int)std::min<ULONGLONG>(freebytecount.QuadPart / 1024, UINT_MAX);
+	unsigned int const diskspace = (unsigned int)std::min<unsigned long long>((unsigned long long)space.available / 1024, UINT_MAX);
 	DebugString("Free disk space is %u Mb\n", diskspace / 1024);
 	return(diskspace);
 }
