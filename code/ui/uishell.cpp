@@ -147,10 +147,15 @@ static POINT Message_Point(UINT message, LPARAM lparam)
 }
 
 
+/// <summary>
+/// Records that something the shell draws has to be put on screen again.
+/// Only the overlay's flag is set. The game's frame is left alone so that a present made
+/// for a document costs the overlay's draw calls and not the frame's pixels; both resize
+/// paths mark the frame themselves, because a new target needs the frame uploaded again.
+/// </summary>
 static void Mark_Overlay_Dirty(void)
 {
 	_OverlayIsDirty = true;
-	Video_Mark_Dirty();
 }
 
 
