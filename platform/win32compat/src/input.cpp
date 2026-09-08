@@ -250,7 +250,7 @@ extern "C" BOOL SetCursorPos(int x, int y)
 }
 
 
-static bool _CursorVisible = true;
+static bool _CursorShown = true;
 static int _CursorCount;
 static HWND _Capture;
 
@@ -279,20 +279,32 @@ static Win32Cursor * Lookup_Cursor(HCURSOR cursor)
 }
 
 
+// The pointer the game selects and the counter this API keeps both decide whether anything
+// is on screen, so they are applied together.
+static void Apply_Cursor(void)
+{
+	Win32Cursor * record = Lookup_Cursor(_CurrentCursor);
+
+	if (!_CursorShown || _CursorCount < 0) {
+		SDL_HideCursor();
+		return;
+	}
+
+	// While the mouse is released the game selects no shape of its own, and Windows would
+	// be drawing the window class's cursor, so the host's own pointer stands in for it.
+	SDL_SetCursor(record != NULL ? record->Cursor : SDL_GetDefaultCursor());
+	SDL_ShowCursor();
+}
+
+
 extern "C" HCURSOR SetCursor(HCURSOR cursor)
 {
 	HCURSOR const previous = _CurrentCursor;
-	Win32Cursor * record = Lookup_Cursor(cursor);
 
-	_CurrentCursor = record != NULL ? cursor : NULL;
+	_CurrentCursor = Lookup_Cursor(cursor) != NULL ? cursor : NULL;
+	_CursorShown = _CurrentCursor != NULL;
 
-	if (record != NULL) {
-		SDL_SetCursor(record->Cursor);
-		SDL_ShowCursor();
-	} else {
-		SDL_HideCursor();
-	}
-
+	Apply_Cursor();
 	return(previous);
 }
 
@@ -301,16 +313,11 @@ extern "C" int ShowCursor(BOOL show)
 {
 	_CursorCount += show ? 1 : -1;
 
-	bool const visible = _CursorCount >= 0;
-	if (visible != _CursorVisible) {
-		_CursorVisible = visible;
-		if (visible) {
-			SDL_ShowCursor();
-		} else {
-			SDL_HideCursor();
-		}
+	if (show) {
+		_CursorShown = true;
 	}
 
+	Apply_Cursor();
 	return(_CursorCount);
 }
 
