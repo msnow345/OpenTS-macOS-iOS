@@ -84,6 +84,11 @@ add_custom_target(OpenTSBuildStamp ALL
 )
 
 add_subdirectory(thirdparty)
+
+if(NOT WIN32)
+    add_subdirectory(platform)
+endif()
+
 add_subdirectory(code)
 add_subdirectory(code/language)
 

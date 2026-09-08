@@ -355,9 +355,21 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 }
 
 
+#ifndef _WIN32
+// The host toolkit owns the surface the renderer presents into, and hands over the layer
+// it created for it. Windows presents into the window handle itself.
+extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
+extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
+#endif
+
+
 NativeWindow Win_Native_Window(HWND window)
 {
+#ifdef _WIN32
 	return(NativeWindow{ NATIVE_WINDOW_DEFAULT, nullptr, window });
+#else
+	return(NativeWindow{ NATIVE_WINDOW_DEFAULT, nullptr, Win32Compat_Native_Window_Handle(window) });
+#endif
 }
 
 
@@ -377,6 +389,9 @@ bool Win_Window_Drawable_Size(HWND window, int & width, int & height)
 
 int Win_Window_Refresh_Rate(HWND window)
 {
+#ifndef _WIN32
+	return(Win32Compat_Window_Refresh_Rate(window));
+#else
 	int refreshrate = 0;
 	HDC dc = GetDC(window);
 
@@ -386,6 +401,7 @@ int Win_Window_Refresh_Rate(HWND window)
 	}
 
 	return(refreshrate);
+#endif
 }
 
 
