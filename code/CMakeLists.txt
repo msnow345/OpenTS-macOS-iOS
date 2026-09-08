@@ -91,42 +91,53 @@ set_target_properties(OpenTS PROPERTIES
 #
 message(STATUS "${PROJECT_NAME}: Applying compiler flags...")
 
-set(OPENTS_COMPILE_OPTIONS
+if(MSVC OR OPENTS_EXPERIMENTAL_CLANG_CL)
+    set(OPENTS_COMPILE_OPTIONS
 
-    # ================= DEBUG =================
-    $<$<CONFIG:Debug>:
+        # ================= DEBUG =================
+        $<$<CONFIG:Debug>:
 
-        # ---------- C++ ----------
-        # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
-        # /fp:precise -- no reassociation of the engine's accumulations.
-        # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
-        $<$<COMPILE_LANGUAGE:CXX>:
-            /Zi /Od /RTC1 /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /Oy- /MTd /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            # ---------- C++ ----------
+            # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
+            # /fp:precise -- no reassociation of the engine's accumulations.
+            # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
+            $<$<COMPILE_LANGUAGE:CXX>:
+                /Zi /Od /RTC1 /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /Oy- /MTd /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            >
+
+            # ---------- C ----------
+            $<$<COMPILE_LANGUAGE:C>:
+                /Zi /Od /RTC1 $<$<C_COMPILER_ID:MSVC>:/MP> /Oy- /arch:SSE2 /fp:precise /utf-8
+            >
         >
 
-        # ---------- C ----------
-        $<$<COMPILE_LANGUAGE:C>:
-            /Zi /Od /RTC1 $<$<C_COMPILER_ID:MSVC>:/MP> /Oy- /arch:SSE2 /fp:precise /utf-8
-        >
-    >
+        # ================= RELEASE =================
+        $<$<CONFIG:Release>:
 
-    # ================= RELEASE =================
-    $<$<CONFIG:Release>:
+            # ---------- C++ ----------
+            # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
+            # /fp:precise -- no reassociation of the engine's accumulations.
+            # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
+            $<$<COMPILE_LANGUAGE:CXX>:
+                /Zi /O2 /GF /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /MT /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            >
 
-        # ---------- C++ ----------
-        # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
-        # /fp:precise -- no reassociation of the engine's accumulations.
-        # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
-        $<$<COMPILE_LANGUAGE:CXX>:
-            /Zi /O2 /GF /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /MT /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            # ---------- C ----------
+            $<$<COMPILE_LANGUAGE:C>:
+                /Zi /O2 /GF $<$<C_COMPILER_ID:MSVC>:/MP> /arch:SSE2 /fp:precise /utf-8
+            >
         >
-
-        # ---------- C ----------
-        $<$<COMPILE_LANGUAGE:C>:
-            /Zi /O2 /GF $<$<C_COMPILER_ID:MSVC>:/MP> /arch:SSE2 /fp:precise /utf-8
-        >
-    >
-)
+    )
+else()
+    # The native host build carries no MSVC switch spellings. Only the floating-point
+    # contract matters for simulation determinism, so it is the one that is restated.
+    set(OPENTS_COMPILE_OPTIONS
+        -g
+        -ffp-contract=off
+        -fno-strict-aliasing
+        -Wno-everything
+    )
+endif()
 
 target_compile_options(OpenTS PRIVATE ${OPENTS_COMPILE_OPTIONS})
 
@@ -204,6 +215,10 @@ target_link_libraries(OpenTS PRIVATE
     bx
     bimg
     miniaudio
+)
+
+if(WIN32)
+    target_link_libraries(OpenTS PRIVATE
     comctl32
     dbghelp
     iphlpapi
@@ -213,7 +228,8 @@ target_link_libraries(OpenTS PRIVATE
     ws2_32
     kernel32 user32 gdi32 winspool comdlg32 advapi32 shell32
     ole32 oleaut32 uuid odbc32 odbccp32
-)
+    )
+endif()
 
 if(MSVC)
     target_link_options(OpenTS PRIVATE
@@ -328,11 +344,13 @@ if(MSVC)
 endif()
 
 # Copy the linker-generated .map (sits next to the exe, no GenEx for it)
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE_DIR:OpenTS>/$<TARGET_FILE_BASE_NAME:OpenTS>.map"
-        "${TS_RUN_DIR}"
-)
+if(MSVC)
+    add_custom_command(TARGET OpenTS POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE_DIR:OpenTS>/$<TARGET_FILE_BASE_NAME:OpenTS>.map"
+            "${TS_RUN_DIR}"
+    )
+endif()
 
 #
 # ---------------------------------------------------------
@@ -347,4 +365,6 @@ set_property(GLOBAL PROPERTY VS_STARTUP_PROJECT OpenTS)
 set(NATVIS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/sun.natvis")
 source_group("Natvis Files" FILES ${NATVIS_FILE})
 target_sources(OpenTS PRIVATE ${NATVIS_FILE})
-target_link_options(OpenTS PRIVATE "/NATVIS:${NATVIS_FILE}")
+if(MSVC)
+    target_link_options(OpenTS PRIVATE "/NATVIS:${NATVIS_FILE}")
+endif()
