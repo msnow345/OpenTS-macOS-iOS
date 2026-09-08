@@ -156,6 +156,12 @@ target_include_directories(OpenTS PRIVATE
     "${OPENTS_GENERATED_DIR}"
 )
 
+# Spike scaffolding. The shim only declares types, so a native compile reports the Win32
+# surface the tree still needs instead of stopping at the first missing header.
+if(OPENTS_EXPERIMENTAL_NATIVE AND NOT WIN32)
+    target_include_directories(OpenTS PRIVATE "${CMAKE_SOURCE_DIR}/spike/win32shim")
+endif()
+
 # The generated build stamp has to exist before anything compiles.
 add_dependencies(OpenTS OpenTSBuildStamp)
 
