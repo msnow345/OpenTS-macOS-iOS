@@ -957,6 +957,8 @@ int INIClass::Get_Int(char const * section, char const * entry, int defvalue) co
 }
 
 
+#ifdef _WIN32
+
 /// <summary>
 /// Fetches a class identifier from the specified section.
 /// This routine will fetch the printable form of a class identifier from the entry and
@@ -1006,6 +1008,7 @@ bool INIClass::Put_CLSID(char const * section, char const * entry, CLSID const &
 	SysFreeString(olestr);
 	return(Put_String(section, entry, buffer));
 }
+#endif
 
 
 /***********************************************************************************************
