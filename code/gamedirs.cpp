@@ -7,13 +7,16 @@
  * See LICENSE.md for applicable additional terms and warranty disclaimers.
  ******************************************************************************/
 
-#include "file.h"
 #include "always.h"
 
 #include "gamedirs.h"
 
 #include "cdfile.h"
 #include "dbgprint.h"
+
+// Included after the file classes: it defines READ and WRITE as macros that would otherwise
+// swallow the identically named enumerators in wwfile.h.
+#include "file.h"
 
 #include <windows.h>
 #include <algorithm>
