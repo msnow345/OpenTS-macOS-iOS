@@ -113,6 +113,7 @@
 #include "savemgr.h"
 #include "scenario.h"
 #include "session.h"
+#include "ui/uishell.h"
 #include "sidebar.h"
 #include "sounddlg.h"
 #include "stats.h"
@@ -538,6 +539,13 @@ void Main_Game(int argc, char * argv[])
  *=============================================================================================*/
 void Call_Back(void)
 {
+	/*
+	 * Overlay maintenance. This and Main_Loop are the shell's service points, so a screen
+	 * outside a game -- a menu, a dialog driver, a loading wait -- keeps its documents
+	 * laid out and animating without a loop of its own.
+	 */
+	UI_Tick();
+
 	/*
 	**	Music and speech maintenance
 	*/

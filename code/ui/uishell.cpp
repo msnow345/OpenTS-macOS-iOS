@@ -272,9 +272,16 @@ void UI_On_Resize(void)
 /// </summary>
 void UI_Tick(void)
 {
-	if (!_Initialized || _Context == nullptr || _Changing) {
+	// The service points nest: a dialog driver's Call_Back runs inside a loop that already
+	// ticked. A nested request is dropped rather than updating the context twice, which is
+	// what keeps a pump reached from inside an update out of it.
+	static bool ticking = false;
+
+	if (!_Initialized || _Context == nullptr || _Changing || ticking) {
 		return;
 	}
+
+	ticking = true;
 
 	unsigned int const now = Host_Milliseconds();
 	double const elapsed = (double)(now - _LastTickTime) / 1000.0;
@@ -292,6 +299,8 @@ void UI_Tick(void)
 		VideoScaleInfo const & scale = Video_Get_Scale_Info();
 		UI_Dev_New_Frame(scale.DestWidth, scale.DestHeight, elapsed);
 	}
+
+	ticking = false;
 }
 
 

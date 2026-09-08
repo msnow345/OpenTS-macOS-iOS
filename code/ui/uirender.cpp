@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <vector>
 
 
 static const bgfx::EmbeddedShader _EmbeddedShaders[] = {
@@ -60,12 +61,17 @@ static const uint64_t _BlendState =
 	| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_INV_SRC_ALPHA);
 
 
-// One compiled geometry. RmlUi 6 compiles geometry once and re-submits it, so these are
-// static buffers rather than transient ones, which must not outlive the frame they were
-// filled in.
+// One compiled geometry. RmlUi 6 compiles geometry once and re-submits it, so the indices
+// are a static buffer that outlives the frame.
+//
+// The vertices cannot be, yet. RmlUi re-submits the same geometry at a different
+// translation, and the program the overlays share is bgfx's embedded imgui shader, whose
+// vertex stage multiplies by u_viewProj alone and so ignores the per-draw model transform
+// that bgfx::setTransform sets. Until the shell carries a program with a model transform,
+// the translation is applied to a copy of the vertices on the way to a transient buffer.
 struct UIGeometry
 {
-	bgfx::VertexBufferHandle Vertices = BGFX_INVALID_HANDLE;
+	std::vector<Rml::Vertex> Vertices;
 	bgfx::IndexBufferHandle Indices = BGFX_INVALID_HANDLE;
 	uint32_t IndexCount = 0;
 };
@@ -142,13 +148,12 @@ Rml::CompiledGeometryHandle UIRenderInterface::CompileGeometry(Rml::Span<const R
 
 	UIGeometry * geometry = new UIGeometry;
 
-	geometry->Vertices = bgfx::createVertexBuffer(
-		bgfx::copy(vertices.data(), (uint32_t)(vertices.size() * sizeof(Rml::Vertex))), _RmlLayout);
+	geometry->Vertices.assign(vertices.begin(), vertices.end());
 	geometry->Indices = bgfx::createIndexBuffer(
 		bgfx::copy(indices.data(), (uint32_t)(indices.size() * sizeof(int))), BGFX_BUFFER_INDEX32);
 	geometry->IndexCount = (uint32_t)indices.size();
 
-	if (!bgfx::isValid(geometry->Vertices) || !bgfx::isValid(geometry->Indices)) {
+	if (!bgfx::isValid(geometry->Indices)) {
 		ReleaseGeometry((Rml::CompiledGeometryHandle)geometry);
 		return(0);
 	}
@@ -164,14 +169,21 @@ void UIRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::
 		return;
 	}
 
-	float transform[16];
-	std::memset(transform, 0, sizeof(transform));
-	transform[0] = transform[5] = transform[10] = transform[15] = 1.0f;
-	transform[12] = translation.x;
-	transform[13] = translation.y;
+	uint32_t const count = (uint32_t)geometry->Vertices.size();
+	if (bgfx::getAvailTransientVertexBuffer(count, _RmlLayout) < count) {
+		return;
+	}
 
-	bgfx::setTransform(transform);
-	bgfx::setVertexBuffer(0, geometry->Vertices);
+	bgfx::TransientVertexBuffer buffer;
+	bgfx::allocTransientVertexBuffer(&buffer, count, _RmlLayout);
+
+	Rml::Vertex * target = (Rml::Vertex *)buffer.data;
+	for (uint32_t index = 0; index < count; index++) {
+		target[index] = geometry->Vertices[index];
+		target[index].position += translation;
+	}
+
+	bgfx::setVertexBuffer(0, &buffer);
 	bgfx::setIndexBuffer(geometry->Indices, 0, geometry->IndexCount);
 
 	bgfx::TextureHandle bound = Texture_From_Handle((uintptr_t)texture);
@@ -205,9 +217,6 @@ void UIRenderInterface::ReleaseGeometry(Rml::CompiledGeometryHandle handle)
 		return;
 	}
 
-	if (bgfx::isValid(geometry->Vertices)) {
-		bgfx::destroy(geometry->Vertices);
-	}
 	if (bgfx::isValid(geometry->Indices)) {
 		bgfx::destroy(geometry->Indices);
 	}
@@ -365,6 +374,10 @@ void UI_Render_Begin(int destx, int desty, int width, int height)
 	for (bgfx::ViewId view : {(bgfx::ViewId)BACKEND_VIEW_UI, (bgfx::ViewId)BACKEND_VIEW_DEV}) {
 		bgfx::setViewFrameBuffer(view, BGFX_INVALID_HANDLE);
 		bgfx::setViewClear(view, BGFX_CLEAR_NONE);
+
+		// Both toolkits submit back to front and expect that order kept, which bgfx's
+		// default sorting does not promise.
+		bgfx::setViewMode(view, bgfx::ViewMode::Sequential);
 		bgfx::setViewRect(view, (uint16_t)destx, (uint16_t)desty, (uint16_t)width, (uint16_t)height);
 		bgfx::setViewTransform(view, nullptr, projection);
 	}

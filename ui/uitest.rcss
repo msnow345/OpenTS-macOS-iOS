@@ -17,6 +17,7 @@ body
 
 #panel
 {
+	display: block;
 	pointer-events: auto;
 
 	position: absolute;
@@ -31,6 +32,7 @@ body
 
 #title
 {
+	display: block;
 	font-size: 20dp;
 	color: #8bff9c;
 	margin-bottom: 8dp;
@@ -38,11 +40,13 @@ body
 
 .row
 {
+	display: block;
 	margin-bottom: 4dp;
 }
 
 #swatches
 {
+	display: block;
 	margin-top: 10dp;
 	margin-bottom: 10dp;
 }
@@ -63,6 +67,7 @@ body
 
 #hit
 {
+	display: block;
 	padding: 6dp;
 	background-color: #1d3a24;
 	border: 1dp #57d06a;
