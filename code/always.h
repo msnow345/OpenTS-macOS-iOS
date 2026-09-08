@@ -98,6 +98,8 @@
 */
 #ifndef _WIN32
 
+#define _MAX_DRIVE 3
+#define _MAX_DIR   256
 #define _MAX_FNAME 255
 #define _MAX_EXT   8
 #define _MAX_PATH  512

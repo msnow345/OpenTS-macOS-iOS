@@ -1916,7 +1916,8 @@ void Init_Random(void)
 	*/
 	if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
 
-	#ifdef WIN32
+	// The alternative is the DOS build's timer, which no target this tree builds for has.
+	#ifndef __DOS__
 		/*
 		**	Gather some "random" bits from the system timer. Actually, only the
 		**	low order millisecond bits are secure. The other bits could be

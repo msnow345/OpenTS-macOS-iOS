@@ -1,3 +1,7 @@
 #pragma once
 #include <sys/time.h>
-typedef struct _timeb { long time; unsigned short millitm; short timezone; short dstflag; } _timeb;
+
+struct _timeb { long time; unsigned short millitm; short timezone; short dstflag; };
+#define timeb _timeb
+
+extern "C" void _ftime(struct _timeb * time);

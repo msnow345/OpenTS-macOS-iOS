@@ -57,6 +57,10 @@
 
 #define _Printf_format_string_
 
+// The window procedure switches on this message whether or not the handler that posts it
+// was built, so the two branches have to agree on its value.
+#define WM_EXCEPTION_TEST (WM_APP + 0x54)
+
 #endif
 
 void Install_Exception_Handler(void);
