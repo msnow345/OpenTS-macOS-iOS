@@ -115,6 +115,8 @@
 #include "gamedirs.h"
 #include "gamedlg.h"
 #include "getcpu.h"
+#include "ui/uishell.h"
+#include "ui/uiversion.h"
 #include "globals.h"
 #include "hostclock.h"
 #include "houstype.h"
@@ -3078,6 +3080,17 @@ void Version_Dialog(void)
 {
 	HWND dialog;
 	int res = 0;
+
+	/*
+	**	The migrated screen, unless the player has asked for the dialog it replaced. A view
+	**	that could not be prepared reports so rather than showing nothing, and the legacy
+	**	dialog below is what it falls back to for as long as that dialog exists.
+	*/
+	if (UI_Use_Rml()) {
+		if (UI_Version_Screen().Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			return;
+		}
+	}
 
 	dialog = OwnerDraw::Begin_Dialog(IDD_VERSION, Version_Dialog_Proc);
 
