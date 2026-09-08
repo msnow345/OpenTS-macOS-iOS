@@ -7,7 +7,12 @@ This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
 direction](DIRECTION.md) the wider architecture.
 
-What step 2 left for later, inside its own files: `uitexture.cpp` reads PNG and
+What step 2 left for later, inside its own files: the renderer keeps compiled
+geometry's indices in a static buffer but streams its vertices through a
+transient one, because the program the overlays share is bgfx's embedded imgui
+shader, whose vertex stage multiplies by `u_viewProj` alone and so ignores the
+per-draw model transform; a program with a model transform restores the static
+vertex buffer the renderer table describes. `uitexture.cpp` reads PNG and
 TGA only, so PCX, SHP and the `<surface>` element wait for the first screen
 that shows game art; `uisystem.cpp` carries the `[[NAME]]` syntax but no name
 table, which arrives with the UTF-8 transition; the cursor and clipboard
