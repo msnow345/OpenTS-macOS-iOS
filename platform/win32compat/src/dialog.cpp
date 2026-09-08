@@ -88,18 +88,3 @@ extern "C" BOOL ImageList_DragShowNolock(BOOL show) { (void)show; return(FALSE);
 extern "C" void ImageList_EndDrag(void) {}
 extern "C" BOOL ImageList_Destroy(HIMAGELIST list) { (void)list; return(FALSE); }
 
-
-// The string table lives in the Windows resource script. The engine's own loader reports
-// a missing string by returning an empty one, which is what a caller here receives.
-extern "C" int LoadString(HINSTANCE instance, UINT id, LPSTR buffer, int max)
-{
-	(void)instance;
-	(void)id;
-
-	if (buffer == NULL || max <= 0) {
-		return(0);
-	}
-
-	buffer[0] = '\0';
-	return(0);
-}
