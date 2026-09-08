@@ -55,7 +55,9 @@
 #include "video.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <math.h>
+#include <new>
 #include <utility>
 
 extern bool GameInFocus;
@@ -111,6 +113,16 @@ DSurface::DSurface(int width, int height) :
 	GDIBuffer(NULL),
 	Pitch(0)
 {
+#ifndef _WIN32
+	/*
+	 * The DIB section exists so that GDI can draw into the same pixels the software
+	 * blitter does. Where there is no GDI, the pixels are ordinary memory: the rows are
+	 * kept four-byte aligned so that the blitter sees the pitch it does on Windows.
+	 */
+	Pitch = ((width * 2) + 3) & ~3;
+	GDIBuffer = new(std::nothrow) unsigned char[(std::size_t)Pitch * (std::size_t)height]();
+	return;
+#else
 	/*
 	 * BITMAPINFO carries room for a single color entry, but a bitfields bitmap is
 	 * described by three masks following the header, so the header is declared with
@@ -159,6 +171,7 @@ DSurface::DSurface(int width, int height) :
 	} else {
 		Pitch = width * 2;
 	}
+#endif
 }
 
 
@@ -178,6 +191,11 @@ DSurface::DSurface(int width, int height) :
  *=============================================================================================*/
 DSurface::~DSurface(void)
 {
+#ifndef _WIN32
+	delete[] (unsigned char *)GDIBuffer;
+	GDIBuffer = NULL;
+	return;
+#else
 	/*
 	 * GDI will not free a bitmap that is still selected into a context, so the one the
 	 * context started with has to go back first.
@@ -197,6 +215,7 @@ DSurface::~DSurface(void)
 	}
 
 	GDIBuffer = NULL;
+#endif
 }
 
 
