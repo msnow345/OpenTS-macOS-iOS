@@ -74,14 +74,14 @@ rsync -a \
     --exclude="_CommonRedist/" --exclude="installscript.vdf" \
     "$TMP_DIR/" "$DEST/"
 
-# The manual's MIX archive page lists what startup actually requires: CACHE.MIX
-# first, then CONQUER.MIX, SOUNDS.MIX, SCORES.MIX, a movie archive, and
-# SOUNDS01.MIX where the expansion is present. Everything else is mounted when
-# found and passed over when not, so check only what the engine refuses to start
-# without, and check it case-insensitively because the depot's casing varies.
+# Only check archives that must exist as their own files. CACHE.MIX, LOCAL.MIX,
+# CONQUER.MIX and SOUNDS.MIX are NOT among them: Init_Bootstrap_Mixfiles mounts
+# TIBSUN.MIX first and then opens them through it, so in this release they live
+# inside TIBSUN.MIX rather than beside it. Checking for them as loose files
+# reports a complete download as broken.
 echo "==> Verifying the archives startup requires"
 missing=0
-for archive in CACHE.MIX TIBSUN.MIX LOCAL.MIX CONQUER.MIX SOUNDS.MIX SCORES.MIX; do
+for archive in TIBSUN.MIX SCORES.MIX; do
     if ! find "$DEST" -maxdepth 2 -iname "$archive" -print -quit | grep -q .; then
         echo "  MISSING: $archive" >&2
         missing=1
