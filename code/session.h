@@ -385,6 +385,12 @@ struct GlobalPacketType {
 };
 #pragma pack()
 
+// These three travel on the network, so their sizes are fixed by the packet format.
+static_assert(sizeof(NodeNameType) == 132, "Lobby node layout changed");
+static_assert(sizeof(RemoteFileTransferType) == 487, "Scenario transfer packet layout changed");
+static_assert(sizeof(GlobalPacketType) == 1059, "Global packet layout changed");
+static_assert(offsetof(GlobalPacketType, Name) == 4, "Global packet layout changed");
+
 //...........................................................................
 // For finding sync bugs; filled in by the engine when certain conditions
 // are met; the pointers allow examination of objects in the debugger.

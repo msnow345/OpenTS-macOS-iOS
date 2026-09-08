@@ -99,6 +99,9 @@
 #include "combuf.h"
 #include "netadmit.h"
 
+#include <cstddef>
+#include <cstdint>
+
 /*
 ********************************** Defines **********************************
 */
@@ -119,6 +122,9 @@ struct CommHeaderType {
 	std::uint32_t PacketID;
 };
 #pragma pack(pop)
+
+static_assert(sizeof(CommHeaderType) == 7, "Packet header layout changed");
+static_assert(offsetof(CommHeaderType, PacketID) == 3, "Packet header layout changed");
 
 /*
 ***************************** Class Declaration *****************************

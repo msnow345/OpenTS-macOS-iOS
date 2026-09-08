@@ -108,9 +108,14 @@ extern char ReqTag[];
  * size - Size of chunk.
  */
 typedef struct _ChunkHeader {
-	unsigned long id;
-	unsigned long size;
+	std::uint32_t id;
+	std::uint32_t size;
 } ChunkHeader;
+
+// The loader reads a chunk header straight off the file, so its two fields stay the 32-bit
+// longs the format was written with.
+static_assert(sizeof(ChunkHeader) == 8, "IFF chunk header layout changed");
+static_assert(offsetof(ChunkHeader, size) == 4, "IFF chunk header layout changed");
 
 
 /* ZAPHeader: ZAP audio compression header. NOTE: If the uncompressed size
@@ -121,14 +126,18 @@ typedef struct _ChunkHeader {
  * CompSize   - Compressed size in bytes.
  */
 typedef struct _ZAPHeader {
-	unsigned short UnCompSize;
-	unsigned short CompSize;
+	std::uint16_t UnCompSize;
+	std::uint16_t CompSize;
 } ZAPHeader;
 
+static_assert(sizeof(ZAPHeader) == 4, "ZAP audio header layout changed");
+
 typedef struct _VQAClipper {
-	unsigned long Width;
-	unsigned long Height;
+	std::uint32_t Width;
+	std::uint32_t Height;
 } VQAClipper;
+
+static_assert(sizeof(VQAClipper) == 8, "CLIP chunk layout changed");
 
 
 /* VQACBNode: A circular list of codebook buffers, used by the load task.

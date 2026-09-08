@@ -1621,6 +1621,9 @@ struct IsoBlitState {
 };
 #pragma pack(pop)
 
+// Held only in memory, so the pointers may be any width, but the field count is fixed.
+static_assert(sizeof(IsoBlitState) == 54 + 13 * sizeof(void *), "Isometric blit state layout changed");
+
 
 IsoBlitState IsoDrawData;
 unsigned short _iso_row_offsets[ISO_DRAW_WIDTH*ISO_DRAW_HEIGHT];

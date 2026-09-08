@@ -74,6 +74,9 @@
 
 #include "ipxconn.h"
 
+#include <cstddef>
+#include <cstdint>
+
 
 #pragma pack(push,1)
 /*
@@ -92,6 +95,9 @@ struct GlobalHeaderType {
 	std::uint16_t ProductID;
 };
 #pragma pack(pop)
+
+static_assert(sizeof(GlobalHeaderType) == 9, "Global packet header layout changed");
+static_assert(offsetof(GlobalHeaderType, ProductID) == 7, "Global packet header layout changed");
 
 /*
 ***************************** Class Declaration *****************************

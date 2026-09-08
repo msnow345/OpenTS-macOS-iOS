@@ -20,6 +20,8 @@
 #include "listnode.h"
 
 #include <cstdlib>
+#include <cstddef>
+#include <cstdint>
 
 class PKey;
 
@@ -79,10 +81,13 @@ class MixFileClass : public Node<MixFileClass *>
 		*/
 		#pragma pack(1)
 		struct FileHeader {
-			short	count;
-			int	size;
+			std::int16_t	count;
+			std::int32_t	size;
 		};
 		#pragma pack()
+
+		static_assert(sizeof(FileHeader) == 6, "Mixfile header layout changed");
+		static_assert(offsetof(FileHeader, size) == 2, "Mixfile header layout changed");
 
 		/*
 		**	The number of files within the mixfile.

@@ -301,12 +301,15 @@ long VQA_LoadFrame(VQAHandleP *vqap, long flags)
  */
 #pragma pack(push,1)
 struct VQASN2J {
-	short index;
-	long  predicted;
-	short index2;
-	long  predicted2;
+	std::int16_t index;
+	std::int32_t predicted;
+	std::int16_t index2;
+	std::int32_t predicted2;
 };
 #pragma pack(pop)
+
+static_assert(sizeof(VQASN2J) == 12, "SN2J chunk layout changed");
+static_assert(offsetof(VQASN2J, predicted2) == 8, "SN2J chunk layout changed");
 
 
 long VQA_LoadFrame_Internal(VQAHandleP *vqap, long flags)
@@ -3531,6 +3534,8 @@ long Load_SN2J(VQAHandleP *vqap, unsigned long iffsize)
 		unsigned int dwPredicted2;
 	} data;
 	#pragma pack(pop)
+
+	static_assert(sizeof(data) == 12, "SN2J chunk layout changed");
 
 	#if(VQAVOC_ON && VQAAUDIO_ON)
 	if (((config->OptionFlags & VQAOPTF_AUDIO) == 0)

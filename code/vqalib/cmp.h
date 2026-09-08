@@ -19,9 +19,9 @@
 #include <cstddef>
 #include <cstdint>
 
-#if defined(__WATCOMC__) || defined(_MSC_VER)
+// The ADPCM decoder state is packed on every compiler rather than only on the two the
+// original build used, so one build cannot disagree with another about its layout.
 #pragma pack(push,1)
-#endif
 
 struct _VQA_SOS_COMPRESS_INFO
 
@@ -34,6 +34,9 @@ struct _VQA_SOS_COMPRESS_INFO
 
 typedef _VQA_SOS_COMPRESS_INFO VQASOS;
 
+static_assert(sizeof(VQASOS) == 12, "ADPCM decoder state layout changed");
+static_assert(offsetof(VQASOS, dwPredicted2) == 6, "ADPCM decoder state layout changed");
+
 extern "C" {
 void __cdecl VQA_sosCODECInitStream(_VQA_SOS_COMPRESS_INFO *);
 void __cdecl VQA_sosCODECDecompressData(void *src, void *dst, unsigned short wBitSize, unsigned short wChannels, uint32_t dwUnCompSize, _VQA_SOS_COMPRESS_INFO *sosinfo);
@@ -41,8 +44,6 @@ void __cdecl VQA_sosCODECDecompressData(void *src, void *dst, unsigned short wBi
 
 //#define VQA_sosCODECDecompressData sosCODECDecompressData
 
-#if defined(__WATCOMC__) || defined(_MSC_VER)
 #pragma pack(pop)
-#endif
 
 #endif //VQACMP_H

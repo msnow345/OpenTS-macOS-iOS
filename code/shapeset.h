@@ -187,6 +187,9 @@ class ShapeSet
 };
 #pragma pack(pop)
 
+// A shape file is cast straight onto this header, so its four fields keep their file widths.
+static_assert(sizeof(ShapeSet) == 8, "Shape file header layout changed");
+
 
 /***********************************************************************************************
  * ShapeSet::Get_Data -- Fetches pointer to raw shape data.                                    *

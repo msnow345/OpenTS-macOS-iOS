@@ -41,6 +41,12 @@ namespace NetPacket
 		constexpr std::size_t MEGAMISSION_WHOM_OFFSET = offsetof(MegaMissionType, Whom);
 		constexpr std::size_t MEGAMISSION_WHOM_SIZE = sizeof(std::declval<MegaMissionType>().Whom);
 
+		// A packet places the ADDPLAYER payload size where the sender's own union put it, so
+		// the field follows the payload pointer that precedes it. The original 32-bit build
+		// wrote it at offset 4; a build whose pointers are wider reads it further along, and
+		// the two cannot exchange that event.
+		static_assert(VARIABLE_SIZE_OFFSET == sizeof(void *), "ADDPLAYER wire offset changed");
+
 		static_assert(std::is_standard_layout_v<EventClass>);
 		static_assert(std::is_trivially_copyable_v<EventClass>);
 		static_assert(EventClass::LAST_EVENT <= (std::numeric_limits<EventTypeField>::max)());

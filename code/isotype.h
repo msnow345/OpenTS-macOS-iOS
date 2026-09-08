@@ -22,6 +22,7 @@
 #include "isotype.hh"
 #include "land.hh"
 
+#include <cstddef>
 #include <string>
 
 class LightConvertClass;
@@ -79,6 +80,10 @@ struct IsoTileRecord
 	 */
 	unsigned int IsRandomized:1;
 
+	// The flag bits fill a whole 32-bit word on disk. Without this padding a compiler that
+	// packs a following byte into the same word reads the rest of the record four bytes early.
+	unsigned int :29;
+
 	/*
 	 * This is the number of height levels this sub-tile lifts the cell it covers, so that a
 	 * tile laid across rising ground raises each of its cells by the right amount.
@@ -105,6 +110,11 @@ struct IsoTileRecord
 	RGBStruct HighColor;
 };
 #pragma pack()
+
+static_assert(sizeof(IsoTileRecord) == 52, "Isometric tile record layout changed");
+static_assert(offsetof(IsoTileRecord, ExtraZOffset) == 16, "Isometric tile record layout changed");
+static_assert(offsetof(IsoTileRecord, Height) == 40, "Isometric tile record layout changed");
+static_assert(offsetof(IsoTileRecord, LowColor) == 43, "Isometric tile record layout changed");
 
 #pragma pack(4)
 class IsoTileSet
@@ -166,6 +176,9 @@ class IsoTileSet
 		 * the file as offsets from the start of the set and converted in place by the loader.
 		 * Reach a record through Fetch_Record_Pointer rather than through the array.
 		 */
+		// The file stores one 32-bit offset per sub-tile here and the loader converts them to
+		// pointers in place, so a build whose pointers are not four bytes wide cannot read a
+		// tile set with more than one sub-tile.
 		IsoTileRecord *Tiles[1];
 
 
@@ -178,6 +191,8 @@ class IsoTileSet
 		IsoTileSet const & operator = (IsoTileSet const & rvalue);
 };
 #pragma pack()
+
+static_assert(sizeof(IsoTileSet) == 16 + sizeof(IsoTileRecord *), "Isometric tile set header layout changed");
 
 
 /****************************************************************************

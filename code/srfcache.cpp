@@ -37,6 +37,9 @@ struct MSBitmap
 };
 #pragma pack(pop)
 
+static_assert(sizeof(BITMAPFILEHEADER) == 14, "Bitmap file header layout changed");
+static_assert(offsetof(MSBitmap, info) == 14, "Bitmap image layout changed");
+
 
 /// <summary>
 /// Builds a 16-bit pixel from an RGB triple with the channels remapped for the

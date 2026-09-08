@@ -267,3 +267,15 @@ class EventClass
 		static char const * EventNames[LAST_EVENT];
 };
 #pragma pack(pop)
+
+// A whole event travels in a network packet and a replay file, so its record size and the
+// position of every field the packet reader indexes are fixed by the format. The union is
+// 36 bytes wide whatever a pointer measures, so the payload pointer in the Variable arm does
+// not change the record size; it does move the Size field that follows it, and netpacket.cpp
+// carries the guard for that.
+static_assert(sizeof(EventClass) == 46, "Event record layout changed");
+static_assert(offsetof(EventClass, Frame) == 1, "Event record layout changed");
+static_assert(offsetof(EventClass, IsExecuted) == 5, "Event record layout changed");
+static_assert(offsetof(EventClass, ID) == 6, "Event record layout changed");
+static_assert(offsetof(EventClass, Data) == 10, "Event record layout changed");
+static_assert(sizeof(EventClass::Data) == 36, "Event record layout changed");
