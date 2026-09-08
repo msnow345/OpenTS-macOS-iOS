@@ -154,5 +154,6 @@ class VersionClass {
 };
 
 char const * Version_Name(void);
+bool Program_File_Name(char * buffer, unsigned int length);
 
 /************************** end of version.h *******************************/

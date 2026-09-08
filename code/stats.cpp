@@ -62,6 +62,71 @@ int WestwoodOnline_PortNumber = 1234;
 #include "unittype.h"
 #include "win.h"
 
+#include "version.h"
+
+#ifndef _WIN32
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <unistd.h>
+#endif
+
+namespace {
+
+/// <summary>
+/// Reports the machine's installed memory, which the report sends as a byte count.
+/// </summary>
+unsigned long long Physical_Memory_Bytes(void)
+{
+#ifdef _WIN32
+	MEMORYSTATUS mem_info;
+	mem_info.dwLength = sizeof(mem_info);
+	GlobalMemoryStatus(&mem_info);
+	return((unsigned long long)mem_info.dwTotalPhys);
+#elif defined(__APPLE__)
+	int name[2] = { CTL_HW, HW_MEMSIZE };
+	unsigned long long total = 0;
+	size_t length = sizeof(total);
+	if (sysctl(name, 2, &total, &length, NULL, 0) == 0) {
+		return(total);
+	}
+	return(0);
+#else
+	long const pages = sysconf(_SC_PHYS_PAGES);
+	long const page_size = sysconf(_SC_PAGESIZE);
+	if (pages > 0 && page_size > 0) {
+		return((unsigned long long)pages * (unsigned long long)page_size);
+	}
+	return(0);
+#endif
+}
+
+/// <summary>
+/// Reads a file's last write time in the Windows epoch the report field carries.
+/// </summary>
+/// <returns>bool; Was a time read?</returns>
+bool Program_Write_Time(char const * path, FILETIME & result)
+{
+#ifdef _WIN32
+	RawFileClass file;
+	file.Set_Name(path);
+	file.Open();
+	HANDLE handle = file.Get_File_Handle();
+	return(handle != INVALID_HANDLE_VALUE && GetFileTime(handle, NULL, NULL, &result) != FALSE);
+#else
+	struct stat info;
+	if (stat(path, &info) != 0) {
+		return(false);
+	}
+	unsigned long long const ticks = (unsigned long long)info.st_mtime * 10000000ULL + 116444736000000000ULL;
+	result.dwLowDateTime = (DWORD)(ticks & 0xFFFFFFFFULL);
+	result.dwHighDateTime = (DWORD)(ticks >> 32);
+	return(true);
+#endif
+}
+
+}
+
+
 #define FIELD_GAME_ID							"IDNO"
 #define FIELD_START_CREDITS						"CRED"
 #define FIELD_BASES								"BASE"
@@ -402,10 +467,7 @@ void Send_Statistics_Packet(void)
 	/*
 	**	Memory
 	*/
-	MEMORYSTATUS	mem_info;
-	mem_info.dwLength=sizeof(mem_info);
-	GlobalMemoryStatus(&mem_info);
-	stats.Add_Field (FIELD_MEMORY, (int)mem_info.dwTotalPhys);
+	stats.Add_Field (FIELD_MEMORY, (int)Physical_Memory_Bytes());
 
 	/*
 	**	Game speed setting.
@@ -422,18 +484,10 @@ void Send_Statistics_Packet(void)
 	char path_to_exe[280];
 	FILETIME write_time;		//File time is 64 bits
 
-	GetModuleFileName (ProgramInstance, path_to_exe, sizeof(path_to_exe));
-	RawFileClass file;
-	file.Set_Name(path_to_exe);
-	file.Open();
-	HANDLE handle = file.Get_File_Handle();
-
-	if (handle != INVALID_HANDLE_VALUE) {
-		if (GetFileTime (handle, NULL, NULL, &write_time)){
-			write_time.dwLowDateTime = htonl (write_time.dwLowDateTime);
-			write_time.dwHighDateTime = htonl (write_time.dwHighDateTime);
-			stats.Add_Field (FIELD_GAME_BUILD_DATE, (void*)&write_time, sizeof (write_time));
-		}
+	if (Program_File_Name(path_to_exe, sizeof(path_to_exe)) && Program_Write_Time(path_to_exe, write_time)) {
+		write_time.dwLowDateTime = htonl (write_time.dwLowDateTime);
+		write_time.dwHighDateTime = htonl (write_time.dwHighDateTime);
+		stats.Add_Field (FIELD_GAME_BUILD_DATE, (void*)&write_time, sizeof (write_time));
 	}
 
 	/*

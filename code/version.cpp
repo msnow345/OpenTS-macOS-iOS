@@ -40,6 +40,14 @@
  *   VersionClass::Max_Version -- returns highest version # to connect to  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#include "opents_build.h"
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#elif !defined(_WIN32)
+#include <unistd.h>
+#endif
+
 #include "always.h"
 
 #include "version.h"
@@ -516,7 +524,14 @@ char const * Version_Name(void)
 
 		empty = false;
 
-		if (GetModuleFileName(ProgramInstance, filename, sizeof(filename)) > 0) {
+#ifndef _WIN32
+		// No version resource outside Windows, so the generated build stamp answers instead.
+		(void)size; (void)block; (void)translate_len; (void)handle; (void)translate;
+		(void)query; (void)filename;
+		strncpy(buffer, OPENTS_VERSION_DISPLAY, sizeof(buffer) - 1);
+		buffer[sizeof(buffer) - 1] = '\0';
+#else
+		if (Program_File_Name(filename, sizeof(filename))) {
 			handle = 1;
 			size = GetFileVersionInfoSize(filename, &handle);
 			if (size > 0) {
@@ -535,7 +550,39 @@ char const * Version_Name(void)
 				delete [] block;
 			}
 		}
+#endif
 	}
 	return(buffer);
 
+}
+
+
+/// <summary>
+/// Names the file the running program was loaded from.
+/// </summary>
+/// <returns>bool; Was a path written into the buffer?</returns>
+bool Program_File_Name(char * buffer, unsigned int length)
+{
+	if (buffer == NULL || length == 0) {
+		return(false);
+	}
+
+#ifdef _WIN32
+	return(GetModuleFileName(ProgramInstance, buffer, length) > 0);
+#elif defined(__APPLE__)
+	uint32_t size = (uint32_t)length;
+	if (_NSGetExecutablePath(buffer, &size) != 0) {
+		buffer[0] = '\0';
+		return(false);
+	}
+	return(true);
+#else
+	ssize_t const written = readlink("/proc/self/exe", buffer, length - 1);
+	if (written <= 0) {
+		buffer[0] = '\0';
+		return(false);
+	}
+	buffer[written] = '\0';
+	return(true);
+#endif
 }
