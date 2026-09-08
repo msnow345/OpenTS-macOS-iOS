@@ -1,9 +1,18 @@
 # UI system design
 
-Status: proposal. Nothing here is implemented, built, or measured. Source
-inspection and upstream documentation inform it. This page owns the proposed
-UI architecture and migration; [Building OpenTS](BUILDING.md) owns build
-support and [Project direction](DIRECTION.md) the wider architecture.
+Status: in progress. Steps 1 and 2 of the migration plan have landed; nothing
+from step 3 onward is implemented. Everything outside the migration plan
+remains a proposal informed by source inspection and upstream documentation.
+This page owns the UI architecture and migration; [Building
+OpenTS](BUILDING.md) owns build support and [Project
+direction](DIRECTION.md) the wider architecture.
+
+What step 2 left for later, inside its own files: `uitexture.cpp` reads PNG and
+TGA only, so PCX, SHP and the `<surface>` element wait for the first screen
+that shows game art; `uisystem.cpp` carries the `[[NAME]]` syntax but no name
+table, which arrives with the UTF-8 transition; the cursor and clipboard
+requests are recorded rather than acted on; and `UI_Run_Modal` is written but
+unexercised, because no screen exists to run.
 
 ## Where the UI stands today
 

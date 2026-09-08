@@ -68,6 +68,7 @@
 #include "resource.h"
 #include "session.h"
 #include "theme.h"
+#include "ui/uishell.h"
 #include "video.h"
 #include "win.h"
 #include "wincursor.h"
@@ -179,12 +180,24 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 	 * The frame may be drawn scaled, so a click has to be matched against where the
 	 * player sees the controls rather than where Windows finds them.
 	 */
+	LPARAM const window_lparam = lParam;
 	{
 		LPARAM translated_lparam;
 		if (Route_Mouse_Message(hwnd, message, wParam, lParam, &translated_lparam)) {
 			return(0);
 		}
 		lParam = translated_lparam;
+	}
+
+	/*
+	 * The shell sees mouse, wheel, key and text messages after the routing, which keeps
+	 * legacy child windows working under video scaling, and before the keyboard handler,
+	 * which keeps whatever a toolkit consumed out of the KN_ queue. It reads the position
+	 * Windows delivered rather than the routed one, because the overlays are laid out in
+	 * the window's own pixels.
+	 */
+	if (UI_Handle_Window_Message(hwnd, message, wParam, window_lparam)) {
+		return(0);
 	}
 
 	int	low_param = LOWORD(wParam);

@@ -61,6 +61,7 @@
 #include "theme.h"
 #include "timer.h"
 #include "tracker.h"
+#include "ui/uishell.h"
 
 #include "bench.hh"
 #include "special.hh"
@@ -301,6 +302,7 @@ bool Main_Loop(void)
 	*/
 	if (!Session.Play) {
 		if (SpecialDialog == SDLG_NONE && GameInFocus) {
+			UI_Tick();
 			Map.Input(input, x, y);
 			if (input) {
 				Keyboard_Process(input);

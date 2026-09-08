@@ -176,6 +176,30 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/bgfxbackend.cpp" PROPER
     COMPILE_OPTIONS "$<$<BOOL:${MSVC}>:/Zc:preprocessor>"
 )
 
+# The UI shell is scoped the same way: only code/ui sees RmlUi and ImGui, and uirender.cpp
+# alone adds bgfx to that, so no other translation unit carries any of their headers or
+# build settings. uitexture.cpp reads images through bimg, which bgfx already carries.
+file(GLOB OPENTS_UI_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ui/*.cpp")
+set_source_files_properties(${OPENTS_UI_SOURCES} PROPERTIES
+    INCLUDE_DIRECTORIES
+        "${CMAKE_SOURCE_DIR}/thirdparty/RmlUi/Include;${CMAKE_SOURCE_DIR}/thirdparty/imgui"
+    COMPILE_OPTIONS "$<$<BOOL:${MSVC}>:/Zc:preprocessor>"
+)
+
+set_property(SOURCE
+    "${CMAKE_CURRENT_SOURCE_DIR}/ui/uirender.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ui/uitexture.cpp"
+    APPEND PROPERTY INCLUDE_DIRECTORIES
+        "${BGFX_ROOT}/include;${CMAKE_SOURCE_DIR}/thirdparty/bgfx.cmake/bx/include;${CMAKE_SOURCE_DIR}/thirdparty/bgfx.cmake/bimg/include;${BGFX_ROOT}/examples/common/imgui"
+)
+
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uirender.cpp" APPEND PROPERTY
+    COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
+)
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uitexture.cpp" APPEND PROPERTY
+    COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
+)
+
 # bx rewrites __stdcall while its headers are being parsed by clang-cl.  Force the
 # compatibility header into the renderer translation unit as well as bx/bgfx so the
 # MSVC standard-library headers that follow still see the Win32 calling convention.
@@ -220,8 +244,11 @@ target_link_libraries(OpenTS PRIVATE
     bgfx
     bx
     bimg
+    bimg_decode
     miniaudio
     lzo
+    rmlui
+    imgui
 )
 
 if(WIN32)
@@ -315,6 +342,14 @@ add_custom_command(TARGET OpenTS POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:OpenTS>"
         "${TS_RUN_DIR}"
+)
+
+# The shipped UI documents, styles and font travel with the executable. They are read
+# through the game's file system, so this directory is what the search path points at.
+add_custom_command(TARGET OpenTS POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/ui"
+        "${TS_RUN_DIR}/ui"
 )
 
 # Copy the linker-generated .pdb alongside the exe. Only the MSVC linker writes one.

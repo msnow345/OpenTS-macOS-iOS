@@ -1,0 +1,21 @@
+<rml>
+<head>
+	<title>OpenTS UI shell test</title>
+	<link type="text/rcss" href="uitest.rcss"/>
+</head>
+<body>
+	<div id="panel">
+		<div id="title">OpenTS UI shell</div>
+		<div class="row">This document is drawn by RmlUi on bgfx.</div>
+		<div class="row">A click on the panel is consumed.</div>
+		<div class="row">A click beside it reaches the game.</div>
+		<div id="swatches">
+			<div class="swatch red"></div>
+			<div class="swatch green"></div>
+			<div class="swatch blue"></div>
+			<div class="swatch fade"></div>
+		</div>
+		<div id="hit">Click the panel</div>
+	</div>
+</body>
+</rml>

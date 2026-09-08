@@ -24,6 +24,7 @@
 #include "hostclock.h"
 #include "misc.h"
 #include "surface.h"
+#include "ui/uishell.h"
 #include "wincursor.h"
 
 #include <cstdlib>
@@ -47,7 +48,8 @@ static VideoScaleInfo _ScaleInfo;
 
 // Set whenever the visible surface is written to, and cleared once that frame has been
 // presented. A frame that is skipped for pacing stays marked, so the next present shows
-// the newest content rather than a stale one.
+// the newest content rather than a stale one. The shell keeps a second flag for the
+// overlays, and a present happens when either is set.
 static bool _FrameIsDirty = false;
 static unsigned int _LastPresentTime = 0;
 static unsigned int _PresentInterval = 16;
@@ -169,6 +171,10 @@ bool Video_Init(NativeWindow const & window, int drawablewidth, int drawableheig
 
 	Update_Scale_Info();
 	Update_Present_Interval(refreshrate);
+
+	// The overlays draw on the renderer this just started, so the shell follows it and is
+	// torn down before it. A shell that cannot start leaves the game running without one.
+	UI_Init();
 	return(true);
 }
 
@@ -183,6 +189,7 @@ void Video_Shutdown(void)
 	}
 
 	Win_Cursor_Shutdown();
+	UI_Shutdown();
 	Backend_Shutdown();
 	_Initialized = false;
 	_FrameIsDirty = false;
@@ -212,6 +219,7 @@ bool Video_Set_Mode(int width, int height)
 
 	Update_Scale_Info();
 	Win_Cursor_Refresh();
+	UI_On_Resize();
 	_FrameIsDirty = true;
 	return(true);
 }
@@ -231,6 +239,7 @@ void Video_On_Resize(int drawablewidth, int drawableheight)
 	Backend_On_Resize(drawablewidth, drawableheight);
 	Update_Scale_Info();
 	Win_Cursor_Refresh();
+	UI_On_Resize();
 	Video_Mark_Dirty();
 }
 
@@ -274,8 +283,12 @@ void Video_Present(void)
 		return;
 	}
 
+	// The frame is uploaded only when the game drew something. A present made to redraw an
+	// overlay alone costs a few draw calls rather than the whole frame's pixels.
 	_Presenting = true;
-	Backend_Present(pixels, surface->Stride(), _ScaleInfo.DestX, _ScaleInfo.DestY, _ScaleInfo.DestWidth, _ScaleInfo.DestHeight, Backend_Scale_Mode());
+	Backend_Present(pixels, surface->Stride(), _ScaleInfo.DestX, _ScaleInfo.DestY, _ScaleInfo.DestWidth, _ScaleInfo.DestHeight, Backend_Scale_Mode(), _FrameIsDirty);
+	UI_Render_Overlay();
+	Backend_End_Frame();
 	_Presenting = false;
 
 	_FrameIsDirty = false;
@@ -291,7 +304,7 @@ void Video_Present(void)
 /// </summary>
 void Video_Present_If_Dirty(void)
 {
-	if (!_FrameIsDirty) {
+	if (!_FrameIsDirty && !UI_Overlay_Is_Dirty()) {
 		return;
 	}
 

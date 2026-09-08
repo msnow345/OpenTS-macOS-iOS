@@ -12,6 +12,8 @@
 
 #include "bgfxbackend.h"
 
+#include "backendviews.hh"
+
 #include "dbgprint.h"
 #include "except.h"
 
@@ -37,12 +39,8 @@ static const bgfx::EmbeddedShader _EmbeddedShaders[] = {
 };
 
 
-// The view that magnifies the frame when the pixel art filter needs an intermediate
-// target, and the one that draws onto the window. Views render in ascending order, so
-// the magnify pass must carry the lower id for the present pass to sample its output
-// from this frame rather than the last one.
-static const bgfx::ViewId VIEW_PRESCALE = 0;
-static const bgfx::ViewId VIEW_PRESENT = 1;
+static const bgfx::ViewId VIEW_PRESCALE = BACKEND_VIEW_PRESCALE;
+static const bgfx::ViewId VIEW_PRESENT = BACKEND_VIEW_PRESENT;
 
 
 static bool _Initialized = false;
@@ -515,7 +513,9 @@ void Backend_On_Resize(int drawablewidth, int drawableheight)
 /// <param name="destwidth">How wide the frame is drawn.</param>
 /// <param name="destheight">How tall the frame is drawn.</param>
 /// <param name="mode">How the frame is filtered when it is drawn larger than it is.</param>
-void Backend_Present(void const * pixels, int pitch, int destx, int desty, int destwidth, int destheight, BackendScaleMode mode)
+/// <param name="upload">Has the frame changed since the last present? A present made only
+/// to redraw an overlay leaves the frame texture as it is.</param>
+void Backend_Present(void const * pixels, int pitch, int destx, int desty, int destwidth, int destheight, BackendScaleMode mode, bool upload)
 {
 	if (!_Initialized || pixels == NULL || !bgfx::isValid(_FrameTexture)) {
 		return;
@@ -526,7 +526,9 @@ void Backend_Present(void const * pixels, int pitch, int destx, int desty, int d
 		return;
 	}
 
-	if (_FrameIs565) {
+	if (!upload) {
+		// Nothing to do: the texture still holds the frame the last present uploaded.
+	} else if (_FrameIs565) {
 		bgfx::updateTexture2D(_FrameTexture, 0, 0, 0, 0, (uint16_t)_FrameWidth, (uint16_t)_FrameHeight, bgfx::copy(pixels, (uint32_t)(_FrameHeight * pitch)), (uint16_t)pitch);
 	} else if (_ConvertBuffer != NULL) {
 		for (int y = 0; y < _FrameHeight; y++) {
@@ -580,6 +582,19 @@ void Backend_Present(void const * pixels, int pitch, int destx, int desty, int d
 
 	bool flipv = from_prescale && bgfx::getCaps()->originBottomLeft;
 	Submit_Quad(VIEW_PRESENT, source, (float)destx, (float)desty, (float)destwidth, (float)destheight, samplerflags, flipv);
+}
+
+
+/// <summary>
+/// Ends the frame the last present started, putting everything submitted to it on screen.
+/// This is the only call to bgfx::frame() in the program; whatever draws between the
+/// present and here shares the frame with the game's own image.
+/// </summary>
+void Backend_End_Frame(void)
+{
+	if (!_Initialized) {
+		return;
+	}
 
 	bgfx::frame();
 }

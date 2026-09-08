@@ -538,6 +538,9 @@ typedef struct tagHELPINFO { UINT cbSize; int iContextType, iCtrlId; HANDLE hIte
 #define MAKELPARAM(l, h) ((LPARAM)(DWORD)MAKELONG(l, h))
 #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
+#define WHEEL_DELTA 120
+#define GET_WHEEL_DELTA_WPARAM(wp) ((short)HIWORD(wp))
+#define GET_KEYSTATE_WPARAM(wp) ((int)LOWORD(wp))
 #define IS_SURROGATE_PAIR(hi, lo) ((hi) >= 0xd800 && (hi) <= 0xdbff && (lo) >= 0xdc00 && (lo) <= 0xdfff)
 #ifndef TEXT
 #define TEXT(s) s

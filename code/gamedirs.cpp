@@ -257,6 +257,13 @@ bool Apply_Game_Directories(void)
 		DebugString("[GameDirs] Data directory is %s.\n", DataDirectory.c_str());
 	}
 
+	// Shipped UI documents, styles, images and fonts sit in ui/ beside the executable.
+	// Adding the directory to the search paths is what lets them resolve by bare name, so
+	// the same file loads from there or from a mix and a mod can override either.
+	std::string const uipath = Terminate_Path(Data_Directory() + "ui");
+	CDFileClass::Add_Search_Drive(uipath.c_str());
+	DebugString("[GameDirs] UI directory is %s.\n", uipath.c_str());
+
 	return(true);
 }
 
