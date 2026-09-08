@@ -159,26 +159,89 @@ inline static int freopen_s(FILE** stream, const char* path, const char* mode, F
 
 inline static void _makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
 {
-	if (!path || !fname || !ext) {
+	if (!path) {
 		return;
 	}
 
-	sprintf(path, "%s%s%s", fname, (ext[0] == '.' ? "" : "."), ext);
+	path[0] = '\0';
+
+	if (drive && drive[0] != '\0') {
+		sprintf(path + strlen(path), "%c:", drive[0]);
+	}
+
+	if (dir && dir[0] != '\0') {
+		char const last = dir[strlen(dir) - 1];
+		sprintf(path + strlen(path), "%s%s", dir, (last == '/' || last == '\\') ? "" : "/");
+	}
+
+	if (fname && fname[0] != '\0') {
+		sprintf(path + strlen(path), "%s", fname);
+	}
+
+	if (ext && ext[0] != '\0') {
+		sprintf(path + strlen(path), "%s%s", (ext[0] == '.' ? "" : "."), ext);
+	}
 }
 
+/// <summary>
+/// Splits a path into the components the caller asked for.
+/// Every non-null component is written, empty where the path has nothing to put in it, so a
+/// caller may ask for any subset. Each buffer must hold its documented _MAX_ size, and the
+/// extension carries its leading dot as the Microsoft routine's does.
+/// </summary>
 inline static void _splitpath(const char* path, char* drive, char* dir, char* fname, char* ext)
 {
-	if (!path || !ext) {
+	if (drive) drive[0] = '\0';
+	if (dir) dir[0] = '\0';
+	if (fname) fname[0] = '\0';
+	if (ext) ext[0] = '\0';
+
+	if (!path) {
 		return;
 	}
 
-	while (*path != '\0') {
-		if (*path == '.') {
-			strcpy(ext, path + 1);
-			break;
+	// A path read out of a game file was written on Windows, so both separators and a drive
+	// letter are recognised whatever the host uses.
+	const char* start = path;
+	if (path[0] != '\0' && path[1] == ':') {
+		if (drive) {
+			drive[0] = path[0];
+			drive[1] = ':';
+			drive[2] = '\0';
 		}
+		start = path + 2;
+	}
 
-		++path;
+	const char* slash = NULL;
+	for (const char* scan = start; *scan != '\0'; ++scan) {
+		if (*scan == '/' || *scan == '\\') {
+			slash = scan;
+		}
+	}
+
+	const char* base = (slash != NULL) ? slash + 1 : start;
+
+	if (dir && slash != NULL) {
+		size_t length = (size_t)(base - start);
+		if (length > _MAX_DIR - 1) length = _MAX_DIR - 1;
+		memcpy(dir, start, length);
+		dir[length] = '\0';
+	}
+
+	const char* dot = strrchr(base, '.');
+
+	if (fname) {
+		size_t length = (dot != NULL) ? (size_t)(dot - base) : strlen(base);
+		if (length > _MAX_FNAME - 1) length = _MAX_FNAME - 1;
+		memcpy(fname, base, length);
+		fname[length] = '\0';
+	}
+
+	if (ext && dot != NULL) {
+		size_t length = strlen(dot);
+		if (length > _MAX_EXT - 1) length = _MAX_EXT - 1;
+		memcpy(ext, dot, length);
+		ext[length] = '\0';
 	}
 }
 
