@@ -246,9 +246,14 @@ void Sync_Recorder_Arm(void)
 	bool const network = (Session.Type == GAME_IPX || Session.Type == GAME_INTERNET);
 	SyncRecorder.Set_Recording(network || Session.Record || Session.Play);
 
-	ModuleBase = (uintptr_t)GetModuleHandle(nullptr);
+	ModuleBase = 0;
 	ModuleSize = 0;
 	MapImageBase = 0;
+
+#ifdef _WIN32
+	// Only a PE image carries the headers this walks, and a caller address is reported as an
+	// absolute address wherever it does not.
+	ModuleBase = (uintptr_t)GetModuleHandle(nullptr);
 	if (ModuleBase != 0) {
 		IMAGE_DOS_HEADER const * dos = (IMAGE_DOS_HEADER const *)ModuleBase;
 		if (dos->e_magic == IMAGE_DOS_SIGNATURE) {
@@ -258,6 +263,7 @@ void Sync_Recorder_Arm(void)
 			}
 		}
 	}
+#endif
 
 	MapImageBase = Sync_Preferred_Image_Base();
 
