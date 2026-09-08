@@ -262,13 +262,13 @@ static void Init_Locked(void)
 
 		Delete_Files_Older_Than(DebugDirectory, "DEBUG_*.LOG", DEBUG_LOG_MAX_AGE_DAYS);
 
-		snprintf(DebugFileName, sizeof(DebugFileName), "%s\\DEBUG_%s.LOG", DebugDirectory, timestamp);
+		snprintf(DebugFileName, sizeof(DebugFileName), "%s/DEBUG_%s.LOG", DebugDirectory, timestamp);
 		DebugFile = CreateFile(DebugFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
 										CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
 
 		// A second process started in the same second must not disturb the first one's log.
 		if (DebugFile == INVALID_HANDLE_VALUE) {
-			snprintf(DebugFileName, sizeof(DebugFileName), "%s\\DEBUG_%s_%lu.LOG",
+			snprintf(DebugFileName, sizeof(DebugFileName), "%s/DEBUG_%s_%lu.LOG",
 						DebugDirectory, timestamp, GetCurrentProcessId());
 			DebugFile = CreateFile(DebugFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
 											CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
