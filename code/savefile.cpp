@@ -11,7 +11,10 @@
 
 #include <lzo/lzo1x.h>
 
+#include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <system_error>
 #include <new>
 #include <string>
 
@@ -78,34 +81,48 @@ bool Reserve(std::vector<unsigned char> & buffer, std::size_t length)
 }
 
 
-bool Read_Range(HANDLE file, void * into, unsigned int length)
+bool Read_Range(std::FILE * file, void * into, unsigned int length)
 {
 	unsigned char * cursor = (unsigned char *)into;
 
 	while (length > 0) {
-		DWORD got = 0;
-		if (!ReadFile(file, cursor, length, &got, NULL) || got == 0) return(false);
+		std::size_t const got = std::fread(cursor, 1, length, file);
+		if (got == 0) return(false);
 		cursor += got;
-		length -= got;
+		length -= (unsigned int)got;
 	}
 
 	return(true);
 }
 
 
-bool Write_Range(HANDLE file, void const * data, unsigned int length)
+bool Write_Range(std::FILE * file, void const * data, unsigned int length)
 {
 	unsigned char const * cursor = (unsigned char const *)data;
 
 	while (length > 0) {
-		DWORD const block = (length > 0x100000) ? 0x100000 : length;
-		DWORD written = 0;
-		if (!WriteFile(file, cursor, block, &written, NULL) || written != block) return(false);
+		unsigned int const block = (length > 0x100000) ? 0x100000 : length;
+		std::size_t const written = std::fwrite(cursor, 1, block, file);
+		if (written != block) return(false);
 		cursor += written;
-		length -= written;
+		length -= block;
 	}
 
 	return(true);
+}
+
+
+/// <summary>
+/// Reports the length of an open file without moving the caller's read position.
+/// </summary>
+/// <returns>The length in bytes, or -1.</returns>
+long File_Length(std::FILE * file)
+{
+	long const here = std::ftell(file);
+	if (here < 0 || std::fseek(file, 0, SEEK_END) != 0) return(-1);
+	long const end = std::ftell(file);
+	std::fseek(file, here, SEEK_SET);
+	return(end);
 }
 
 
@@ -413,18 +430,22 @@ SaveFileClass::ResultType SaveFileClass::Write(char const * path) const
 
 	std::string const temporary = std::string(path) + ".tmp";
 
-	HANDLE const file = CreateFileA(temporary.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
-		FILE_ATTRIBUTE_NORMAL, NULL);
-	if (file == INVALID_HANDLE_VALUE) return(RESULT_WRITE_FAILED);
+	std::FILE * const file = std::fopen(temporary.c_str(), "wb");
+	if (file == NULL) return(RESULT_WRITE_FAILED);
 
 	bool ok = Write_Range(file, image.data(), (unsigned int)image.size());
-	if (ok) ok = (FlushFileBuffers(file) != FALSE);
-	if (!CloseHandle(file)) ok = false;
+	if (ok) ok = (std::fflush(file) == 0);
+	if (std::fclose(file) != 0) ok = false;
 
-	if (ok) ok = (MoveFileExA(temporary.c_str(), path, MOVEFILE_REPLACE_EXISTING) != FALSE);
+	if (ok) {
+		std::error_code error;
+		std::filesystem::rename(temporary, path, error);
+		ok = !error;
+	}
 
 	if (!ok) {
-		DeleteFileA(temporary.c_str());
+		std::error_code error;
+		std::filesystem::remove(temporary, error);
 		return(RESULT_WRITE_FAILED);
 	}
 
@@ -439,22 +460,22 @@ SaveFileClass::ResultType SaveFileClass::Read(char const * path)
 
 	if (path == NULL) return(RESULT_MISSING);
 
-	HANDLE const file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL, NULL);
-	if (file == INVALID_HANDLE_VALUE) return(RESULT_MISSING);
+	std::FILE * const file = std::fopen(path, "rb");
+	if (file == NULL) return(RESULT_MISSING);
 
 	// The header is judged before anything the file's size could ask for is allocated.
 	unsigned char head[HEADER_SIZE];
-	DWORD got = 0;
-	bool const ok = (ReadFile(file, head, HEADER_SIZE, &got, NULL) != FALSE);
+	unsigned int const got = (unsigned int)std::fread(head, 1, HEADER_SIZE, file);
+	bool const ok = !std::ferror(file);
 
 	HeaderType header;
 	ResultType result = ok ? Parse_Header(head, got, header) : RESULT_CORRUPT;
 
 	std::vector<unsigned char> image;
 	if (result == RESULT_OK) {
-		DWORD const size = GetFileSize(file, NULL);
-		if (size == INVALID_FILE_SIZE || size != header.ContentOffset + header.StoredLength) {
+		long const length = File_Length(file);
+		unsigned int const size = (unsigned int)length;
+		if (length < 0 || size != header.ContentOffset + header.StoredLength) {
 			result = RESULT_CORRUPT;
 		} else if (!Reserve(image, size)) {
 			result = RESULT_NO_MEMORY;
@@ -463,7 +484,7 @@ SaveFileClass::ResultType SaveFileClass::Read(char const * path)
 			if (!Read_Range(file, image.data() + HEADER_SIZE, size - HEADER_SIZE)) result = RESULT_CORRUPT;
 		}
 	}
-	CloseHandle(file);
+	std::fclose(file);
 	if (result != RESULT_OK) return(result);
 
 	if (Header_CRC(image.data(), image.data() + HEADER_SIZE, header.TableLength) != header.HeaderCRC) {
@@ -519,21 +540,21 @@ SaveFileClass::ResultType SaveFileClass::Read_Fields(char const * path)
 
 	if (path == NULL) return(RESULT_MISSING);
 
-	HANDLE const file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL, NULL);
-	if (file == INVALID_HANDLE_VALUE) return(RESULT_MISSING);
+	std::FILE * const file = std::fopen(path, "rb");
+	if (file == NULL) return(RESULT_MISSING);
 
 	unsigned char head[HEADER_SIZE];
-	DWORD got = 0;
-	bool ok = (ReadFile(file, head, HEADER_SIZE, &got, NULL) != FALSE);
+	unsigned int const got = (unsigned int)std::fread(head, 1, HEADER_SIZE, file);
+	bool ok = !std::ferror(file);
 
 	HeaderType header;
 	ResultType result = ok ? Parse_Header(head, got, header) : RESULT_CORRUPT;
 
 	std::vector<unsigned char> table;
 	if (result == RESULT_OK && header.TableLength > 0) {
-		DWORD const size = GetFileSize(file, NULL);
-		if (size == INVALID_FILE_SIZE || header.TableLength > size - HEADER_SIZE) {
+		long const length = File_Length(file);
+		unsigned int const size = (unsigned int)length;
+		if (length < 0 || header.TableLength > size - HEADER_SIZE) {
 			result = RESULT_CORRUPT;
 		} else if (!Reserve(table, header.TableLength)) {
 			result = RESULT_NO_MEMORY;
@@ -541,7 +562,7 @@ SaveFileClass::ResultType SaveFileClass::Read_Fields(char const * path)
 			if (!Read_Range(file, table.data(), header.TableLength)) result = RESULT_CORRUPT;
 		}
 	}
-	CloseHandle(file);
+	std::fclose(file);
 
 	if (result != RESULT_OK) return(result);
 	if (Header_CRC(head, table.data(), (unsigned int)table.size()) != header.HeaderCRC) return(RESULT_CORRUPT);

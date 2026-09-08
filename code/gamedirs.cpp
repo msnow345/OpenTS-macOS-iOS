@@ -7,6 +7,7 @@
  * See LICENSE.md for applicable additional terms and warranty disclaimers.
  ******************************************************************************/
 
+#include "file.h"
 #include "always.h"
 
 #include "gamedirs.h"
@@ -16,6 +17,7 @@
 
 #include <windows.h>
 #include <algorithm>
+#include <system_error>
 #include <filesystem>
 #include <cstring>
 
@@ -122,9 +124,21 @@ char const * Game_Directory_Error(void)
 
 static bool Is_Directory(std::string const & path)
 {
-	DWORD attributes = GetFileAttributes(path.c_str());
+	std::error_code error;
 
-	return(attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+	return(std::filesystem::is_directory(path, error));
+}
+
+
+/// <summary>
+/// Makes a directory, reporting success when it is already there.
+/// </summary>
+static bool Make_Directory(std::string const & path)
+{
+	std::error_code error;
+	std::filesystem::create_directory(path, error);
+
+	return(!error || Is_Directory(path));
 }
 
 
@@ -222,7 +236,7 @@ std::vector<std::string> Parse_Search_Folders(char const * list)
 bool Apply_Game_Directories(void)
 {
 	if (!UserDirectory.empty()) {
-		if (!Is_Directory(UserDirectory) && !CreateDirectory(UserDirectory.c_str(), NULL)) {
+		if (!Is_Directory(UserDirectory) && !Make_Directory(UserDirectory)) {
 			Report_Directory_Error("user", UserDirectory);
 			return(false);
 		}
@@ -279,7 +293,7 @@ std::string Saved_Game_Name(char const * filename)
 {
 	std::string const folder = UserDirectory + SavedGamesFolder;
 
-	CreateDirectory(folder.c_str(), NULL);
+	Make_Directory(folder);
 
 	return(folder + (char)std::filesystem::path::preferred_separator + filename);
 }
@@ -289,31 +303,36 @@ static void Scan_Folder(char const * prefix, char const * pattern, std::vector<s
 {
 	std::string const search = std::string(prefix) + pattern;
 
-	WIN32_FIND_DATA block;
-	HANDLE handle = FindFirstFile(search.c_str(), &block);
-	if (handle == INVALID_HANDLE_VALUE) {
+	Find_File_Data * block = NULL;
+	if (!Find_First(search.c_str(), 0, &block)) {
 		return;
 	}
 
 	do {
-		if ((block.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM|FILE_ATTRIBUTE_TEMPORARY)) != 0) {
+		char const * found = block->GetName();
+		if (found == NULL) {
+			continue;
+		}
+
+		std::error_code error;
+		if (std::filesystem::is_directory(std::string(prefix) + found, error)) {
 			continue;
 		}
 
 		bool present = false;
 		for (std::string const & existing : names) {
-			if (Is_Same_Path(existing, block.cFileName)) {
+			if (Is_Same_Path(existing, found)) {
 				present = true;
 				break;
 			}
 		}
 
 		if (!present) {
-			names.push_back(block.cFileName);
+			names.push_back(found);
 		}
-	} while (FindNextFile(handle, &block));
+	} while (Find_Next(block));
 
-	FindClose(handle);
+	Find_Close(block);
 }
 
 
