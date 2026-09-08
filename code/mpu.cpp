@@ -39,6 +39,29 @@
 #include <intrin.h>
 #include <math.h>
 
+#ifndef _WIN32
+#include <time.h>
+
+/// The monotonic clock stands in for the Windows performance counter. Both are read only as
+/// a difference over a fixed frequency, so a nanosecond tick answers the same question.
+static BOOL QueryPerformanceFrequency(LARGE_INTEGER* result)
+{
+	result->QuadPart = 1000000000LL;
+	return(TRUE);
+}
+
+static BOOL QueryPerformanceCounter(LARGE_INTEGER* result)
+{
+	struct timespec now;
+	if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) {
+		result->QuadPart = 0;
+		return(FALSE);
+	}
+	result->QuadPart = (LONGLONG)now.tv_sec * 1000000000LL + (LONGLONG)now.tv_nsec;
+	return(TRUE);
+}
+#endif
+
 typedef union {
 	LARGE_INTEGER LargeInt;
 	struct QuadPart {

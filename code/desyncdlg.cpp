@@ -7,6 +7,7 @@
  * See LICENSE.md for applicable additional terms and warranty disclaimers.
  ******************************************************************************/
 
+#include "hostclock.h"
 #include "always.h"
 
 #include "desyncdlg.h"
@@ -133,7 +134,7 @@ DesyncDialogClass::OutcomeType DesyncDialogClass::Run(void)
 			}
 
 			Decision = 0;
-			Sleep(10);
+			Host_Sleep(10);
 		}
 	}
 

@@ -7,6 +7,7 @@
  * See LICENSE.md for applicable additional terms and warranty disclaimers.
  ******************************************************************************/
 
+#include "hostclock.h"
 #include "always.h"
 
 #include "actionline.h"
@@ -74,7 +75,7 @@ void Draw_Action_Line_Segment(Surface & surface, Coord const & start, Coord cons
 	for (int index = 0; index < PATTERN_LENGTH; index++) {
 		pattern[index] = ((index / dash_length) & 1) == 0;
 	}
-	int offset = (dash_rate > 0) ? ((-(int)timeGetTime() / dash_rate) & (PATTERN_LENGTH - 1)) : (7 * Frame % PATTERN_LENGTH);
+	int offset = (dash_rate > 0) ? ((-(int)Host_Milliseconds() / dash_rate) & (PATTERN_LENGTH - 1)) : (7 * Frame % PATTERN_LENGTH);
 
 	// A thick line is two rows; its shadow sits below both.
 	int rows = style.IsThick ? 2 : 1;

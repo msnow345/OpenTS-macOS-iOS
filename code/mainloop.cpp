@@ -161,10 +161,10 @@ static void Check_For_Focus_Loss(void)
 {
 	while (!GameInFocus) {
 		if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
-			Sleep(500);
+			Host_Sleep(500);
 			Windows_Message_Handler();
 		} else {
-			Sleep(10);
+			Host_Sleep(10);
 			Windows_Message_Handler();
 			break;
 		}
@@ -209,10 +209,10 @@ bool Main_Loop(void)
 	#else
 	while (!GameInFocus) {
 		if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
-			Sleep(500);
+			Host_Sleep(500);
 			Windows_Message_Handler();
 		} else {
-			Sleep(10);
+			Host_Sleep(10);
 			Windows_Message_Handler();
 			break;
 		}
@@ -599,13 +599,13 @@ void Sync_Delay(void)
 					TacticalMap->AI();
 					Map.Render();
 				} else {
-					Sleep(0);
+					Host_Sleep(0);
 				}
 				if (!NetFrameTimer()) {
 					break;
 				}
 			}
-			Sleep(0);
+			Host_Sleep(0);
 		}
 	} else {
 		while (FrameTimer) {
@@ -622,9 +622,9 @@ void Sync_Delay(void)
 				}
 			}
 			if (GameInFocus || (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH)) {
-				Sleep(0);
+				Host_Sleep(0);
 			} else {
-				Sleep(16 * FrameTimer);
+				Host_Sleep(16 * FrameTimer);
 			}
 		}
 	}

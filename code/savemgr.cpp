@@ -7,6 +7,7 @@
  * See LICENSE.md for applicable additional terms and warranty disclaimers.
  ******************************************************************************/
 
+#include "hostclock.h"
 #include "always.h"
 
 #include "savemgr.h"
@@ -609,7 +610,7 @@ void SaveManagerClass::Process_Pending_Load_Game(void)
 			OwnerDraw::Set_Custom_Message_Box_Text(dialog, buffer);
 		}
 		OwnerDraw::Dialog_Message_Handler();
-		Sleep(10);
+		Host_Sleep(10);
 	}
 
 	if (dialog != 0) {

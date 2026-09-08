@@ -42,6 +42,7 @@
  *   ScoreClass::Pulse_Bar_Graph -- Pulses the bargraph color.                                 *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#include "hostclock.h"
 #include "always.h"
 
 #include "score.h"
@@ -1058,7 +1059,7 @@ void ScoreClass::Call_Back_Delay(int time)
 				cd.Start();
 			}
 
-			Sleep(0);
+			Host_Sleep(0);
 
 		} while (cd > 0);
 
@@ -1119,7 +1120,7 @@ void ScoreClass::Timing(void)
 	}
 
 	while (!GameInFocus) {
-		Sleep(500);
+		Host_Sleep(500);
 		Windows_Message_Handler();
 	}
 

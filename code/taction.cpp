@@ -40,6 +40,7 @@
  *   ActionChoiceClass::Draw_It -- Display the action choice as part of a list box.            *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#include "hostclock.h"
 #include "always.h"
 
 #include "taction.h"
@@ -2052,7 +2053,7 @@ bool TActionClass::TAction_ZOOM_IN(HouseClass * , ObjectClass * , TriggerClass *
 	Map.Flag_To_Redraw();
 	Map.Render();
 
-	Sleep(1000);
+	Host_Sleep(1000);
 	return(true);
 }
 
