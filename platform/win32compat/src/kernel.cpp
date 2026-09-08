@@ -560,6 +560,13 @@ extern "C" BOOL WriteFile(HANDLE handle, LPCVOID buffer, DWORD size, LPDWORD wri
 
 	size_t const put = std::fwrite(buffer, 1, size, (std::FILE *)handle);
 
+	/*
+	 * A Windows file handle is not buffered, so a log written through this call
+	 * survives a crash. Match that rather than leaving the last records of a run
+	 * in a standard library buffer that is never drained.
+	 */
+	std::fflush((std::FILE *)handle);
+
 	if (written != NULL) {
 		*written = (DWORD)put;
 	}
