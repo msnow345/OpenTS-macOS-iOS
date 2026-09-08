@@ -32,6 +32,7 @@
 #pragma once
 
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -68,9 +69,16 @@ class SHAEngine
 	private:
 
 		typedef union {
-			unsigned long Long[5];
+			std::uint32_t Long[5];
 			unsigned char Char[20];
 		} SHADigest;
+
+		/*
+		**	The digest is a 160 bit value laid out as five 32 bit words, and every
+		**	routine below indexes it as such. A wider word would silently change the
+		**	size of the digest, the size of the accumulator and the stride of both.
+		*/
+		static_assert(sizeof(SHADigest) == 20, "SHA digest must be 160 bits");
 
 		/*
 		**	This holds the calculated final result. It is cached
