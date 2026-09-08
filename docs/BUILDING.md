@@ -117,6 +117,14 @@ cmake -S . -B build/native -G Ninja \
 cmake --build build/native
 ```
 
+Windows supplies the window, the message loop and the cursor itself. Every
+other target gets them from `platform/win32compat`, which keeps the Win32
+surface the engine is written against and supplies it from
+[SDL](https://github.com/libsdl-org/SDL), pinned as `thirdparty/SDL` and built
+with its audio, render and camera subsystems off. Audio stays on miniaudio.
+That library is added to the build only when the target is not Windows, so a
+Windows configure neither builds nor links it.
+
 ## Build from Visual Studio Code
 
 With the recommended extensions installed, the repository provides:
