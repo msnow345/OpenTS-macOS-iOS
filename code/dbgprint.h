@@ -15,7 +15,11 @@
 
 #if defined(_WIN32)
 
+#ifdef _WIN32
 #include <sal.h>
+#else
+#define _Printf_format_string_
+#endif
 
 #else
 
