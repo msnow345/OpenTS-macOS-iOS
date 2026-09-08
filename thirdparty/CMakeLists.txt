@@ -103,3 +103,36 @@ target_include_directories(lzo
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lzo/include"
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lzo/src"
 )
+
+#
+# ---------------------------------------------------------
+# SDL3 (window, event loop, cursor, keyboard) -- non-Windows only
+# ---------------------------------------------------------
+#
+# Windows supplies the window, the message loop and the cursor itself, so the supported
+# build links none of this. Every other target needs one library that also reaches iOS,
+# which rules out a desktop-only toolkit and rules out writing AppKit and UIKit twice.
+# Audio stays on miniaudio; only the video, event and keyboard subsystems are built.
+if(NOT WIN32)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/SDL/CMakeLists.txt")
+        message(FATAL_ERROR
+            "thirdparty/SDL is empty. Fetch the submodules with:\n"
+            "  git submodule update --init --recursive")
+    endif()
+
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+    set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+    set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+    set(SDL_AUDIO OFF CACHE BOOL "" FORCE)
+    set(SDL_RENDER OFF CACHE BOOL "" FORCE)
+    set(SDL_CAMERA OFF CACHE BOOL "" FORCE)
+    set(SDL_HAPTIC OFF CACHE BOOL "" FORCE)
+    set(SDL_SENSOR OFF CACHE BOOL "" FORCE)
+    set(SDL_POWER OFF CACHE BOOL "" FORCE)
+    set(SDL_DIALOG OFF CACHE BOOL "" FORCE)
+
+    add_subdirectory(SDL)
+endif()
