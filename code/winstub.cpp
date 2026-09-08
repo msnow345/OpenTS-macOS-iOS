@@ -254,6 +254,15 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 			break;
 
 		case WM_CLOSE:
+#ifndef _WIN32
+			/*
+			**	Windows answers a close request by destroying the window and leaving the
+			**	program to notice. There is no front end here to notice it and no dialog
+			**	layer to confirm through, so the request ends the program itself.
+			*/
+			Emergency_Exit();
+			exit(EXIT_SUCCESS);
+#endif
 			break;
 
 		case WM_CREATE:
