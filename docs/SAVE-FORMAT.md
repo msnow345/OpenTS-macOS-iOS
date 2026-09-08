@@ -73,6 +73,11 @@ names them. An object record is:
 | 4 | Length of the record body |
 | | The body: the swizzle identity, then the members the class's `Serialize` names |
 
+The swizzle identity is the object's own address, written at the width a
+pointer has in the build that wrote it. Every record therefore grows by four
+bytes in a 64-bit build, and a save does not cross between builds of different
+pointer widths.
+
 The class identifier is the `ClassID` the object's `Class_ID` reports, the
 same one registered in `code/startup.cpp` and, for a locomotor, named by the
 `Locomotor=` key. Its sixteen bytes are those of the COM class identifier the
