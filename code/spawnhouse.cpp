@@ -8,6 +8,8 @@
  ******************************************************************************/
 
 
+#include "always.h"
+
 #include "spawnhouse.h"
 
 #include <cstring>

@@ -11,6 +11,8 @@
 // type. The grammar follows Yuri's Revenge, with defaults that keep the
 // shipped Tiberian Sun files playing as they did.
 
+#include "always.h"
+
 #include "voc.h"
 
 #include "dbgprint.h"

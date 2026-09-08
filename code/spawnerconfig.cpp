@@ -8,6 +8,8 @@
  ******************************************************************************/
 
 
+#include "always.h"
+
 #include "spawnerconfig.h"
 
 #include "crc.h"

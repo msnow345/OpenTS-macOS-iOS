@@ -108,12 +108,52 @@
 #define stricmp  strcasecmp
 #define _stricmp strcasecmp
 #define strnicmp strncasecmp
+#define _strnicmp strncasecmp
 #define memicmp  strncasecmp
+#define _memicmp strncasecmp
 #define __cdecl
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <cctype>
+#include <unistd.h>
+
+/// The USER32 formatter the game uses for short strings. Windows caps its output at 1024
+/// characters, so the substitute caps it at the same place rather than at the buffer.
+inline static int wvsprintf(char* buffer, const char* format, va_list args)
+{
+	return(vsnprintf(buffer, 1024, format, args));
+}
+
+inline static int wsprintf(char* buffer, const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	int const result = wvsprintf(buffer, format, args);
+	va_end(args);
+	return(result);
+}
+
+inline static long filelength(int handle)
+{
+	off_t const here = lseek(handle, 0, SEEK_CUR);
+	if (here < 0) {
+		return(-1);
+	}
+	off_t const end = lseek(handle, 0, SEEK_END);
+	lseek(handle, here, SEEK_SET);
+	return((long)end);
+}
+
+inline static int freopen_s(FILE** stream, const char* path, const char* mode, FILE* old)
+{
+	if (stream == NULL) {
+		return(-1);
+	}
+	*stream = freopen(path, mode, old);
+	return(*stream != NULL ? 0 : -1);
+}
 
 inline static void _makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
 {
