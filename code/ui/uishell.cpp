@@ -24,6 +24,7 @@
 #include "dbgprint.h"
 #include "hostclock.h"
 #include "conquer.h"
+#include "goptions.h"
 #include "mainloop.h"
 #include "msgloop.h"
 #include "session.h"
@@ -338,11 +339,15 @@ bool UI_Document_Is_Visible(void)
 }
 
 
+/// <summary>
+/// Should a migrated screen use its RmlUi view rather than its legacy one?
+/// The answer is latched at screen entry, never mid-gesture, and LegacyDialogs in SUN.INI
+/// returns every migrated screen to the view it replaced for as long as one exists. The key
+/// and this function both go when OwnerDraw does.
+/// </summary>
 bool UI_Use_Rml(void)
 {
-	// No screen has migrated yet. The transitional key docs/UI_DESIGN.md describes arrives
-	// with the first one, named by the change that introduces it.
-	return(false);
+	return(_Initialized && _Context != nullptr && !Options.LegacyDialogs);
 }
 
 
