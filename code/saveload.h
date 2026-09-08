@@ -13,16 +13,25 @@
 
 #pragma once
 
+#include "persist.h"
+
 #include <cstdio>
 
-struct IStream;
+class SaveStreamClass;
 class SaveVersionInfo;
+struct ILocomotion;
 
 /*
 **	SAVELOAD.CPP
 */
-int Load_Misc_Values(IStream * stream);
-int Save_Misc_Values(IStream * stream);
+int Load_Misc_Values(SaveStreamClass & stream);
+int Save_Misc_Values(SaveStreamClass & stream);
+
+// An object travels as its class identifier, the length of its record, and the record.
+// A locomotor loaded this way is handed back unowned; the caller takes it.
+bool Save_Object(SaveStreamClass & stream, IPersistent * object);
+bool Save_Object(SaveStreamClass & stream, ILocomotion * locomotion);
+IPersistent * Load_Object(SaveStreamClass & stream);
 bool Get_Savefile_Info(char const * name, SaveVersionInfo * info);
 bool Save_Game(const char *file_name, char const * descr);
 bool Load_Game(const char *file_name);

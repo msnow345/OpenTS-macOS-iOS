@@ -73,7 +73,7 @@ class SaveStreamClass
 			MODE_LOAD
 		};
 
-		SaveStreamClass(IStream * stream, ModeType mode);
+		SaveStreamClass(std::vector<unsigned char> & buffer, ModeType mode);
 
 		bool Is_Saving(void) const {return(Mode == MODE_SAVE);}
 		bool Is_Loading(void) const {return(Mode == MODE_LOAD);}
@@ -83,8 +83,7 @@ class SaveStreamClass
 		 * does nothing, so a class lists its members without checking each one and the
 		 * caller asks once whether the whole pass worked.
 		 */
-		HRESULT Result(void) const {return(ErrorCode);}
-		bool Was_Error(void) const {return(FAILED(ErrorCode));}
+		bool Was_Error(void) const {return(Failed);}
 
 		/*
 		 * Stops the pass here. A container that reads back a length no honest save could
@@ -100,11 +99,6 @@ class SaveStreamClass
 		unsigned int Version(void) const {return(FormatVersion);}
 
 		/*
-		 * The stream underneath, for the sub-objects that are still framed by OLE.
-		 */
-		IStream * Get_Stream(void) const {return(Stream);}
-
-		/*
 		 * Names the record this stream is carrying, so that a pointer which nothing
 		 * answers for can be reported against the object that asked for it.
 		 */
@@ -113,8 +107,34 @@ class SaveStreamClass
 			OwnerType = ownertype;
 			OwnerID = ownerid;
 		}
+		char const * Context_Type(void) const {return(OwnerType);}
+		uintptr_t Context_ID(void) const {return(OwnerID);}
+
+		/*
+		 * Where the next byte goes or comes from, so a record can be framed by its length.
+		 */
+		unsigned int Offset(void) const {return(Cursor);}
+		unsigned int Size(void) const {return((unsigned int)Buffer->size());}
+		void Overwrite_Bytes(unsigned int offset, void const * data, int length);
 
 		void Serialize_Bytes(void * data, int length);
+
+		/*
+		 * Refuses a count that the bytes left in the stream could not hold, so a damaged
+		 * count fails the load before anything is allocated for it. Nothing serializes
+		 * an element in less than a byte.
+		 */
+		bool Fits(int count, std::size_t each)
+		{
+			if (Is_Loading()) {
+				std::size_t const room = (std::size_t)(Buffer->size() - Cursor) / (each > 0 ? each : 1);
+				if (count < 0 || (std::size_t)count > room) {
+					Fail();
+					return(false);
+				}
+			}
+			return(true);
+		}
 
 		/*
 		 * Numbers and enumerations travel as their declared width.
@@ -202,8 +222,7 @@ class SaveStreamClass
 			Serialize(count);
 
 			if (Is_Loading()) {
-				if (count < 0) {
-					Fail();
+				if (!Fits(count, (std::is_arithmetic_v<T> || std::is_enum_v<T>) ? sizeof(T) : 1)) {
 					return;
 				}
 				value.clear();
@@ -253,8 +272,7 @@ class SaveStreamClass
 			Serialize(count);
 
 			if (Is_Loading()) {
-				if (count < 0) {
-					Fail();
+				if (!Fits(count, 1)) {
 					return;
 				}
 				value.clear();
@@ -277,8 +295,7 @@ class SaveStreamClass
 			Serialize(count);
 
 			if (Is_Loading()) {
-				if (count < 0) {
-					Fail();
+				if (!Fits(count, 1)) {
 					return;
 				}
 				value.assign((std::size_t)count, false);
@@ -300,8 +317,7 @@ class SaveStreamClass
 			Serialize(count);
 
 			if (Is_Loading()) {
-				if (count < 0) {
-					Fail();
+				if (!Fits(count, 1)) {
 					return;
 				}
 				value.resize(count);
@@ -337,9 +353,10 @@ class SaveStreamClass
 			}
 		}
 
-		IStream * Stream;
+		std::vector<unsigned char> * Buffer;
+		unsigned int Cursor;
 		ModeType Mode;
-		HRESULT ErrorCode;
+		bool Failed;
 		unsigned int FormatVersion;
 
 		/*
@@ -364,8 +381,7 @@ class SaveStreamClass
 
 
 /*
- * The version stamp of the save game currently being read. Each object builds its own
- * stream inside IPersistStream::Load, which has no way to be told, so the value is left
- * here by the load as a whole.
+ * The version stamp of the save game currently being read, left here by the load as a
+ * whole so every stream built during it reports the same version.
  */
 extern unsigned int LoadedSaveVersion;

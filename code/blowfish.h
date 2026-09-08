@@ -35,14 +35,7 @@
 #include "win.h"
 #endif
 
-/// Names and comments from TLBs
-
 #include <climits>
-#ifndef NO_BLOWFISH_DLL
-#include "iblockci.h"
-#include <comdef.h>
-_COM_SMARTPTR_TYPEDEF(IBlockCipher, __uuidof(IBlockCipher));
-#endif
 
 /*
 **	This engine will process data blocks by encryption and decryption.
@@ -72,14 +65,6 @@ class BlowfishEngine {
 		enum {MAX_KEY_LENGTH=56};
 
 	private:
-#ifndef NO_BLOWFISH_DLL
-		/*
-		 * This points to the block cipher object that performs the actual key setup and
-		 * block processing. Where the cipher is available as a component, this engine is
-		 * only a convenience wrapper around it and keeps no tables of its own.
-		 */
-		IBlockCipherPtr BlockCypher;
-#else
 		bool IsKeyed;
 
 		void Sub_Key_Encrypt(unsigned int & left, unsigned int & right);
@@ -109,5 +94,4 @@ class BlowfishEngine {
 		**	S-Box tables (four).
 		*/
 		unsigned int bf_S[4][UCHAR_MAX+1];
-#endif
 };
