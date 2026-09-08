@@ -23,6 +23,7 @@
 #include "land.hh"
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 class LightConvertClass;
@@ -127,11 +128,25 @@ class IsoTileSet
 
 		IsoTileRecord const * Fetch_Record_Pointer(int index) const
 		{
-			return(Tiles[index % Tile_Count()]);
+			return(Fetch_Record_Pointer_Unsafe(index % Tile_Count()));
 		}
 		IsoTileRecord const * Fetch_Record_Pointer_Unsafe(int index) const
 		{
-			return(Tiles[index]);
+			return(const_cast<IsoTileSet *>(this)->Fetch_Record_Pointer_Unsafe(index));
+		}
+		IsoTileRecord * Fetch_Record_Pointer(int index)
+		{
+			return(Fetch_Record_Pointer_Unsafe(index % Tile_Count()));
+		}
+		IsoTileRecord * Fetch_Record_Pointer_Unsafe(int index)
+		{
+			static_assert(sizeof(IsoTileSet) == 20, "Isometric tile set header layout changed");
+			static_assert(offsetof(IsoTileSet, TileOffsets) == 16, "Isometric tile set header layout changed");
+			std::uint32_t const offset = TileOffsets[index];
+			if (offset == 0) {
+				return(NULL);
+			}
+			return(reinterpret_cast<IsoTileRecord *>(reinterpret_cast<unsigned char *>(this) + offset));
 		}
 
 		/*
@@ -172,14 +187,12 @@ class IsoTileSet
 		int Height;
 
 		/*
-		 * This is the first of the tile set's image record pointers, one per sub-tile, held in
-		 * the file as offsets from the start of the set and converted in place by the loader.
-		 * Reach a record through Fetch_Record_Pointer rather than through the array.
+		 * This is the first of the tile set's image record offsets, one per sub-tile, each
+		 * counted in bytes from the start of the set. The file supplies them and they stay as
+		 * they are; Fetch_Record_Pointer resolves one to an address on access, so the array
+		 * stride is four bytes at every pointer width. Reach a record through that accessor.
 		 */
-		// The file stores one 32-bit offset per sub-tile here and the loader converts them to
-		// pointers in place, so a build whose pointers are not four bytes wide cannot read a
-		// tile set with more than one sub-tile.
-		IsoTileRecord *Tiles[1];
+		std::uint32_t TileOffsets[1];
 
 
 	/*
@@ -192,7 +205,7 @@ class IsoTileSet
 };
 #pragma pack()
 
-static_assert(sizeof(IsoTileSet) == 16 + sizeof(IsoTileRecord *), "Isometric tile set header layout changed");
+static_assert(sizeof(IsoTileSet) == 20, "Isometric tile set header layout changed");
 
 
 /****************************************************************************

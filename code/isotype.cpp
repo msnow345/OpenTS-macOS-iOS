@@ -379,7 +379,7 @@ bool IsometricTileTypeClass::Is_Tile_Index_Valid(int tile, bool load)
 	}
 
 	IsoTileSet const * tileset = (IsoTileSet const *)Get_Image_Data();
-	if (tileset != NULL && tile < (tileset->Tile_Count()) && tileset->Tiles[tile] != NULL) {
+	if (tileset != NULL && tile < (tileset->Tile_Count()) && tileset->Fetch_Record_Pointer_Unsafe(tile) != NULL) {
 		return(true);
 	}
 	return(false);
@@ -472,11 +472,10 @@ Cell const * IsometricTileTypeClass::Occupy_List(bool placement) const
 	Cell	* ptr;
 
 	IsoTileSet const * tileset = (IsoTileSet const *)Get_Image_Data();
-	unsigned int const * map = (unsigned int const *)tileset->Tiles;
 
 	ptr = &_occupy[0];
 	for (int index = 0; index < Width * Height; index++) {
-		if (*map++ != NULL) {
+		if (tileset->Fetch_Record_Pointer_Unsafe(index) != NULL) {
 			*ptr++ = Cell(index % Width, index / Width);
 		}
 	}
@@ -1118,12 +1117,6 @@ void IsometricTileTypeClass::Read_Control_File(TheaterType theater, bool from_cc
 				if (mixfile_set != NULL) {
 					tile->Width = (unsigned char)mixfile_set->MapWidth;
 					tile->Height = (unsigned char)mixfile_set->MapHeight;
-					for (j = 0; j < mixfile_set->Tile_Count(); j++) {
-						IsoTileRecord ** record = &mixfile_set->Tiles[j];
-						if (*record != 0 && (unsigned int)*record < (unsigned int)mixfile_set) {
-							*record = (IsoTileRecord *)((unsigned int)mixfile_set + (unsigned int)*record);
-						}
-					}
 					tile->Build_Preview_Tiles();
 				} else {
 					if (tile_count == 0) {
@@ -1180,7 +1173,7 @@ void IsometricTileTypeClass::Read_Control_File(TheaterType theater, bool from_cc
 	if (data.IsIceGrowth) {
 		if (Ice1Set != ISOTILE_INVALID) {
 			for (k = ICE_EDGE; k < ICE1_COUNT; k++) {
-				IsoTileRecord * record = ((IsoTileSet *)IsometricTileTypes[Ice1Set + k]->Get_Image_Data())->Tiles[0];
+				IsoTileRecord * record = ((IsoTileSet *)IsometricTileTypes[Ice1Set + k]->Get_Image_Data())->Fetch_Record_Pointer_Unsafe(0);
 				if (record) {
 					record->TileType = 9;
 				}
@@ -1188,7 +1181,7 @@ void IsometricTileTypeClass::Read_Control_File(TheaterType theater, bool from_cc
 		}
 		if (Ice2Set != ISOTILE_INVALID) {
 			for (k = ICE_EDGE; k < ICE2_COUNT; k++) {
-				IsoTileRecord * record = (IsoTileRecord *)((IsoTileSet *)(IsometricTileTypes[Ice2Set + k])->Get_Image_Data())->Tiles[0];
+				IsoTileRecord * record = ((IsoTileSet *)(IsometricTileTypes[Ice2Set + k])->Get_Image_Data())->Fetch_Record_Pointer_Unsafe(0);
 				if (record) {
 					record->TileType = 9;
 				}
@@ -1196,7 +1189,7 @@ void IsometricTileTypeClass::Read_Control_File(TheaterType theater, bool from_cc
 		}
 		if (Ice3Set != ISOTILE_INVALID) {
 			for (k = ICE_EDGE; k < ICE3_COUNT; k++) {
-				IsoTileRecord * record = (IsoTileRecord *)((IsoTileSet *)(IsometricTileTypes[Ice3Set + k])->Get_Image_Data())->Tiles[0];
+				IsoTileRecord * record = ((IsoTileSet *)(IsometricTileTypes[Ice3Set + k])->Get_Image_Data())->Fetch_Record_Pointer_Unsafe(0);
 				if (record) {
 					record->TileType = 9;
 				}
@@ -1307,22 +1300,6 @@ int IsometricTileTypeClass::Load_Tile_Data(void)
 
 	Height = ((unsigned char)tileset->Map_Height());
 	Width = ((unsigned char)tileset->Map_Width());
-
-	/// Fixup pointers to point to actual memory
-	for (int i = 0; i < (Width * Height); i++) {
-
-		if (tileset->Tiles[i] != NULL) {
-			unsigned char * ptr = (unsigned char *)ImageData;
-			/*
-			 * Only fix up pointers that have not been converted already. The file
-			 * has just been read fresh, so none of them ever have been.
-			 */
-			if ((void *)tileset->Tiles[i] < ptr) {
-				tileset->Tiles[i] = (IsoTileRecord *)(ptr + (unsigned int)tileset->Tiles[i]);
-			}
-		}
-
-	}
 
 	Build_Preview_Tiles();
 
@@ -2649,7 +2626,7 @@ int IsometricTileTypeClass::Get_Y_Offset(int tile)
 {
 	IsoTileSet const * tileset = (IsoTileSet const *)Get_Image_Data();
 	if (tileset != NULL && tile < tileset->Tile_Count()) {
-		IsoTileRecord const * record = tileset->Tiles[tile];
+		IsoTileRecord const * record = tileset->Fetch_Record_Pointer_Unsafe(tile);
 		if (record != NULL) {
 			if ((record->IsHasExtraData) != 0) {
 				return(record->ExtraY - record->Y);
@@ -2895,9 +2872,9 @@ void IsometricTileTypeClass::Build_Preview_Tiles(void)
 	PreviewTiles.Clear();
 
 	for (i = 0; i < tileset->Tile_Count(); i++) {
-		if (tileset->Tiles[i] != NULL) {
+		IsoTileRecord const * record = tileset->Fetch_Record_Pointer_Unsafe(i);
+		if (record != NULL) {
 			unsigned short * buffer = new unsigned short[24 + 2];
-			IsoTileRecord const * record = tileset->Tiles[i];
 
 			PreviewTiles.Add(buffer);
 
