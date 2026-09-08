@@ -145,6 +145,26 @@
 #include <memory>
 #include <string>
 
+#include <chrono>
+#include <ratio>
+
+/// The save record stamps its times in the Windows epoch: hundred nanosecond ticks since the
+/// start of 1601. The host clock counts from 1970, so the difference between the two is added.
+static void Fetch_System_File_Time(FILETIME* result)
+{
+#ifdef _WIN32
+	GetSystemTimeAsFileTime(result);
+#else
+	unsigned long long const epoch_difference = 116444736000000000ULL;
+	unsigned long long const now = (unsigned long long)std::chrono::duration_cast<std::chrono::duration<long long, std::ratio<1, 10000000>>>(
+				std::chrono::system_clock::now().time_since_epoch()).count();
+	unsigned long long const ticks = now + epoch_difference;
+	result->dwLowDateTime = (DWORD)(ticks & 0xFFFFFFFFULL);
+	result->dwHighDateTime = (DWORD)(ticks >> 32);
+#endif
+}
+
+
 //#define	SAVE_BLOCK_SIZE	512
 #define	SAVE_BLOCK_SIZE	4096
 //#define	SAVE_BLOCK_SIZE	1024
@@ -1016,7 +1036,7 @@ bool Save_Game(const char *file_name, char const * descr)
 	info.Set_Game_Type(Session.Type);
 
 	FILETIME FileTime;
-	GetSystemTimeAsFileTime(&FileTime);
+	Fetch_System_File_Time(&FileTime);
 	info.Set_Last_Time(FileTime);
 	info.Set_Start_Time(FileTime);
 	info.Set_Play_Time(FileTime);

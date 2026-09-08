@@ -115,7 +115,15 @@ int Best_Fit_Index(unsigned page, short * cache, char32_t code)
 		wchar_t wide = (wchar_t)code;
 		char narrow = 0;
 		BOOL defaulted = FALSE;
+#ifdef _WIN32
 		int written = WideCharToMultiByte(page, 0, &wide, 1, &narrow, 1, NULL, &defaulted);
+#else
+		// No host code page service outside Windows, so nothing above ASCII maps and the
+		// caller falls back to its own substitute glyph.
+		(void)page;
+		(void)wide;
+		int written = 0;
+#endif
 		unsigned char byte = (unsigned char)narrow;
 		slot = (written == 1 && !defaulted && byte >= 0x20 && byte != 0x7F) ? (short)byte : (short)-1;
 	}

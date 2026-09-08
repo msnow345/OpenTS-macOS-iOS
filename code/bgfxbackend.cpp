@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <malloc.h>
@@ -79,6 +80,50 @@ struct BackendVertex
 
 // bgfx reports lost devices and shader failures through this rather than a return code,
 // so the engine would otherwise present to a black window with no explanation.
+#ifndef _WIN32
+// The renderer reaches for two Win32 services that have no POSIX spelling. Trace output goes
+// to the standard error stream, and the aligned allocator keeps the raw block address and the
+// usable size in the two words ahead of the address it hands back.
+static void OutputDebugString(char const * text)
+{
+	fputs(text != NULL ? text : "", stderr);
+}
+
+static void _aligned_free(void * ptr)
+{
+	if (ptr != NULL) {
+		std::free(((void **)ptr)[-2]);
+	}
+}
+
+static void * _aligned_realloc(void * ptr, std::size_t size, std::size_t alignment)
+{
+	if (alignment < sizeof(void *)) {
+		alignment = sizeof(void *);
+	}
+
+	std::size_t const header = 2 * sizeof(void *);
+	void * raw = std::malloc(size + alignment + header);
+	if (raw == NULL) {
+		return(NULL);
+	}
+
+	std::uintptr_t const base = (std::uintptr_t)raw + header;
+	void * aligned = (void *)((base + alignment - 1) & ~(std::uintptr_t)(alignment - 1));
+	((void **)aligned)[-2] = raw;
+	((std::size_t *)aligned)[-1] = size;
+
+	if (ptr != NULL) {
+		std::size_t const previous = ((std::size_t *)ptr)[-1];
+		std::memcpy(aligned, ptr, previous < size ? previous : size);
+		_aligned_free(ptr);
+	}
+
+	return(aligned);
+}
+#endif
+
+
 class BackendCallback : public bgfx::CallbackI
 {
 	public:
