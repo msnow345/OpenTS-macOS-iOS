@@ -20,8 +20,9 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 add_subdirectory(bgfx.cmake)
 
-# These libraries support the disabled texture tools and are not linked into OpenTS.
-set_target_properties(bimg_decode bimg_encode PROPERTIES EXCLUDE_FROM_ALL TRUE)
+# The encoder supports the disabled texture tools and is not linked into OpenTS. The decoder
+# reads the PNG and TGA files the UI documents reference, so it is built with everything else.
+set_target_properties(bimg_encode PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 if(OPENTS_EXPERIMENTAL_CLANG_CL AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     # bx treats Clang with the MSVC CRT like a non-x86 compiler and erases
@@ -136,3 +137,78 @@ if(NOT WIN32)
 
     add_subdirectory(SDL)
 endif()
+
+#
+# ---------------------------------------------------------
+# FreeType (glyph rasterization for the UI font engine)
+# ---------------------------------------------------------
+#
+# Only RmlUi reaches this library, and only for the shipped sans-serif face. Its optional
+# dependencies would each add a library the engine does not otherwise carry, so every one
+# of them is refused here rather than left to whatever the build machine happens to have.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/freetype/CMakeLists.txt")
+    message(FATAL_ERROR
+        "thirdparty/freetype is empty. Fetch the submodules with:\n"
+        "  git submodule update --init --recursive")
+endif()
+
+set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+
+add_subdirectory(freetype)
+
+# FreeType names its export Freetype::Freetype but declares no target under that name in the
+# build tree, which is the name RmlUi looks for.
+if(NOT TARGET Freetype::Freetype)
+    add_library(Freetype::Freetype ALIAS freetype)
+endif()
+
+#
+# ---------------------------------------------------------
+# RmlUi (documents, styling and layout for the UI shell)
+# ---------------------------------------------------------
+#
+# Built as a static library with the FreeType font engine. The samples carry their own
+# window and renderer backends, which is what the UI shell replaces, so none of them are
+# built and no backend is selected.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/RmlUi/CMakeLists.txt")
+    message(FATAL_ERROR
+        "thirdparty/RmlUi is empty. Fetch the submodules with:\n"
+        "  git submodule update --init --recursive")
+endif()
+
+set(BUILD_SHARED_LIBS OFF)
+set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "" FORCE)
+set(RMLUI_SAMPLES OFF CACHE BOOL "" FORCE)
+set(RMLUI_LUA_BINDINGS OFF CACHE BOOL "" FORCE)
+set(RMLUI_SVG_PLUGIN OFF CACHE BOOL "" FORCE)
+set(RMLUI_LOTTIE_PLUGIN OFF CACHE BOOL "" FORCE)
+set(RMLUI_HARFBUZZ_SAMPLE OFF CACHE BOOL "" FORCE)
+set(RMLUI_TRACY_PROFILING OFF CACHE BOOL "" FORCE)
+set(RMLUI_INSTALL_TARGETS_DIR "" CACHE STRING "" FORCE)
+set(RMLUI_IS_ROOT_PROJECT FALSE)
+
+add_subdirectory(RmlUi)
+
+#
+# ---------------------------------------------------------
+# Dear ImGui (developer tooling on the same UI shell)
+# ---------------------------------------------------------
+#
+# The core sources only. The bundled platform and renderer backends are left out; the UI
+# shell feeds ImGui through the engine's own message hook and draws it on bgfx.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp")
+    message(FATAL_ERROR
+        "thirdparty/imgui is empty. Fetch the submodules with:\n"
+        "  git submodule update --init --recursive")
+endif()
+
+add_library(imgui STATIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_tables.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp"
+)
+target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/imgui")

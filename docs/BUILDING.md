@@ -39,6 +39,23 @@ The audio layer uses [miniaudio](https://github.com/mackron/miniaudio),
 vendored through `thirdparty/miniaudio` at a tested tag and compiled as one
 translation unit from `thirdparty/miniaudio-impl.c`.
 
+The UI shell uses [RmlUi](https://github.com/mikke89/RmlUi), vendored through
+`thirdparty/RmlUi` at a tested tag and built static with the FreeType font
+engine. Its samples carry their own window and renderer backends, which the
+shell replaces, so none of them are built.
+
+RmlUi's font engine uses [FreeType](https://freetype.org/), vendored through
+`thirdparty/freetype` at a tested tag with bzip2, PNG, HarfBuzz, and Brotli
+disabled. FreeType's bundled zlib supplies compressed font stream support.
+
+Developer tooling uses [Dear ImGui](https://github.com/ocornut/imgui), vendored
+through `thirdparty/imgui` at a tested tag. Only the core sources are compiled;
+the bundled platform and renderer backends are not, because the shell feeds
+ImGui through the engine's own message hook and draws it on bgfx.
+
+`bimg_decode`, which bgfx already carries, decodes the PNG and TGA images UI
+documents reference and is built and linked with everything else.
+
 For a fresh clone, use `git clone --recurse-submodules`. Configuration stops
 with instructions if a submodule is missing. Update a pinned tag in a
 separate change.

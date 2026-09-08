@@ -85,6 +85,10 @@ jobs:
           cp thirdparty/licenses/khronos-opengl.txt artifact/OpenTS_THIRD_PARTY_LICENSES/khronos-opengl.txt
           cp thirdparty/miniaudio/LICENSE artifact/OpenTS_THIRD_PARTY_LICENSES/miniaudio.txt
           cp thirdparty/licenses/stb-vorbis.txt artifact/OpenTS_THIRD_PARTY_LICENSES/stb-vorbis.txt
+          cp thirdparty/RmlUi/LICENSE.txt artifact/OpenTS_THIRD_PARTY_LICENSES/rmlui.txt
+          cp thirdparty/freetype/docs/FTL.TXT artifact/OpenTS_THIRD_PARTY_LICENSES/freetype.txt
+          cp thirdparty/licenses/zlib.txt artifact/OpenTS_THIRD_PARTY_LICENSES/zlib.txt
+          cp thirdparty/imgui/LICENSE.txt artifact/OpenTS_THIRD_PARTY_LICENSES/dear-imgui.txt
           cat thirdparty/licenses/khronos-vulkan-notice.txt \
               thirdparty/bgfx.cmake/bimg/3rdparty/astc-encoder/LICENSE.txt \
               > artifact/OpenTS_THIRD_PARTY_LICENSES/khronos-vulkan.txt
