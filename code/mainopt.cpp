@@ -35,6 +35,7 @@
 #include "stimer.h"
 #include "surface.h"
 #include "wwmouse.h"
+#include "ui/uidisplayconfirm.h"
 
 #include "color.hh"
 
@@ -46,6 +47,21 @@ bool Test_Display_Mode_Dialog(int width, int height);
 INT_PTR CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 GameOptionsClass TempOptions;
+
+
+// The screen the mode confirmation's procedure reads and writes. The driver owns it for the
+// whole life of that dialog, which is the lifetime DWLP_USER gave the result pointer it
+// replaces.
+static UIDisplayConfirmPresenterClass * _ConfirmScreen = NULL;
+
+
+static void Options_Queue(UIPresenterClass & screen, char const * action, int value = 0)
+{
+	UIIntent intent;
+	intent.Action = action;
+	intent.Value = value;
+	screen.Queue(intent);
+}
 
 
 /// <summary>
@@ -321,8 +337,6 @@ bool Change_Display_Mode(int width, int height)
 /// <returns>bool; Was the new display mode accepted and left in place?</returns>
 bool Test_Display_Mode_Dialog(int width, int height)
 {
-	int rc = -1;
-
 	DebugString("Testing display mode @ %dx%d\n", width, height);
 	Hide_Mouse();
 	HiddenSurface->Fill(TBLACK);
@@ -337,30 +351,38 @@ bool Test_Display_Mode_Dialog(int width, int height)
 	Show_Mouse();
 	Draw_Menu_Background();
 
+	UIDisplayConfirmPresenterClass screen;
+	screen.Refresh();
+
+	_ConfirmScreen = &screen;
+
+	bool accepted = true;
+
 	HWND dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CONFIRM_MODE, Test_Display_Mode_Dialog_Proc);
 	if (dialog) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&rc);
 		OwnerDraw::Display_Dialog(dialog);
 
-		CDTimerClass<SystemTimerClass> timer = 10 * TIMER_SECOND;
-		while (rc < 0) {
+		while (!screen.Result.has_value()) {
 			if (OwnerDraw::Dialog_Message_Handler() == true) {
 				break;
 			}
-			Title_Screen_Restore();
-			if (timer <= 0) {
-				PostMessage(dialog, WM_COMMAND, WM_DESTROY, 0);
-				timer = 5 * TIMER_SECOND;
-			}
+
+			screen.Drain();
+			screen.Service();
 		}
 
 		OwnerDraw::End_Dialog(dialog);
-		if (rc != IDOK) {
-			DebugString("Resetting display mode @ %dx%d\n", Options.ScreenWidth, Options.ScreenHeight);
-			Change_Display_Mode(Options.ScreenWidth, Options.ScreenHeight);
-			LogicalSurface = HiddenSurface;
-			return(false);
-		}
+
+		accepted = (screen.Choice == UIDisplayConfirmPresenterClass::CHOICE_ACCEPT);
+	}
+
+	_ConfirmScreen = NULL;
+
+	if (!accepted) {
+		DebugString("Resetting display mode @ %dx%d\n", Options.ScreenWidth, Options.ScreenHeight);
+		Change_Display_Mode(Options.ScreenWidth, Options.ScreenHeight);
+		LogicalSurface = HiddenSurface;
+		return(false);
 	}
 
 	DebugString("Keeping display mode @ %dx%d\n", width, height);
@@ -371,24 +393,26 @@ bool Test_Display_Mode_Dialog(int width, int height)
 
 /// <summary>
 /// Handles the mode confirmation dialog.
-/// This routine records the button the player pressed so that the mode test can tell
-/// whether the new resolution was accepted or rejected.
+/// The procedure queues what the player pressed. Anything that is not the accept button is
+/// a refusal, which is what the driver's test against IDOK made of every other identifier
+/// the dialog could produce.
 /// </summary>
 INT_PTR CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int * result;
-	int id;
-
 	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (rc == 0) {
-		result = (int *)GetWindowLongPtr(window, DWLP_USER);
+		if (_ConfirmScreen == NULL) {
+			return(0);
+		}
+
 		switch (message) {
-			case WM_COMMAND:
-				id = LOWORD(wparam);
+			case WM_COMMAND: {
+				int const id = LOWORD(wparam);
 				if (id > 0 && id <= IDCANCEL) {
-					*result = LOWORD(wparam);
+					Options_Queue(*_ConfirmScreen, (id == IDOK) ? UI_MODECONFIRM_ACCEPT : UI_MODECONFIRM_CANCEL);
 				}
 				break;
+			}
 		}
 		return(0);
 	}
