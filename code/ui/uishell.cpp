@@ -238,6 +238,7 @@ bool UI_Init(void)
 		DebugString("[UI] The shipped font could not be loaded.\n");
 	}
 
+	UI_Surface_Element_Init();
 	UI_Dev_Init();
 
 	Apply_Scale_Info();
@@ -262,6 +263,7 @@ void UI_Shutdown(void)
 #endif
 
 	UI_Dev_Shutdown();
+	UI_Surface_Element_Shutdown();
 
 	_Context = nullptr;
 	Rml::Shutdown();
@@ -345,7 +347,6 @@ bool UI_Overlay_Is_Dirty(void)
 {
 	return(_OverlayIsDirty);
 }
-
 
 bool UI_Document_Is_Visible(void)
 {

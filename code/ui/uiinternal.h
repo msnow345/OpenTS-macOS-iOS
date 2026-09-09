@@ -51,6 +51,10 @@ void UI_Render_ImGui(ImDrawData * data);
 // uimessagebox.cpp
 void UI_Message_Box_Service(void);
 
+// uisurface.cpp
+void UI_Surface_Element_Init(void);
+void UI_Surface_Element_Shutdown(void);
+
 // uisystem.cpp
 Rml::SystemInterface * UI_System_Interface(void);
 
