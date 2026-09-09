@@ -193,6 +193,54 @@ namespace NetGlobal
 	}
 
 
+	/// <summary>
+	/// Validates a lobby global packet before dispatch.
+	/// The lobby's handlers copy, compare and print the packet's fixed wire strings, and every
+	/// one of those reads runs off the end of its field when a peer omits the terminator. The
+	/// command set is deliberately not policed here: a lobby command this routine did not
+	/// expect already falls through the dispatcher's final empty arm.
+	/// </summary>
+	DecodeError Validate_Lobby_Packet(GlobalPacketType const & packet, std::size_t packet_length)
+	{
+		if (packet_length != PACKET_SIZE) {
+			return(DecodeError::INVALID_LENGTH);
+		}
+
+		// Every lobby sender fills Name from a terminated handle, and most of the dispatcher's
+		// arms compare or copy it, so it is required of all of them.
+		if (!Has_Terminator(packet.Name, sizeof(packet.Name))) {
+			return(DecodeError::UNTERMINATED_NAME);
+		}
+
+		switch (packet.Command) {
+			case NET_ANSWER_PLAYER:
+			case NET_QUERY_JOIN:
+				if (!Has_Terminator(packet.Serial, sizeof(packet.Serial))) {
+					return(DecodeError::UNTERMINATED_SERIAL);
+				}
+				break;
+
+			case NET_MESSAGE:
+				if (!Has_Terminator(packet.Message.Buf, sizeof(packet.Message.Buf))) {
+					return(DecodeError::UNTERMINATED_MESSAGE);
+				}
+				break;
+
+			case NET_PUB_GAMEOPT:
+			case NET_PRIV_GAMEOPT:
+				if (!Has_Terminator(packet.Options.Buf, sizeof(packet.Options.Buf))) {
+					return(DecodeError::UNTERMINATED_OPTIONS);
+				}
+				break;
+
+			default:
+				break;
+		}
+
+		return(DecodeError::NONE);
+	}
+
+
 	/// <summary>Counts a rejection and selects sparse diagnostics.</summary>
 	RejectionRecord RejectionCounters::Record(DecodeError error) noexcept
 	{
@@ -228,6 +276,8 @@ namespace NetGlobal
 			case DecodeError::SENDER_NOT_MEMBER: return("sender is not a session member");
 			case DecodeError::UNTERMINATED_NAME: return("unterminated player name");
 			case DecodeError::UNTERMINATED_MESSAGE: return("unterminated message");
+			case DecodeError::UNTERMINATED_SERIAL: return("unterminated serial number");
+			case DecodeError::UNTERMINATED_OPTIONS: return("unterminated game options");
 			case DecodeError::INVALID_COLOR: return("invalid session-member color");
 			case DecodeError::INVALID_PROGRESS: return("invalid progress value");
 			case DecodeError::INVALID_KICK_PLAYER: return("invalid kick player");

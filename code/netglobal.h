@@ -27,6 +27,8 @@ namespace NetGlobal
 		SENDER_NOT_MEMBER,
 		UNTERMINATED_NAME,
 		UNTERMINATED_MESSAGE,
+		UNTERMINATED_SERIAL,
+		UNTERMINATED_OPTIONS,
 		INVALID_COLOR,
 		INVALID_PROGRESS,
 		INVALID_KICK_PLAYER,
@@ -94,5 +96,6 @@ namespace NetGlobal
 	void Initialize_Packet(GlobalPacketType & packet, NetCommandType command) noexcept;
 	EndpointResolution Resolve_Sender(Endpoint const & sender, std::span<Endpoint const> roster) noexcept;
 	DecodeError Validate_In_Game_Packet(GlobalPacketType const & packet, std::size_t packet_length, ValidationContext const & context);
+	DecodeError Validate_Lobby_Packet(GlobalPacketType const & packet, std::size_t packet_length);
 	char const * Error_Name(DecodeError error) noexcept;
 }

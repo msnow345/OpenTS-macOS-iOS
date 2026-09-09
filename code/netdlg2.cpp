@@ -33,6 +33,7 @@
 #include "mplayer.h"
 #include "msgbox.h"
 #include "netdlg.h"
+#include "netglobal.h"
 #include "netshare.h"
 #include "newmenu.h"
 #include "ownrdraw.h"
@@ -2048,6 +2049,19 @@ bool Process_Global_Packet(GlobalPacketType *packet, IPXAddressClass *address)
 }	/* end of Process_Global_Packet */
 
 
+static NetGlobal::RejectionCounters LobbyPacketRejections;
+
+
+/// <summary>Records a rejected lobby global packet.</summary>
+static void Record_Lobby_Packet_Rejection(NetGlobal::DecodeError error)
+{
+	NetGlobal::RejectionRecord const record = LobbyPacketRejections.Record(error);
+	if (record.ShouldLog) {
+		DebugString("Lobby global packet drop [%s]: %u\n", NetGlobal::Error_Name(error), record.Count);
+	}
+}
+
+
 /***********************************************************************************************
  * Get_Join_Responses -- sends queries for the Join Dialog                                     *
  *                                                                                             *
@@ -2107,6 +2121,12 @@ static void Get_Join_Responses(void)
 	for (Call_Back(); (rc = Ipx.Get_Global_Message (&Session.GPacket, sizeof(Session.GPacket),
 		&Session.GPacketlen, &Session.GAddress, &Session.GProductID)) != 0; Call_Back()) {
 		if (Session.GProductID != IPXGlobalConnClass::COMMAND_AND_CONQUER2) {
+			continue;
+		}
+
+		NetGlobal::DecodeError const admission = NetGlobal::Validate_Lobby_Packet(Session.GPacket, static_cast<std::size_t>(Session.GPacketlen));
+		if (admission != NetGlobal::DecodeError::NONE) {
+			Record_Lobby_Packet_Rejection(admission);
 			continue;
 		}
 
