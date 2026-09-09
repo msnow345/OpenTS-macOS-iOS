@@ -946,7 +946,19 @@ text beyond an ASCII test document.
     The same rule the text field learned at step 9, one control further on.
 11. **Network lobbies** (L, two changes). Host, guest, game list, the `WS_`
     stack, and `netshare.cpp` as one family; then disconnect, desync, and
-    reconnect. Packets unchanged.
+    reconnect. Packets unchanged. In progress: the family shares one presenter,
+    `code/ui/uilobby.{h,cpp}`, because the three screens share the session's
+    game, player and chat rosters and hand the driver one answer between them.
+    The game list and the guest screen read the view-model and queue intents,
+    and `Net2Remote_Connect` drains them after its pump; the host screen's
+    commands are not extracted and still write the driver's response themselves.
+    No document exists for any of the three.
+
+    `Net2DisplayGameList` and `_Net2DisplayUsers` are split the way `Fill_List`
+    was: the presenter reads the rosters into the model and the old names put
+    the model on the controls. The host's accepted status is recorded with the
+    roster rather than while painting the row, because it is a fact about the
+    player rather than about the row.
 12. **Map generator and WDT** (L).
 13. **Retire OwnerDraw** (M). Delete `ownrdraw.cpp`, `windlg.cpp`, the
     modeless dialog list, the dialog templates, the kill switch, and the
