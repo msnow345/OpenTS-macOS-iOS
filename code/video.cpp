@@ -171,6 +171,11 @@ bool Video_Init(NativeWindow const & window, int drawablewidth, int drawableheig
 		return(false);
 	}
 
+	// The blend masks follow how the display surface packs its pixels. Video_Set_Mode runs
+	// only when the player changes resolution, so an ordinary session never reached it and
+	// every blend was left masking with zero, which draws black.
+	Prepare_Draw_Resources();
+
 	Update_Scale_Info();
 	Update_Present_Interval(refreshrate);
 
