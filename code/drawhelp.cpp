@@ -25,6 +25,9 @@
 #include "wstring.h"
 
 #include <cmath>
+#include <cstdio>
+#include <set>
+#include <string>
 
 
 extern unsigned int Wstring_Hash(Wstring & string);
@@ -52,6 +55,65 @@ struct FontMetrics {
 static bool ODGetFontMetrics(char const * font_name, FontMetrics * metrics);
 static void ODDrawCharRemap(Surface & dst_surf, const char * text, int max_chars, Rect const & rect, char const * font_name, COLORREF color, char flags, int char_spacing);
 static int ODColorToHiColor(COLORREF color);
+
+
+/// <summary>
+/// Reads a picture into the surface cache if it is not there already.
+/// The cache is a pure lookup and never loads anything itself. The routine that filled it
+/// up front went with the owner-draw dialogs, and no other point in startup is both after
+/// the mix files are mounted and before every surviving screen paints, so a picture is read
+/// when it is first asked for. A name that could not be read is not tried again.
+/// </summary>
+/// <param name="red_channel">True to reduce the picture to the red component of its own
+/// palette, which is how a coverage sheet is stored.</param>
+/// <returns>bool; Is the picture in the cache?</returns>
+static bool ODCacheImage(char const * name, int bpp, bool red_channel)
+{
+	static std::set<std::string> _attempted;
+
+	if (SurfaceCache.GetSurface(name) != NULL) {
+		return(true);
+	}
+	if (!_attempted.insert(std::string(name)).second) {
+		return(false);
+	}
+
+	if (!SurfaceCache.CachePCX(name, bpp, red_channel)) {
+		DebugString("TS: %s could not be read.\n", name);
+		return(false);
+	}
+	return(true);
+}
+
+
+/// <summary>
+/// Reads a remap font's two sheets into the surface cache.
+/// The index sheet keeps its palette indices and its palette; the alpha sheet is reduced to
+/// the red component of its own palette, which is the coverage each pixel carries.
+/// </summary>
+static void ODCacheFontSheets(char const * font_name)
+{
+	char name[64];
+
+	snprintf(name, sizeof(name), "%si.pcx", font_name);
+	ODCacheImage(name, 1, false);
+
+	snprintf(name, sizeof(name), "%sa.pcx", font_name);
+	ODCacheImage(name, 1, true);
+}
+
+
+/// <summary>
+/// Fetches one of the dialog system's pictures, reading it on first request.
+/// </summary>
+/// <param name="name">File name of the .PCX, which is also its name in the cache.</param>
+/// <returns>Returns with the cached surface, or NULL if the picture could not be read. The
+/// surface stays owned by the cache.</returns>
+Surface * OD_Fetch_Image(char const * name)
+{
+	ODCacheImage(name, 2, false);
+	return(SurfaceCache.GetSurface(name));
+}
 
 
 static unsigned char OD_Glyph(char32_t code)
@@ -243,6 +305,8 @@ static void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars,
 	int i;
 	Rect draw_rect = rect;
 
+	ODCacheFontSheets(font_name);
+
 	char name_i[64];
 	strcpy(name_i, font_name);
 	strcat(name_i, "i.pcx");
@@ -430,6 +494,8 @@ static bool ODGetFontMetrics(char const * font_name, FontMetrics * metrics)
 
 	FontMetrics temp;
 	memset(&temp, 0, sizeof(temp));
+
+	ODCacheFontSheets(font_name);
 
 	char palette[768];
 	Surface * surf = SurfaceCache.GetSurface(buf, palette);

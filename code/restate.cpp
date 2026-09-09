@@ -118,7 +118,10 @@ class MyButton : public TextButtonClass {
 			char buffer[40];
 
 			sprintf(buffer, "b%ce_li%d.pcx", IsPressed != false ? 'd' : 'u', height);
-			Surface * image = SurfaceCache.GetSurface(buffer);
+			Surface * image = OD_Fetch_Image(buffer);
+			if (image == NULL) {
+				return;
+			}
 			origin.Height = image->Get_Height();
 			dest_rect = origin;
 			dest_rect.Width = small_width;
@@ -130,7 +133,10 @@ class MyButton : public TextButtonClass {
 			HiddenSurface->Blit_From(dest_rect, *image, source_rect);
 
 			sprintf(buffer, "b%ce_mi%d.pcx", IsPressed != false ? 'd' : 'u', height);
-			image = SurfaceCache.GetSurface(buffer);
+			image = OD_Fetch_Image(buffer);
+			if (image == NULL) {
+				return;
+			}
 			rect = origin;
 			rect.X += small_width;
 			rect.Width -= width;
@@ -138,7 +144,10 @@ class MyButton : public TextButtonClass {
 			SurfaceCache.Draw(rect, *HiddenSurface, *image, 0, 0);
 
 			sprintf(buffer, "b%ce_ri%d.pcx", IsPressed != false ? 'd' : 'u', height);
-			image = SurfaceCache.GetSurface(buffer);
+			image = OD_Fetch_Image(buffer);
+			if (image == NULL) {
+				return;
+			}
 			dest_rect = origin;
 			dest_rect.X += origin.Width - width;
 			dest_rect.Width = width;
