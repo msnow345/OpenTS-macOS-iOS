@@ -11,6 +11,7 @@
 
 #include "netshare.h"
 #include "ui/uilobby.h"
+#include "ui/uimessagebox.h"
 #include "ui/uiscenariopick.h"
 #include "ui/uishell.h"
 
@@ -378,6 +379,30 @@ int CountAliveTeams(HouseClass * house)
 int ODMessageBox(const char * text, int type, bool (*callback)(void), bool large)
 {
 	if (text != NULL && strlen(text) > 0) {
+
+		// The presentation is latched here, at screen entry. The box carries the captions the
+		// three templates hold and the caller's poll goes to the screen's service, which is
+		// what WS_Wait_Dialog did with it.
+		if (UI_Use_Rml()) {
+			char const * const ok = Fetch_String(TXT_OK);
+			char const * first = ok;
+			char const * second = NULL;
+			if (type == MB_OKCANCEL) {
+				second = Fetch_String(TXT_CANCEL);
+			} else if (type == MB_YESNO) {
+				first = Fetch_String(TXT_YES);
+				second = Fetch_String(TXT_NO);
+			}
+
+			UIResult const result = UI_Message_Box_Screen(text, 0, first, second, NULL, callback);
+			if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+				if (type == MB_YESNO) {
+					return(result.Value == 0 ? IDYES : IDNO);
+				}
+				return(result.Value == 0 ? IDOK : IDCANCEL);
+			}
+		}
+
 		HWND dialog;
 		if (type == MB_OKCANCEL) {
 			dialog = WS_Create_Dialog(ProgramInstance, IDD_MSGBOX_2, MainWindow, ODMessageBox_Proc, false);

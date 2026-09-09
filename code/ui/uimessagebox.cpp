@@ -70,6 +70,10 @@ class MessageBoxPresenterClass : public UIPresenterClass
 
 		int DefaultResponse = 0;
 
+		// The caller's own per-pass work, polled while the box is up. WS_Wait_Dialog took
+		// one for the same reason, so a lobby keeps answering the network under a warning.
+		bool (*ServiceRoutine)(void) = nullptr;
+
 		virtual void Execute(UIIntent const & intent) override;
 		virtual void Refresh(void) override {}
 		virtual void Service(void) override;
@@ -111,6 +115,13 @@ void MessageBoxPresenterClass::Service(void)
 {
 	if (!GameActive) {
 		Title_Screen_Restore();
+	}
+
+	if (ServiceRoutine != nullptr && ServiceRoutine() && !Result.has_value()) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_CANCELLED;
+		result.Value = ESCAPE_RESPONSE;
+		Result = result;
 	}
 }
 
@@ -193,7 +204,8 @@ void MessageBoxViewClass::Sync(void)
 /// Shows a message and waits for the player to answer it.
 /// </summary>
 UIResult UI_Message_Box_Screen(char const * message, int defresponse,
-	char const * b1txt, char const * b2txt, char const * b3txt)
+	char const * b1txt, char const * b2txt, char const * b3txt,
+	bool (*service)(void))
 {
 	// The presenter is declared first so that it is destroyed last: the data model the view
 	// binds reads the presenter's view-model, and must not outlive it.
@@ -224,6 +236,7 @@ UIResult UI_Message_Box_Screen(char const * message, int defresponse,
 
 	presenter.FirstIsCentred = (count == 1);
 	presenter.DefaultResponse = defresponse;
+	presenter.ServiceRoutine = service;
 
 	if (message != nullptr) {
 		presenter.Message = message;

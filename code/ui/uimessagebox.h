@@ -20,10 +20,13 @@
 // Shows a message with up to three buttons and does not return until one is answered. The
 // result's Value is the index of the button the player picked, counted the way
 // WWMessageBox::Process counts them; GameEnded says the session ended underneath the box.
-// OUTCOME_FAILED_TO_OPEN means nothing was shown, which is the caller's cue to open the
-// legacy dialog instead.
+//
+// The service routine, where one is given, is run once a pass while the box is up. A caller
+// whose own work has to keep going underneath the box supplies it, the way the lobby handed
+// its network poll to WS_Wait_Dialog; a true return answers the box the way its cancel does.
 UIResult UI_Message_Box_Screen(char const * message, int defresponse,
-	char const * b1txt, char const * b2txt, char const * b3txt);
+	char const * b1txt, char const * b2txt, char const * b3txt,
+	bool (*service)(void) = nullptr);
 
 
 // Opens the box that stands over a long operation. It is not modal: the caller keeps
