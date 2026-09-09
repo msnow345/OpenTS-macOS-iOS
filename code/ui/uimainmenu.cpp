@@ -197,7 +197,10 @@ void MainMenuViewClass::Bind(Rml::DataModelConstructor & model)
 	// that produced it.
 	model.BindEventCallback("typed",
 		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
-			if (Modified) return;
+			// One character follows one key, so the flag answers for that character alone.
+			bool const modified = Modified;
+			Modified = false;
+			if (modified) return;
 
 			Rml::String const text = event.GetParameter<Rml::String>("text", Rml::String());
 			for (char const letter : text) {
