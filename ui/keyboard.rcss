@@ -160,7 +160,7 @@
 	top: 210.875dp;
 	width: 127.5dp;
 	height: 22.75dp;
-	line-height: 18.75dp;
+	line-height: 22.75dp;
 	padding: 0dp 4dp;
 	white-space: nowrap;
 	overflow: hidden;

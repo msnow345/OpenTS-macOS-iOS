@@ -141,4 +141,4 @@
 }
 
 /* The three buttons, 70 x 12 dialog units at y 239. */
-.button { top: 388.375dp; width: 105dp; height: 19.5dp; line-height: 15.5dp; }
+.button { top: 388.375dp; width: 105dp; height: 19.5dp; line-height: 19.5dp; }

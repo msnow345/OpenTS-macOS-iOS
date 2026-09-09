@@ -34,7 +34,7 @@
 	top: 0dp;
 	width: 135dp;
 	height: 22.75dp;
-	line-height: 15.5dp;
+	line-height: 22.75dp;
 }
 
 .seat .barframe
@@ -89,5 +89,5 @@
 	top: 315.25dp;
 	width: 442.5dp;
 	height: 22.75dp;
-	line-height: 15.5dp;
+	line-height: 22.75dp;
 }

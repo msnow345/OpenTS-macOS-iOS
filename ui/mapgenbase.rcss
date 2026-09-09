@@ -142,9 +142,9 @@
 
 /* The five buttons across the bottom row, 65 x 14 dialog units at y 220, and the two above
    the preview, 88 x 14. */
-.footbutton { top: 357.5dp; width: 97.5dp; height: 22.75dp; line-height: 15.5dp; }
-.previewbutton { width: 132dp; height: 22.75dp; line-height: 15.5dp; }
+.footbutton { top: 357.5dp; width: 97.5dp; height: 22.75dp; line-height: 22.75dp; }
+.previewbutton { width: 132dp; height: 22.75dp; line-height: 22.75dp; }
 
 /* A BS_AUTOCHECKBOX, which the Firestorm and tournament templates put down the right hand
    side, 84 x 10 dialog units. */
-.check { width: 126dp; height: 16.25dp; line-height: 12.25dp; }
+.check { width: 126dp; height: 16.25dp; line-height: 16.25dp; }
