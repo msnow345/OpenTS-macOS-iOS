@@ -43,6 +43,7 @@
 #include "stimer.h"
 #include "timer.h"
 #include "utf8.h"
+#include "ui/uilobby.h"
 #include "windlg.h"
 #include "winstub.h"
 #include "wsproto.h"
@@ -55,7 +56,6 @@
 */
 static int Request_To_Join(int join_index);
 static void Unjoin_Game(int game_index);
-static void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init = 0);
 static void Get_Join_Responses(void);
 
 INT_PTR CALLBACK MPlayer_Guest_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
@@ -77,6 +77,25 @@ int AIID;
 int Net2_g_Col_Accept;
 int Net2_g_Col_Name;
 int Net2_g_Col_House;
+
+// The lobby screen the driver is running. The dialog procedures read its view-model and
+// queue intents against it; the driver executes the queue after its pump returns.
+static UILobbyPresenterClass * _LobbyScreen = NULL;
+
+
+/// <summary>
+/// Maps a lobby answer onto the control identifier the driver loop already tests, the way
+/// every migrated screen's wrapper maps its outcome onto the value its caller expects.
+/// </summary>
+static int Lobby_Response_Identifier(UILobbyPresenterClass::ResponseType response)
+{
+	switch (response) {
+		case UILobbyPresenterClass::RESPONSE_CANCEL: return(IDCANCEL);
+		case UILobbyPresenterClass::RESPONSE_JOIN:   return(IDC_GAMELIST_JOIN);
+		case UILobbyPresenterClass::RESPONSE_NEW:    return(IDC_GAMELIST_NEW);
+		default:                                     return(0);
+	}
+}
 
 
 /// <summary>
@@ -195,92 +214,64 @@ void Net2DisplayUsers(void)
 /// </summary>
 void _Net2DisplayUsers(void)
 {
-	int i;
-	int color;
-	char hname[128];
-	char info[128];
-	Surface * surf = NULL;
+	HWND win = WS_Top_Window();
+	HWND userwin = win ? GetDlgItem(win, IDC_USERS) : NULL;
 
-	HWND win=WS_Top_Window();
-
-	HWND userwin=GetDlgItem(win,IDC_USERS);
-
-	if (win==NULL || userwin==NULL) {
+	if (win == NULL || userwin == NULL || _LobbyScreen == NULL) {
 		return;
 	}
 
+	// The rows are built where the session changed rather than here, so what is drawn is
+	// the model the screen holds.
+	_LobbyScreen->Build_User_Rows();
+
 	OwnerDraw::CellData thecell;
 
-	int topindex=SendDlgItemMessage(win, IDC_USERS, LB_GETTOPINDEX, 0, 0);
+	int topindex = SendDlgItemMessage(win, IDC_USERS, LB_GETTOPINDEX, 0, 0);
 
 	SendDlgItemMessage(win, IDC_USERS, OD_DISABLEPAINT, 0, TRUE);
 
-	Dictionary<Wstring,bool> lbdict(Wstring_Hash);
+	Dictionary<Wstring, bool> lbdict(Wstring_Hash);
 	LBSaveSelections(userwin, lbdict);
 
 	SendDlgItemMessage(win, IDC_USERS, LB_RESETCONTENT, NULL, NULL);
 
-	if (CurGame == 0) {
-		SendDlgItemMessage(win, IDC_USERS, LB_INSERTSTRING, (WPARAM)0, (LPARAM)Session.Handle);
+	bool const inlobby = CurGame == 0;
 
-		for (i = 1; i < Session.Chat.Count(); i++) {
-			SendDlgItemMessage(win, IDC_USERS, LB_INSERTSTRING, (WPARAM)i, (LPARAM)Session.Chat[i]->Name);
+	for (int i = 0; i < (int)_LobbyScreen->Users.size(); i++) {
+		UILobbyPresenterClass::UserRowType const & row = _LobbyScreen->Users[i];
+
+		SendDlgItemMessage(win, IDC_USERS, LB_INSERTSTRING, (WPARAM)(inlobby ? i : -1), (LPARAM)row.Name.c_str());
+
+		if (inlobby) {
+			continue;
 		}
 
-	} else {
+		// Only two icons ship, so every side past the first borrows the second's.
+		Surface * surf = row.Side == SIDE_GDI
+			? SurfaceCache.GetSurface("gdii.pcx")
+			: SurfaceCache.GetSurface("nodi.pcx");
 
-		for (i = 0; i < Session.Players.Count(); i++) {
-			int type = 0;
+		thecell.type = OwnerDraw::CellData::PRIMARY;
+		thecell.color = PlayerColorTable[row.Color];
+		thecell.hint.set("");
+		SendDlgItemMessage(win, IDC_USERS, OD_SETCELL, MAKEWPARAM(Net2_g_Col_Name, i), (LPARAM)&thecell);
 
-			if (!strcmp(Session.Players[i]->Name, Session.GameName)) {
-				Session.Players[i]->Player.Status = 1;
-				type = 2;
-			} else if (Session.Players[i]->Player.Status != 0) {
-				type = 1;
-			}
+		thecell.type = OwnerDraw::CellData::SURFACE;
+		thecell.hint.set(row.SideName.c_str());
+		thecell.surf = surf;
+		SendDlgItemMessage(win, IDC_USERS, OD_SETCELL, MAKEWPARAM(Net2_g_Col_House, i), (LPARAM)&thecell);
 
-			sprintf(info, "%s", Session.Players[i]->Name);
-
-			// Only two icons ship, so every side past the first borrows the second's.
-			int country = Session.Players[i]->Player.House;
-			SideType side = country >= HOUSE_FIRST && country < HouseTypes.Count() ? HouseTypes[country]->Side : SIDE_NONE;
-			if (side == SIDE_GDI) {
-				sprintf(hname, "%s", Fetch_String(TXT_GDI));
-				surf = SurfaceCache.GetSurface("gdii.pcx");
-			} else if (side == SIDE_NOD || side == SIDE_NONE) {
-				sprintf(hname, "%s", Fetch_String(TXT_NOD));
-				surf = SurfaceCache.GetSurface("nodi.pcx");
-			} else {
-				sprintf(hname, "%s", (char const *)HouseTypes[country]->GivenName);
-				surf = SurfaceCache.GetSurface("nodi.pcx");
-			}
-
-			SendDlgItemMessage(win, IDC_USERS, LB_INSERTSTRING, (WPARAM) -1, (LPARAM)info);
-
-			color = PlayerColorTable[Session.Players[i]->Player.Color];
-
-			thecell.type = OwnerDraw::CellData::PRIMARY;
-			thecell.color = color;
-			thecell.hint.set("");
-			SendDlgItemMessage(win, IDC_USERS, OD_SETCELL, MAKEWPARAM(Net2_g_Col_Name,i),(LPARAM)&thecell);
-
-			thecell.type = OwnerDraw::CellData::SURFACE;
-			thecell.hint.set(hname);
-			thecell.surf = surf;
-			SendDlgItemMessage(win, IDC_USERS, OD_SETCELL, MAKEWPARAM(Net2_g_Col_House,i),(LPARAM)&thecell);
-
-			thecell.hint.set("");
-			thecell.type = OwnerDraw::CellData::SURFACE;
-			if (type == 2) {
-				thecell.surf=SurfaceCache.GetSurface("wolhost.pcx");
-			} else if (type != 0) {
-				thecell.surf=SurfaceCache.GetSurface("wolacpt.pcx");
-			} else {
-				thecell.type = OwnerDraw::CellData::INVALID;
-			}
-			SendDlgItemMessage(win, IDC_USERS, OD_SETCELL, MAKEWPARAM(Net2_g_Col_Accept,i),(LPARAM)&thecell);
+		thecell.hint.set("");
+		thecell.type = OwnerDraw::CellData::SURFACE;
+		if (row.IsHost) {
+			thecell.surf = SurfaceCache.GetSurface("wolhost.pcx");
+		} else if (row.HasAccepted) {
+			thecell.surf = SurfaceCache.GetSurface("wolacpt.pcx");
+		} else {
+			thecell.type = OwnerDraw::CellData::INVALID;
 		}
-
+		SendDlgItemMessage(win, IDC_USERS, OD_SETCELL, MAKEWPARAM(Net2_g_Col_Accept, i), (LPARAM)&thecell);
 	}
 
 	LBRestoreSelections(userwin, lbdict);
@@ -375,38 +366,33 @@ void Net2ServiceGameList(void)
 /// </summary>
 void Net2DisplayGameList(void)
 {
-	char buffer[80];
-
 	HWND window = WS_Top_Window();
 
-	int count = Session.Games.Count();
-	if (CurGame >= count) {
-		CurGame = count - 1;
-		Send_Join_Queries(0, 1, 0, 0);
+	if (window == NULL || _LobbyScreen == NULL) {
+		return;
 	}
 
-	if (CurGame < 0) {
-		CurGame = 0;
-	}
+	_LobbyScreen->Build_Game_Rows();
 
 	int top = SendDlgItemMessage(window, IDC_GAMELIST, LB_GETTOPINDEX, 0, 0);
 
 	SendDlgItemMessage(window, IDC_GAMELIST, OD_DISABLEPAINT, 0, 1);
 	SendDlgItemMessage(window, IDC_GAMELIST, LB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage(window, IDC_GAMELIST, LB_INSERTSTRING, -1, (LPARAM)Fetch_String(TXT_LOBBY));
 
-	for (int i = 1; i < Session.Games.Count(); i++) {
-		NodeNameType *node = Session.Games[i];
-		if (node->Game.IsOpen) {
-			sprintf(buffer, Fetch_String(TXT_THATGUYS_GAME), node);
-		} else {
-			sprintf(buffer, Fetch_String(TXT_THATGUYS_GAME_BRACKET), node);
+	for (int i = 0; i < (int)_LobbyScreen->Games.size(); i++) {
+		UILobbyPresenterClass::GameRowType const & row = _LobbyScreen->Games[i];
+
+		if (i == 0) {
+			SendDlgItemMessage(window, IDC_GAMELIST, LB_INSERTSTRING, -1, (LPARAM)row.Label.c_str());
+			continue;
 		}
+
+		char buffer[80];
+		sprintf(buffer, Fetch_String(row.IsOpen ? TXT_THATGUYS_GAME : TXT_THATGUYS_GAME_BRACKET), row.Label.c_str());
 		SendDlgItemMessage(window, IDC_GAMELIST, LB_INSERTSTRING, -1, (LPARAM)buffer);
 	}
 
-	int idx = CurGame;
-	SendDlgItemMessage(window, IDC_GAMELIST, LB_SETCURSEL, idx, 0);
+	SendDlgItemMessage(window, IDC_GAMELIST, LB_SETCURSEL, _LobbyScreen->SelectedGame, 0);
 	SendDlgItemMessage(window, IDC_GAMELIST, LB_SETTOPINDEX, top, 0);
 	SendDlgItemMessage(window, IDC_GAMELIST, OD_DISABLEPAINT, 0, 0);
 
@@ -715,6 +701,9 @@ bool Net2Remote_Connect(void)
 
 	OwnerDraw::Register_Control_Classes();
 
+	UILobbyPresenterClass screen;
+	_LobbyScreen = &screen;
+
 	HWND game_list_dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_GAME_LIST, MainWindow, MPlayer_Game_List_Dialog_Proc, FALSE);
 	Center_Window_Within_Window(game_list_dialog);
 	OwnerDraw::Subclass_Dialog(game_list_dialog, 0);
@@ -747,6 +736,16 @@ bool Net2Remote_Connect(void)
 			}
 
 			Call_Back();
+
+			// A control handler queues rather than acts, so the queue is executed here,
+			// after the pump has returned. The lobby's own answer is one of the
+			// presenter's, and the other two screens still write theirs directly.
+			screen.Drain();
+			if (screen.Response != UILobbyPresenterClass::RESPONSE_NONE) {
+				_netresponse = Lobby_Response_Identifier(screen.Response);
+				screen.Response = UILobbyPresenterClass::RESPONSE_NONE;
+			}
+
 			if (_netresponse != 0) {
 				break;
 			}
@@ -757,7 +756,7 @@ bool Net2Remote_Connect(void)
 				if (WS_Top_Window_ID() == IDD_MPLAYER_HOST) {
 					PumpGameopts(false);
 				}
-				Net2ServiceGameList();
+				screen.Service();
 			}
 		}
 
@@ -777,6 +776,7 @@ bool Net2Remote_Connect(void)
 				Clear_Vector(&Session.Chat);
 				Session.NetOpen = false;
 				Ipx.Service();
+				_LobbyScreen = NULL;
 				return(false);
 			}
 
@@ -1128,6 +1128,7 @@ bool Net2Remote_Connect(void)
 
 	Session.NetOpen = false;
 	Session.Write_MultiPlayer_Settings();
+	_LobbyScreen = NULL;
 	return(true);
 
 } /* end of Remote_Connect */
@@ -1145,139 +1146,72 @@ INT_PTR CALLBACK MPlayer_Game_List_Dialog_Proc(HWND window, UINT message, WPARAM
 	switch (message) {
 
 	case WM_INITDIALOG: {
-		CurGame = 0;
-		Net2IsGameListActive = 1;
+		if (_LobbyScreen == NULL) {
+			return(0);
+		}
 
-		SendDlgItemMessage(window, IDC_YOURNAME, EM_SETLIMITTEXT, 16, 0);
-		SetWindowText(GetDlgItem(window, IDC_YOURNAME), Session.Handle);
+		_LobbyScreen->Open();
 
-		Session.Options.ScenarioDescription[0] = '\0';
-		Session.ColorIdx = Session.PrefColor;
-
-		Clear_Vector(&Session.Games);
-		Clear_Vector(&Session.Players);
-		Clear_Vector(&Session.Chat);
-
-		NodeNameType * who = new NodeNameType;
-		strcpy(who->Name, Session.Handle);
-		who->Chat.LastTime = 0;
-		who->Chat.LastChance = 0;
-		who->Chat.Color = Session.GPacket.PlayerInfo.Color;
-		Session.Chat.Add(who);
-
-		NodeNameType * game = new NodeNameType;
-		strcpy(game->Name, "");
-		game->Game.IsOpen = 0;
-		game->Game.LastTime = 0;
-		Session.Games.Add(game);
-
-		Send_Join_Queries(true, false, true, true);
+		SendDlgItemMessage(window, IDC_YOURNAME, EM_SETLIMITTEXT, UILobbyPresenterClass::HANDLE_LIMIT, 0);
+		SetWindowText(GetDlgItem(window, IDC_YOURNAME), _LobbyScreen->Handle.c_str());
 		return(0);
 	}
 
 	case WM_COMMAND: {
+		if (_LobbyScreen == NULL) {
+			return(0);
+		}
+
 		switch (LOWORD(wparam)) {
 
 		case IDC_YOURNAME: {
 			char name_buf[64];
 
 			SendDlgItemMessage(window, IDC_YOURNAME, WM_GETTEXT, 63, (LPARAM)name_buf);
-
-			if (strcmp(name_buf, Session.Handle)) {
-				if (UTF8::Copy(Session.Handle, sizeof(Session.Handle), name_buf) < strlen(name_buf)) {
-					SetDlgItemText(window, IDC_YOURNAME, Session.Handle);
-				}
-				Send_Join_Queries(0, 0, 1, 0);
-				_Net2DisplayUsers();
-			}
-
+			_LobbyScreen->Queue(UIIntent{UI_LOBBY_RENAME, name_buf, 0});
 			return(0);
 		}
 
 		case IDCANCEL: {
-			_netresponse = IDCANCEL;
+			_LobbyScreen->Queue(UIIntent{UI_LOBBY_CANCEL, "", 0});
 			return(0);
 		}
 
 		case IDC_GAMELIST_NEW: {
-			_netresponse = IDC_GAMELIST_NEW;
+			_LobbyScreen->Queue(UIIntent{UI_LOBBY_NEW, "", 0});
 			return(0);
 		}
 
 		case IDC_INPUT: {
-			char text[260];
-
-			SendDlgItemMessage(window, IDC_INPUT, WM_GETTEXT, 256, (LPARAM)text);
-
-			int len = strlen(text);
-
-			if (HIWORD(wparam) == EN_MAXTEXT) {
-				SendDlgItemMessage(window, IDC_INPUT, WM_SETTEXT, 0, (LPARAM) "");
-
-				if (len > 2) {
-
-					PMessagePrintf(ColorMe, "[%s] %s", Session.Handle, text);
-
-					GlobalPacketType gpacket;
-					memset(&gpacket, 0, sizeof(gpacket));
-
-					gpacket.Command = NET_MESSAGE;
-					strcpy(gpacket.Name, Session.Handle);
-					strcpy(gpacket.Message.Buf, text);
-					gpacket.Message.Color = Session.ColorIdx;
-					gpacket.Message.NameCRC = Compute_Name_CRC(Session.GameName);
-
-					if (JoinState == JOIN_CONFIRMED) {
-						for (int i = 1; i < Session.Players.Count(); ++i) {
-							Ipx.Send_Global_Message(&gpacket, sizeof(gpacket), 1, &Session.Players[i]->Address);
-							Call_Back();
-						}
-					} else {
-						for (int i = 1; i < Session.Chat.Count(); ++i) {
-							Ipx.Send_Global_Message(&gpacket, sizeof(gpacket), 1, &Session.Chat[i]->Address);
-							Call_Back();
-						}
-					}
-				}
+			if (HIWORD(wparam) != EN_MAXTEXT) {
+				return(0);
 			}
 
+			char text[260];
+			SendDlgItemMessage(window, IDC_INPUT, WM_GETTEXT, 256, (LPARAM)text);
+			SendDlgItemMessage(window, IDC_INPUT, WM_SETTEXT, 0, (LPARAM) "");
+
+			_LobbyScreen->Queue(UIIntent{UI_LOBBY_SAY, text, 0});
 			return(0);
 		}
 
 		case IDC_YOURCOLOR: {
 			if (HIWORD(wparam) == LBN_SELCHANGE) {
-				Session.ColorIdx = SendDlgItemMessage(window, IDC_YOURCOLOR, LB_GETCURSEL, 0, 0);
+				_LobbyScreen->Queue(UIIntent{UI_LOBBY_COLOR, "",
+					(int)SendDlgItemMessage(window, IDC_YOURCOLOR, LB_GETCURSEL, 0, 0)});
 			}
 			return(0);
 		}
 
 		case IDC_GAMELIST: {
-
-			if (JoinState > JOIN_NOTHING) {
-				return(0);
-			}
-
-			int old_game = CurGame;
-			LRESULT sel = SendDlgItemMessage(window, IDC_GAMELIST, LB_GETCURSEL, 0, 0);
-
-			if (sel >= 0 && Net2IsGameListActive) {
-				CurGame = sel;
-				strcpy(Session.GameName, Session.Games[sel]->Name);
-			}
-
 			if (HIWORD(wparam) == LBN_SELCHANGE) {
-				Clear_Vector(&Session.Players);
-
-				if (old_game != CurGame) {
-					Send_Join_Queries(1, 1, 1, 0);
-				}
-
-				_Net2DisplayUsers();
+				_LobbyScreen->Queue(UIIntent{UI_LOBBY_PICK_GAME, "",
+					(int)SendDlgItemMessage(window, IDC_GAMELIST, LB_GETCURSEL, 0, 0)});
 				return(0);
 			}
 
 			if (HIWORD(wparam) == LBN_DBLCLK) {
-				_netresponse = IDC_GAMELIST_JOIN;
+				_LobbyScreen->Queue(UIIntent{UI_LOBBY_JOIN, "", 0});
 				return(0);
 			}
 
@@ -1285,7 +1219,7 @@ INT_PTR CALLBACK MPlayer_Game_List_Dialog_Proc(HWND window, UINT message, WPARAM
 		}
 
 		case IDC_GAMELIST_JOIN: {
-			_netresponse = IDC_GAMELIST_JOIN;
+			_LobbyScreen->Queue(UIIntent{UI_LOBBY_JOIN, "", 0});
 			return(0);
 		}
 		}
@@ -2127,7 +2061,7 @@ static void Unjoin_Game(int game_index)
  *   02/14/1995 BR : Created.                                                                  *
  *   04/15/1995 BRR : Created.                                                                 *
  *=============================================================================================*/
-static void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init)
+void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init)
 {
 	GlobalPacketType packet = {};
 

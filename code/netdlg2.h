@@ -15,8 +15,20 @@
 
 #include "win.h"
 
+#include "netdlg.h"
+
 struct GlobalPacketType;
 class IPXAddressClass;
+
+/*
+**	The lobby's own state, shared by the game list, host and guest screens.
+*/
+extern int CurGame;
+extern JoinStateType JoinState;
+extern bool Net2IsGameListActive;
+
+void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init = 0);
+void Net2ServiceGameList(void);
 
 int Net2FirstFreeColor(int reqcolor, int index);
 void Fill_Country_Box(HWND combo);
