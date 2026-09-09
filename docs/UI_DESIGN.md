@@ -955,6 +955,21 @@ text beyond an ASCII test document.
     and each carrying its own geometry. Disconnect, desync and reconnect are
     outstanding.
 
+    A lobby screen changes without a result, so the runner has to be told. The
+    join protocol moves the family from the game list to the guest screen from
+    inside the presenter's service, and `UI_Run_Modal` returns only on a result
+    or a suspension, so the runner held the game list open and the guest
+    document was never reached. The family suspends when the screen it is
+    running moves, which is the hook step 8 added for a screen that steps aside.
+
+    A peer is recognised by what it says it is, not by where its packet came
+    from. Both lobby rosters keyed on the source address, so a machine whose
+    packets arrive from more than one address was admitted twice, and the second
+    entry held the color the player had asked for, so the host gave him another
+    one. A chat announcement carries its sender's identifier and the node keeps
+    it; a player is matched on the name the join path already refuses to
+    duplicate.
+
     `Net2DisplayGameList` and `_Net2DisplayUsers` are split the way `Fill_List`
     was: the presenter reads the rosters into the model and the old names put
     the model on the controls. The host's accepted status is recorded with the
