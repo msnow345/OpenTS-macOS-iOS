@@ -57,3 +57,9 @@ manual/data/.manual-generate-*/
 
 # Agent worktrees, which are checkouts of this repository placed inside it
 /.claude/worktrees/
+
+# The iOS packaging scripts sit in a directory the build output rule above would ignore.
+!/scripts/build/
+
+# iOS signing details, which are personal to whoever builds
+/scripts/build/ios/ios-signing.env

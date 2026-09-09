@@ -74,5 +74,37 @@
        device of its own. -->
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>OpenTS does not use Bluetooth. This description is required because the SDL library it is built on links Apple's Bluetooth API for game controller support.</string>
+  <!-- The app icon is declared twice. Assets.car is the current mechanism and
+       CFBundleIconName picks the set inside it; the loose AppIcon*@2x.png files are the
+       older one, kept because SpringBoard caches icons for a developer signed install and
+       only honours the loose files reliably. The packaging script stages both. -->
+  <key>CFBundleIconName</key>
+  <string>AppIcon</string>
+  <key>CFBundleIcons</key>
+  <dict>
+    <key>CFBundlePrimaryIcon</key>
+    <dict>
+      <key>CFBundleIconFiles</key>
+      <array>
+        <string>AppIcon60x60</string>
+      </array>
+      <key>CFBundleIconName</key>
+      <string>AppIcon</string>
+    </dict>
+  </dict>
+  <key>CFBundleIcons~ipad</key>
+  <dict>
+    <key>CFBundlePrimaryIcon</key>
+    <dict>
+      <key>CFBundleIconFiles</key>
+      <array>
+        <string>AppIcon60x60</string>
+        <string>AppIcon76x76</string>
+        <string>AppIcon83.5x83.5</string>
+      </array>
+      <key>CFBundleIconName</key>
+      <string>AppIcon</string>
+    </dict>
+  </dict>
 </dict>
 </plist>
