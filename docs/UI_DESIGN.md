@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 7 of the migration plan have landed; nothing
-from step 8 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 8 of the migration plan have landed; nothing
+from step 9 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -64,6 +64,13 @@ they stand over may never pump again. Screens of different kinds do coexist,
 which the progress box opening over the wait box shows; only a second screen of
 the same kind is refused, and the coexistence rule still forbids a legacy
 dialog underneath either.
+
+Step 8 made a suspended runner possible. `UI_Run_Modal` returns when the screen
+asks to be stepped aside as well as when it has a result, because a screen that
+opens another one of a different kind has no result yet and its owner has to
+hide it, run the other, and show it again. Without that the in-game options
+screen's save and load browsers, and the main menu's version screen, could
+never be reached through an RmlUi view.
 
 Step 7 gave a view the ability to step aside. `UIRmlViewClass` gained `Hide`
 and `Show`, which take a document off the screen and put it back with the modal
@@ -856,6 +863,33 @@ text beyond an ASCII test document.
    which is where the strings are owned.
 8. **Main menu family** (M). `IDD_MAIN_MENU`, campaign choice, game type,
    multiplayer game selection. The `NewMenuClass` drivers keep their loops.
+   Landed: `code/ui/uimainmenu.{h,cpp}`, `uicampaign.{h,cpp}`,
+   `uigametype.{h,cpp}` and `uimpselect.{h,cpp}` with `ui/mainmenu.rml`,
+   `ui/campaign.rml`, `ui/gametype.rml`, `ui/mpselect.rml` and
+   `ui/mpselectfs.rml`, sharing `ui/optionsbase.rcss` and each carrying its own
+   geometry. `NewMenuClass` is untouched: it is the MSEngine graphic menu.
+
+   The main menu document carries the keys its driver watched for beside the
+   buttons, because those keys belong to the screen rather than to the window it
+   was drawn in: Ctrl+V and Ctrl+Alt+C on `keydown`, and the cheat words on
+   `textinput`, since the shell's modal scope takes every key message before the
+   `KN_` queue sees it and `Keyboard->Check()` never fires again while a
+   document is shown. A character that followed a modified key is dropped, the
+   way the driver's own switch answered those combinations before its default
+   arm saw them.
+
+   A campaign row carries the campaign it stands for rather than its position,
+   because the list skips a campaign the player cannot reach. The difficulty
+   track bar needs no read-back at accept: the dialog read its slider back
+   because a keyboard or page move raised no thumb notification, and RmlUi
+   raises a change for every move. The game type screen's default arm is the
+   behavior, so anything but backing out carries on.
+
+   A view names its data model after its own document, so a variant document
+   must name its own model rather than the one the base document names; a
+   document that names another's gets no bindings and no events at all. The
+   step 7 variants had that fault and it went unseen until a click was driven
+   through one.
 9. **Load, save, delete** (M, two changes).
 10. **Skirmish and map selection** (M, two changes). Includes the scenario
     picker templates and the preview surface.
