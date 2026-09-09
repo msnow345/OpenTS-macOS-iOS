@@ -47,10 +47,13 @@
 #include "msgbox.h"
 #include "ownrdraw.h"
 #include "session.h"
+#include "ui/uimpselect.h"
 
 class ListClass;
 
 INT_PTR CALLBACK Select_MPlayer_Game_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+
+static UIMPSelectPresenterClass * _MPSelectScreen = NULL;
 
 /// <summary>
 /// Prompts the player for which kind of multiplayer game to start.
@@ -64,9 +67,14 @@ GameType Select_MPlayer_Game (void)
 		return(retval);
 	}
 
+	UIMPSelectPresenterClass screen;
+	screen.Refresh();
+
+	_MPSelectScreen = &screen;
+
 	HWND dialog;
 
-	if (Addon_Installed(ADDON_FIRESTORM) == ADDON_FIRESTORM) {
+	if (screen.Variant == UIMPSelectPresenterClass::VARIANT_FIRESTORM) {
 		dialog = OwnerDraw::Begin_Dialog(IDD_MPLAYER_SELECT_GAME_FS, Select_MPlayer_Game_Dialog_Proc);
 	} else {
 		dialog = OwnerDraw::Begin_Dialog(IDD_MPLAYER_SELECT_GAME, Select_MPlayer_Game_Dialog_Proc);
@@ -75,43 +83,29 @@ GameType Select_MPlayer_Game (void)
 
 	if (dialog) {
 
-		int rc;
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&rc);
+		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
+		OwnerDraw::Display_Dialog(dialog);
 
-		bool process = true;
-		while (process) {
-			OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
-			OwnerDraw::Display_Dialog(dialog);
-			rc = -1;
-			while (rc == -1) {
-				if (OwnerDraw::Dialog_Message_Handler() == true) {
-					break;
-				}
-				Title_Screen_Restore();
-			}
-
-			ShowWindow(dialog, SW_HIDE);
-			UpdateWindow(MainWindow);
-			switch (rc) {
-				case IDC_NETWORK:
-					retval = GAME_IPX;
-					break;
-				case IDC_SKIRMISH:
-					retval = GAME_SKIRMISH;
-					break;
-				default:
-					retval = GAME_NORMAL;
-					process = false;
-					break;
-			}
-			if (retval != GAME_NORMAL) {
+		while (!screen.Result.has_value()) {
+			if (OwnerDraw::Dialog_Message_Handler() == true) {
 				break;
 			}
+
+			screen.Drain();
+			screen.Service();
 		}
+
+		ShowWindow(dialog, SW_HIDE);
+		UpdateWindow(MainWindow);
+
+		retval = (GameType)screen.Session_Type();
 
 		OwnerDraw::End_Dialog(dialog);
 		Session.Read_Scenario_Descriptions();
 	}
+
+	_MPSelectScreen = NULL;
+
 	return(retval);
 }	/* end of Select_MPlayer_Game */
 
@@ -123,21 +117,18 @@ GameType Select_MPlayer_Game (void)
 /// left unhandled.</returns>
 INT_PTR CALLBACK Select_MPlayer_Game_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int * retval;
 	HWND handle;
 
 	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
-	if (message == WM_INITDIALOG) {
-		// Neither the online service these led to nor the tour it hosted can be reached,
-		// so the buttons are left on the dialog but never answer.
+	if (message == WM_INITDIALOG && _MPSelectScreen != NULL) {
 		handle = GetDlgItem(window, IDC_INTERNET);
 		if (handle) {
-			EnableWindow(handle, FALSE);
+			EnableWindow(handle, _MPSelectScreen->InternetAvailable ? TRUE : FALSE);
 		}
 		handle = GetDlgItem(window, IDC_WORLDDOM);
 		if (handle) {
-			EnableWindow(handle, FALSE);
+			EnableWindow(handle, _MPSelectScreen->WorldDominationAvailable ? TRUE : FALSE);
 		}
 	}
 
@@ -145,9 +136,28 @@ INT_PTR CALLBACK Select_MPlayer_Game_Dialog_Proc(HWND window, UINT message, WPAR
 		return(rc);
 	}
 
-	if (message == WM_COMMAND) {
-		retval = (int *)GetWindowLongPtr(window, DWLP_USER);
-		*retval = LOWORD(wparam);
+	if (message == WM_COMMAND && _MPSelectScreen != NULL) {
+		switch (LOWORD(wparam)) {
+			case IDC_NETWORK:
+				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_NETWORK, "", 0});
+				break;
+
+			case IDC_SKIRMISH:
+				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_SKIRMISH, "", 0});
+				break;
+
+			case IDC_INTERNET:
+				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_INTERNET, "", 0});
+				break;
+
+			case IDC_WORLDDOM:
+				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_WORLDDOM, "", 0});
+				break;
+
+			default:
+				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_BACK, "", 0});
+				break;
+		}
 	}
 	return(false);
 }

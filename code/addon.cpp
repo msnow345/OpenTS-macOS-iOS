@@ -16,8 +16,11 @@
 #include "init.h"
 #include "language/language.h"
 #include "ownrdraw.h"
+#include "ui/uigametype.h"
 
 INT_PTR CALLBACK Select_Game_Type_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+
+static UIGameTypePresenterClass * _GameTypeScreen = NULL;
 
 int AvailableAddOns = 1 << ADDON_BASE_GAME;
 int ActiveAddOns = 1 << ADDON_BASE_GAME;
@@ -55,45 +58,46 @@ AddonType operator--(AddonType & val)
 /// <returns>bool; Should the game carry on? Returns false if the player backed out.</returns>
 bool Select_Game_Type_Dialog(AddonType &type)
 {
-	int retval;
-
 	type = ADDON_BASE_GAME;
 
 	if (Addon_Installed(ADDON_ANY)) {
+		UIGameTypePresenterClass screen;
+		screen.Refresh();
+
+		_GameTypeScreen = &screen;
+
 		HWND dialog = OwnerDraw::Begin_Dialog(IDD_SELECT_GAME_TYPE, Select_Game_Type_Dialog_Proc);
 		if (dialog != 0) {
 
-			SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&retval);
 			OwnerDraw::Display_Dialog(dialog);
 
-			retval = -1;
-			while (retval == -1) {
+			while (!screen.Result.has_value()) {
 				if (OwnerDraw::Dialog_Message_Handler() == true) {
 					break;
 				}
 
-				Title_Screen_Restore(false);
+				screen.Drain();
+				screen.Service();
 			}
 
 			ShowWindow(dialog, SW_HIDE);
 			UpdateWindow(MainWindow);
 			OwnerDraw::End_Dialog(dialog);
-			ActiveAddOns = 1 << ADDON_BASE_GAME;
 
-			switch (retval) {
-				default:
-					type = ADDON_BASE_GAME;
-					break;
+			int addon = ADDON_BASE_GAME;
+			bool const carry_on = screen.Apply(addon);
+			type = (AddonType)addon;
 
-				case IDC_GAMETYPE_FIRESTORM:
-					Enable_Addon(ADDON_FIRESTORM);
-					type = ADDON_FIRESTORM;
-					break;
+			_GameTypeScreen = NULL;
 
-				case IDCANCEL:
-					return(false);
+			if (!carry_on) {
+				return(false);
 			}
+
+			return(true);
 		}
+
+		_GameTypeScreen = NULL;
 
 		Set_Required_Addon(type);
 		return(true);
@@ -110,18 +114,24 @@ bool Select_Game_Type_Dialog(AddonType &type)
 /// </summary>
 INT_PTR CALLBACK Select_Game_Type_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int * retval;
-
 	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
-	if (rc == 0) {
-		switch (message) {
-			case WM_COMMAND:
-				retval = (int *)GetWindowLongPtr(window, DWLP_USER);
-				*retval = LOWORD(wparam);
+	if (rc == 0 && _GameTypeScreen != NULL && message == WM_COMMAND) {
+		switch (LOWORD(wparam)) {
+			case IDC_GAMETYPE_FIRESTORM:
+				_GameTypeScreen->Queue(UIIntent{UI_GAMETYPE_FIRESTORM, "", 0});
+				break;
+
+			case IDCANCEL:
+				_GameTypeScreen->Queue(UIIntent{UI_GAMETYPE_BACK, "", 0});
+				break;
+
+			default:
+				// The dialog's own default arm: any identifier that was not Firestorm and
+				// not a cancel is the base game.
+				_GameTypeScreen->Queue(UIIntent{UI_GAMETYPE_ORIGINAL, "", 0});
 				break;
 		}
-		rc = 0;
 	}
 
 	return(rc);
