@@ -90,9 +90,7 @@ The record also carries the block dimensions, a single-color count, the codebook
 
 Two entries in that list decide nothing. The drawing position is read only where a movie is placed by offset instead of being centered or given a destination, and nothing asks for that. The second audio track's three fields are read only where that track is selected in place of the first, and nothing selects it, so a movie carrying two tracks plays its first one.
 
-:::caution[Movies in a cached archive do not play]
-The offset the archive reader seeks to is measured from the start of the archive file when the archive is not cached, and from the start of the archive's data section when it is. Only the first is a position within the file it then opens, so a movie inside an archive that was cached at startup is read from the wrong place, fails the container check, and is passed over in silence. Among the numbered expansion archives, the `ECACHE` set is cached and the `EXPAND` set is not, and of the two patch archives `PCACHE.MIX` is cached while `PATCH.MIX` is not. [MIX archives](/formats/mix/) covers what caching does.
-:::
+A movie is read from the archive file itself rather than from a cached copy, so the position the reader seeks to is measured from the start of that file whether or not the archive was cached. [MIX archives](/formats/mix/) covers what caching does.
 
 :::danger[A long movie name overruns the buffer the filename is built in]
 The filename is assembled in a fixed twenty-byte buffer. `.VQA` takes four of those bytes and the string terminator a fifth, so a registered name of fifteen characters fills the buffer exactly and a sixteenth character writes one byte past its end. The registry accepts names of up to thirty-one characters, and playing a movie registered at that length writes sixteen bytes over whatever follows the buffer. The names the game ships with are all eight characters or fewer.

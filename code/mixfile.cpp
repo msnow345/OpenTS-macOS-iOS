@@ -563,7 +563,10 @@ bool MixFileClass::Offset(char const * filename, void ** realptr, MixFileClass *
 			if (realptr != NULL && ptr->Data != NULL) {
 				*realptr = (char *)ptr->Data + block->Offset;
 			}
-			if (ptr->Data == NULL && offset != NULL) {
+			// The block's own offset is measured from the data section. The offset reported
+			// here is measured from the start of the archive file, cached or not, because
+			// that is the only thing a caller can seek to in the file it then opens.
+			if (offset != NULL) {
 				*offset += ptr->DataStart;
 			}
 			return(true);
