@@ -1522,6 +1522,7 @@ UIResult UI_Lobby_Run(UILobbyPresenterClass & presenter)
 	// marks the presenter closing and a marked presenter drains nothing.
 	presenter.Result.reset();
 	presenter.IsClosing = false;
+	presenter.Running = presenter.Showing;
 
 	(*slot)->Sync();
 
@@ -1540,5 +1541,6 @@ UIResult UI_Lobby_Run(UILobbyPresenterClass & presenter)
 		(*slot)->Sync();
 	}
 
+	presenter.Running = UILobbyPresenterClass::SCREEN_NONE;
 	return(presenter.Result.value_or(UIResult{}));
 }

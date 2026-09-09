@@ -143,8 +143,17 @@ class UILobbyPresenterClass : public UIPresenterClass
 		virtual void Service(void) override;
 
 		// The scenario picker draws where the host screen is, so the host screen is stepped
-		// aside for it rather than run underneath.
-		virtual bool Suspends(void) const override { return(Pending != SUB_NONE); }
+		// aside for it rather than run underneath. The family also steps aside when the
+		// protocol moves it to another of its three screens, because the runner picks the
+		// document once and a join is confirmed from inside the service.
+		virtual bool Suspends(void) const override
+		{
+			return(Pending != SUB_NONE || (Running != SCREEN_NONE && Running != Showing));
+		}
+
+		// The screen the runner is holding a document open for, which the runner sets and
+		// clears around itself.
+		ScreenType Running = SCREEN_NONE;
 
 		// The rosters the lobby opens with, which the game list dialog built as it was
 		// created: the player's own chat entry and the lobby's own game entry.
