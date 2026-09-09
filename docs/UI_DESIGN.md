@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 9 of the migration plan have landed; nothing
-from step 10 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 10 of the migration plan have landed; nothing
+from step 11 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -911,12 +911,13 @@ text beyond an ASCII test document.
     outright, and so is Ctrl+End, which takes the value's own length. Step 12's map
     generator screens want the same field.
 10. **Skirmish and map selection** (M, two changes). Includes the scenario
-    picker templates and the preview surface. In progress: both screens are
+    picker templates and the preview surface. Landed: both screens are
     extracted, `code/ui/uiskirmish.{h,cpp}` and `code/ui/uiscenariopick.{h,cpp}`,
-    with `skirmish.cpp` and `netshare.cpp` rewired and the legacy views still
-    selected; the map selection screen has its RmlUi view, `ui/selectmap.rml`
-    with `ui/selectmap.rcss`, converted from the `IDD_MPLAYER_SELECT_MAP`
-    template. The skirmish screen has no document yet.
+    with `skirmish.cpp` and `netshare.cpp` rewired, and both have their RmlUi
+    view: `ui/skirmish.rml` and `ui/selectmap.rml` with their stylesheets beside
+    `ui/optionsbase.rcss`, converted from the `IDD_SKIRMISH` and
+    `IDD_MPLAYER_SELECT_MAP` templates. This is the step that makes a skirmish
+    reachable from the menu.
 
     `Update_Network_Dialog_Preview` is split the way `Fill_List` was: a new
     `Rebuild_Network_Map_Preview` owns the preview and the old name owns telling
@@ -931,6 +932,18 @@ text beyond an ASCII test document.
     letterbox with the buffer's color key; the element takes its size from that
     provider and uploads when the provider's generation moves. The presenter
     carries only the artwork's name.
+
+    The two screens hold previews of different sizes and the picker opens over
+    the skirmish screen, so the provider lives in `code/ui/uimappreview.{h,cpp}`
+    with its extents as constructor arguments and each screen registers under
+    its own name. A provider name is unique among live providers, so sharing one
+    would have taken the picture away when the picker closed.
+
+    A track bar's range is set before its value. A range control clamps a value
+    into the range it is holding, and the default range stops well short of what
+    the rules allow, so a value written by the data binding before the range was
+    known opened the credits bar at its minimum instead of at the rules' figure.
+    The same rule the text field learned at step 9, one control further on.
 11. **Network lobbies** (L, two changes). Host, guest, game list, the `WS_`
     stack, and `netshare.cpp` as one family; then disconnect, desync, and
     reconnect. Packets unchanged.
