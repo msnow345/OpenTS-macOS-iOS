@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 4 of the migration plan have landed; nothing
-from step 5 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 5 of the migration plan have landed; nothing
+from step 6 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -37,6 +37,20 @@ and the shell drops the tick that `Main_Loop` and `Call_Back` make from inside
 a runner, so a pass updates the context once. The `[[NAME]]` table arrived with
 it, generated from `language.rc` by the script that already builds the portable
 string table.
+
+Step 5 split a screen in two. `UISoundPresenterClass` holds the sound screen's
+whole behavior and both views drive it: the dialog procedure now reads the
+view-model and queues intents that its driver executes after the pump, and the
+RmlUi documents queue the same intents from their own events. Two facts the
+extraction fixed in place: the screen picks its template from `GameActive`
+rather than from the menu that opened it, and it has no cancel, because the
+templates name no cancel button and the dialog procedure ignored the `IDCANCEL`
+that Escape produces. A form control's value is bound one way, with the view
+dropping a change that matches the value it already holds, so setting a slider
+from the model cannot preview a volume the player did not move; that is what
+`DialogInitialized` did for `WM_HSCROLL`. Two live documents may not share a
+data-model name, which `Context::CreateDataModel` refuses; a second screen of
+the same kind therefore fails preparation rather than opening.
 
 ## Where the UI stands today
 
@@ -745,7 +759,12 @@ text beyond an ASCII test document.
    `End_Dialog`; the handle goes with OwnerDraw.
 5. **Sound** (M, two changes). The behavior pilot: volumes, eligible themes,
    selection, availability, shuffle and repeat, immediate previews, play and
-   stop, both templates, frontend and in-game service paths.
+   stop, both templates, frontend and in-game service paths. Landed:
+   `code/ui/uisound.{h,cpp}` with `ui/sound.rml` and `ui/soundlite.rml`, the
+   geometry converted from the `IDD_SOUND_OPTIONS_DIALOG` and
+   `IDD_SOUND_OPTIONS_DIALOG_LITE` templates. A list row states its width
+   rather than taking it from the list, because a scrolling container gives its
+   children no width to be a proportion of.
 6. **Progress and wait** (S, leaf). `IDD_PROGRESS_WAIT`, the saving and
    loading boxes in `savemgr.cpp`, the `<surface>` element, milestone effects
    moved out of drawing.
