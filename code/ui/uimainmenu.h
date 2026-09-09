@@ -46,6 +46,7 @@ class UIMainMenuPresenterClass : public UIPresenterClass
 		virtual void Execute(UIIntent const & intent) override;
 		virtual void Refresh(void) override;
 		virtual void Service(void) override;
+		virtual bool Suspends(void) const override { return(VersionPending); }
 
 		// The selection the caller's own switch is written against.
 		int Selection(void) const;

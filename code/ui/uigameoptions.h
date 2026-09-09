@@ -60,6 +60,7 @@ class UIGameOptionsPresenterClass : public UIPresenterClass
 
 		virtual void Execute(UIIntent const & intent) override;
 		virtual void Refresh(void) override;
+		virtual bool Suspends(void) const override { return(Pending != SUB_NONE); }
 
 		// Runs the sub-screen an executed intent asked for and clears the request. Safe to
 		// call with nothing pending.

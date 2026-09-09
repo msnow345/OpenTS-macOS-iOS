@@ -961,7 +961,7 @@ UIResult UI_Run_Modal(UIPresenterClass & presenter, UIRmlViewClass & view)
 
 	_RunningModal++;
 
-	while (!presenter.Result.has_value()) {
+	while (!presenter.Result.has_value() && !presenter.Suspends()) {
 		Windows_Message_Handler();
 
 		if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH && !Session.NetOpen && !Session.Suspended) {
@@ -993,5 +993,12 @@ UIResult UI_Run_Modal(UIPresenterClass & presenter, UIRmlViewClass & view)
 	}
 
 	_RunningModal--;
+
+	// A screen that asked to be stepped aside has no result yet; its owner runs the screen
+	// it opened and calls back in.
+	if (!presenter.Result.has_value()) {
+		return(result);
+	}
+
 	return(presenter.Result.value());
 }

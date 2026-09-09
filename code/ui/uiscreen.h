@@ -79,6 +79,11 @@ class UIPresenterClass
 		// was rather than moved into the runner.
 		virtual void Service(void) {}
 
+		// Does the screen want its runner to return before it has a result? A screen of a
+		// different kind opened over this one draws where this one is, so the owner takes
+		// this one off the screen and puts it back, which is what a dialog's ShowWindow did.
+		virtual bool Suspends(void) const { return(false); }
+
 		std::optional<UIResult> Result;
 		bool IsClosing = false;
 
