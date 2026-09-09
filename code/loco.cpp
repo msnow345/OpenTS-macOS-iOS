@@ -218,8 +218,8 @@ ClassID Locomotion_Class_ID(ILocomotion * locomotion)
 
 /// <summary>
 /// Saves the locomotor out to a save game stream.
-/// The locomotor's address is written ahead of its data, which is what lets the swizzle
-/// manager remap every pointer to it when the game is loaded again.
+/// The locomotor's swizzle identity is written ahead of its data, which is what lets the
+/// swizzle manager remap every pointer to it when the game is loaded again.
 /// </summary>
 /// <param name="cleardirty">Should the locomotor be marked as no longer needing a save?</param>
 /// <returns>Returns with the result of the write.</returns>
@@ -235,9 +235,17 @@ bool LocomotionClass::Load(SaveStreamClass & stream)
 }
 
 
+/// <summary>
+/// Writes the members this locomotor describes out to the save stream.
+/// The locomotor's swizzle identity goes out first, and the members follow
+/// in the order Serialize names them.
+/// </summary>
+/// <param name="stream">The stream to write to.</param>
+/// <param name="cleardirty">Should the locomotor be marked clean once it has been written?</param>
+/// <returns>bool; Was the record written whole?</returns>
 bool LocomotionClass::Save_Members(SaveStreamClass & stream, bool cleardirty)
 {
-	uintptr_t id = (uintptr_t)this;
+	SwizzleIDType id = Swizzler.ID_Of(this);
 	stream.Serialize(id);
 	Serialize(stream);
 	if (!stream.Was_Error() && cleardirty) {
@@ -247,9 +255,16 @@ bool LocomotionClass::Save_Members(SaveStreamClass & stream, bool cleardirty)
 }
 
 
+/// <summary>
+/// Reads the members this locomotor describes back from the save stream.
+/// The saved identity is handed to the swizzle system so that pointers elsewhere in the
+/// save game can be remapped onto this locomotor, and the members follow.
+/// </summary>
+/// <param name="stream">The stream to read from.</param>
+/// <returns>bool; Was the record read whole?</returns>
 bool LocomotionClass::Load_Members(SaveStreamClass & stream)
 {
-	uintptr_t id = 0;
+	SwizzleIDType id = 0;
 	stream.Serialize(id);
 	if (stream.Was_Error()) {
 		return(false);
@@ -258,7 +273,7 @@ bool LocomotionClass::Load_Members(SaveStreamClass & stream)
 	Swizzle_Here_I_Am(id, this);
 
 	char const * const outertype = stream.Context_Type();
-	uintptr_t const outerid = stream.Context_ID();
+	SwizzleIDType const outerid = stream.Context_ID();
 	stream.Set_Context(typeid(*this).name(), id);
 	Serialize(stream);
 	stream.Set_Context(outertype, outerid);

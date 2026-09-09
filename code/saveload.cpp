@@ -1025,6 +1025,8 @@ bool Save_Game(const char *file_name, char const * descr)
 {
 	DebugString("\nSAVING GAME [%s - %s]\n", file_name, descr);
 
+	Swizzler.Begin_Save();
+
 	SaveVersionInfo info;
 	info.Set_Internal_Version(ExpectedGameVersion);
 	info.Set_Scenario_Description(descr);

@@ -81,18 +81,27 @@ CMake normally finds Visual Studio through the Visual Studio Installer. For an
 unregistered installation, set `CMAKE_GENERATOR_INSTANCE` to its directory and
 product version.
 
-The solution contains only Debug and Release. Builds write the engine executable
-under `build/bin/<configuration>/` with its runtime name and copy these runtime
-files to `TS_RUN_DIR`, which defaults to `Run/`:
+The solution contains only Debug and Release. Each writes its runtime files to
+`build/bin/<configuration>/` and copies nothing anywhere else. The test harnesses
+build into `build/test-bin/<configuration>/`, so `bin/` holds only what the game
+runs. Compiler and linker intermediates stay in the selected build directory.
 
 | Configuration | Runtime files |
 | --- | --- |
 | Debug | `GameD.exe`, `GameD.pdb`, `GameD.map`, `Language.dll` |
 | Release | `Game.exe`, `Game.pdb`, `Game.map`, `Language.dll` |
 
-`Language.dll` has the same name in both configurations, so the most recently
-built configuration replaces the previous copy in `Run/`. Compiler and linker
-intermediates stay in the selected build directory.
+Run a build from its output directory, naming the game data with `-DATADIR=`:
+
+```powershell
+build\bin\Debug\GameD.exe -DATADIR=Run
+```
+
+`OPENTS_GAME_DIR` names that data directory for the generated Visual Studio
+debugger settings and defaults to `Run/`. The data directory is only read from.
+Saved games, logs, and crash reports go to the user directory, which defaults to
+the executable's own directory, so a build writes beside itself unless
+`-USERDIR=` says otherwise.
 
 ## Experimental clang-cl cross-build
 
@@ -121,6 +130,28 @@ The toolchain requires `clang-cl`, `lld-link`, `llvm-lib`, `llvm-mt`, and
 `llvm-rc` on `PATH`. It exports `compile_commands.json`; one configuration in
 `.vscode/c_cpp_properties.clang.example.json` reads that file for IntelliSense.
 
+## Experimental x64 build
+
+An unsupported 64-bit build is available for porting work. It does not expand the
+supported build matrix or establish runtime behavior.
+
+The configuration has no continuous integration and no entry in the verification
+boundary below, so treat a result from it as evidence about the port rather than
+about the game.
+
+Configure it with the x64 platform and the opt-in:
+
+```powershell
+cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DOPENTS_EXPERIMENTAL_X64=ON
+cmake --build build/x64 --config Debug
+```
+
+A save records pointer identities at a fixed width, but the members and raw
+structures around them still travel at the build's own widths, so a 64-bit
+build's saves are not interchangeable with a supported build's. The packed
+version stamp that saves and network packets carry is the same for both, so
+nothing rejects a save or a peer on that basis. Configuring the build warns
+about it.
 ## Experimental native build
 
 An unsupported native build for the host platform is available for portability
@@ -133,6 +164,15 @@ cmake -S . -B build/native -G Ninja \
   -DOPENTS_EXPERIMENTAL_NATIVE=ON
 cmake --build build/native
 ```
+
+Run it the same way as a supported build, from `build/native/bin/`:
+
+```bash
+build/native/bin/Game -DATADIR=Run -USERDIR=build/native/user
+```
+
+This build is the one exception to the data directory being read only: the
+shipped UI documents resolve under it, so the build writes `ui/` there.
 
 Windows supplies the window, the message loop and the cursor itself. Every
 other target gets them from `platform/win32compat`, which keeps the Win32
@@ -224,8 +264,7 @@ generated from the manual's change records by
 `python manual/tools/manage.py release-notes`. See
 [Maintaining](../manual/MAINTAINING.md) for the full release procedure.
 
-CI redirects `TS_RUN_DIR` to an empty directory, keeping uploaded artifacts
-free of unrelated runtime files.
+CI collects the uploaded artifacts from `build/bin/<configuration>/`.
 
 ## Verification boundary
 

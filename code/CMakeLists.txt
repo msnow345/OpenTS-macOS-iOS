@@ -1,9 +1,12 @@
 # Limit the generated solution to supported configurations.
 set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE STRING "" FORCE)
 
-# OpenTS currently supports 32-bit (x86) builds only.
-if(WIN32 AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
-    message(FATAL_ERROR "OpenTS must be built as 32-bit x86. Reconfigure with -A Win32.")
+# OpenTS supports 32-bit (x86) builds. A 64-bit build is an unsupported experiment.
+if(WIN32 AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT OPENTS_EXPERIMENTAL_X64)
+    message(FATAL_ERROR
+        "OpenTS must be built as 32-bit x86. Reconfigure with -A Win32. "
+        "For the unsupported 64-bit experiment, configure with "
+        "-A x64 -DOPENTS_EXPERIMENTAL_X64=ON.")
 endif()
 
 #
@@ -80,8 +83,9 @@ set_target_properties(OpenTS PROPERTIES
 )
 
 set_target_properties(OpenTS PROPERTIES
-    VS_DEBUGGER_COMMAND "${TS_RUN_DIR}/$<TARGET_FILE_NAME:OpenTS>"
-    VS_DEBUGGER_WORKING_DIRECTORY "${TS_RUN_DIR}"
+    VS_DEBUGGER_COMMAND "$<TARGET_FILE:OpenTS>"
+    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:OpenTS>"
+    VS_DEBUGGER_COMMAND_ARGUMENTS "-DATADIR=${OPENTS_GAME_DIR}"
 )
 
 #
@@ -276,9 +280,10 @@ if(MSVC)
         /SUBSYSTEM:WINDOWS
         /DEBUG
         /MAP
-        # Raises the user address space from 2GB to 4GB under 64-bit Windows. Pointers may
-        # then have the high bit set, so anything holding one in a signed integer must only
-        # round-trip the bits and never compare or scale them.
+        # Raises the user address space of a 32-bit process from 2GB to 4GB under 64-bit
+        # Windows. Pointers may then have the high bit set, so anything holding one in a
+        # signed integer must only round-trip the bits and never compare or scale them. A
+        # 64-bit image carries the flag already.
         /LARGEADDRESSAWARE
         # Declares the process per-monitor DPI aware, so a scaled desktop does not blur
         # the frame by stretching the whole window.
@@ -335,46 +340,20 @@ source_group("Header Files" REGULAR_EXPRESSION ".*\\.(h|hpp)$")
 
 #
 # ---------------------------------------------------------
-# Populate the local run directory
+# Populate the game data directory
 # ---------------------------------------------------------
 #
+# The build no longer copies itself into the game directory, but the shipped UI documents
+# are game data the engine resolves under the data directory, so they are placed there.
 message(STATUS "${PROJECT_NAME}: Creating post-build commands...")
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        "${TS_RUN_DIR}"
-)
 
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:OpenTS>"
-        "${TS_RUN_DIR}"
-)
-
-# The shipped UI documents, styles and font travel with the executable. They are read
+# The shipped UI documents, styles and font travel with the game data. They are read
 # through the game's file system, so this directory is what the search path points at.
 add_custom_command(TARGET OpenTS POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/ui"
-        "${TS_RUN_DIR}/ui"
+        "${OPENTS_GAME_DIR}/ui"
 )
-
-# Copy the linker-generated .pdb alongside the exe. Only the MSVC linker writes one.
-if(MSVC)
-    add_custom_command(TARGET OpenTS POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_PDB_FILE:OpenTS>"
-            "${TS_RUN_DIR}"
-    )
-endif()
-
-# Copy the linker-generated .map (sits next to the exe, no GenEx for it)
-if(MSVC)
-    add_custom_command(TARGET OpenTS POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE_DIR:OpenTS>/$<TARGET_FILE_BASE_NAME:OpenTS>.map"
-            "${TS_RUN_DIR}"
-    )
-endif()
 
 #
 # ---------------------------------------------------------

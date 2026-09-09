@@ -124,29 +124,17 @@ class IsoTileSet
 	friend class IsometricTileTypeClass;
 
 	public:
-		operator void *() const { return(*this); } /// This allows the struct to be passed implicitly as a raw pointer.
-
 		IsoTileRecord const * Fetch_Record_Pointer(int index) const
 		{
-			return(Fetch_Record_Pointer_Unsafe(index % Tile_Count()));
+			return(Record_At(index % Tile_Count()));
 		}
 		IsoTileRecord const * Fetch_Record_Pointer_Unsafe(int index) const
 		{
-			return(const_cast<IsoTileSet *>(this)->Fetch_Record_Pointer_Unsafe(index));
-		}
-		IsoTileRecord * Fetch_Record_Pointer(int index)
-		{
-			return(Fetch_Record_Pointer_Unsafe(index % Tile_Count()));
+			return(Record_At(index));
 		}
 		IsoTileRecord * Fetch_Record_Pointer_Unsafe(int index)
 		{
-			static_assert(sizeof(IsoTileSet) == 20, "Isometric tile set header layout changed");
-			static_assert(offsetof(IsoTileSet, TileOffsets) == 16, "Isometric tile set header layout changed");
-			std::uint32_t const offset = TileOffsets[index];
-			if (offset == 0) {
-				return(NULL);
-			}
-			return(reinterpret_cast<IsoTileRecord *>(reinterpret_cast<unsigned char *>(this) + offset));
+			return((IsoTileRecord *)Record_At(index));
 		}
 
 		/*
@@ -187,13 +175,23 @@ class IsoTileSet
 		int Height;
 
 		/*
-		 * This is the first of the tile set's image record offsets, one per sub-tile, each
-		 * counted in bytes from the start of the set. The file supplies them and they stay as
-		 * they are; Fetch_Record_Pointer resolves one to an address on access, so the array
-		 * stride is four bytes at every pointer width. Reach a record through that accessor.
+		 * This is the first of the tile set's image record offsets, one per sub-tile, each a
+		 * byte offset from the start of the set. A zero offset means the sub-tile is absent
+		 * from the diamond. Reach a record through Fetch_Record_Pointer rather than through
+		 * the array.
 		 */
-		std::uint32_t TileOffsets[1];
+		int TileOffsets[1];
 
+
+	private:
+		IsoTileRecord const * Record_At(int index) const
+		{
+			static_assert(offsetof(IsoTileSet, TileOffsets) == 16, "Isometric tile set header layout changed");
+			if (TileOffsets[index] == 0) {
+				return(NULL);
+			}
+			return((IsoTileRecord const *)((unsigned char const *)this + TileOffsets[index]));
+		}
 
 	/*
 	**	Disallow these operations with an IsoTileSet object.

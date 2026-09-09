@@ -38,6 +38,7 @@
 #include "techno.h"
 
 #include <memory>
+#include <cstdint>
 
 class UnitClass;
 class BuildingClass;

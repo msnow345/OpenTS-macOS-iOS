@@ -131,7 +131,7 @@ bool AbstractClass::Load(SaveStreamClass & stream)
 
 /// <summary>
 /// Writes the members this object describes out to the save stream.
-/// The object's address goes out first as its swizzle identity, and the members follow
+/// The object's swizzle identity goes out first, and the members follow
 /// in the order Serialize names them.
 /// </summary>
 /// <param name="stream">The stream to write to.</param>
@@ -139,7 +139,7 @@ bool AbstractClass::Load(SaveStreamClass & stream)
 /// <returns>bool; Was the record written whole?</returns>
 bool AbstractClass::Save_Members(SaveStreamClass & stream, bool cleardirty)
 {
-	uintptr_t id = (uintptr_t)this;
+	SwizzleIDType id = Swizzler.ID_Of(this);
 	stream.Serialize(id);
 	Serialize(stream);
 	if (!stream.Was_Error() && cleardirty) {
@@ -151,14 +151,14 @@ bool AbstractClass::Save_Members(SaveStreamClass & stream, bool cleardirty)
 
 /// <summary>
 /// Reads the members this object describes back from the save stream.
-/// The saved address is handed to the swizzle system so that pointers elsewhere in the
+/// The saved identity is handed to the swizzle system so that pointers elsewhere in the
 /// save game can be remapped onto this object, and the members follow.
 /// </summary>
 /// <param name="stream">The stream to read from.</param>
 /// <returns>bool; Was the record read whole?</returns>
 bool AbstractClass::Load_Members(SaveStreamClass & stream)
 {
-	uintptr_t id = 0;
+	SwizzleIDType id = 0;
 	stream.Serialize(id);
 	if (stream.Was_Error()) {
 		return(false);
@@ -167,7 +167,7 @@ bool AbstractClass::Load_Members(SaveStreamClass & stream)
 
 	// A nested record borrows the stream, so the owner's context is put back afterwards.
 	char const * const outertype = stream.Context_Type();
-	uintptr_t const outerid = stream.Context_ID();
+	SwizzleIDType const outerid = stream.Context_ID();
 	stream.Set_Context(typeid(*this).name(), id);
 	Serialize(stream);
 	stream.Set_Context(outertype, outerid);

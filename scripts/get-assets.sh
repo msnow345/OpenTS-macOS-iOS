@@ -16,7 +16,7 @@ fi
 
 STEAM_USER="$1"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEST="${TS_RUN_DIR:-$REPO_ROOT/Run}"
+DEST="${OPENTS_GAME_DIR:-$REPO_ROOT/Run}"
 TMP_DIR="$REPO_ROOT/build/.steamcmd_ts"
 
 # App 2229880 = "Command & Conquer Tiberian Sun and Firestorm". The depot is

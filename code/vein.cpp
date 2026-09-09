@@ -906,7 +906,7 @@ bool VeinholeMonsterClass::Load_All(SaveStreamClass & stream)
 		 */
 		VeinholeMonsterClass * monster = new VeinholeMonsterClass();
 
-		uintptr_t id;
+		SwizzleIDType id = 0;
 		stream.Serialize(id);
 		if (stream.Was_Error()) {
 			return(false);
@@ -990,7 +990,7 @@ bool VeinholeMonsterClass::Save_All(SaveStreamClass & stream)
 	}
 
 	for (int i = 0; i < monster_count; i++) {
-		uintptr_t id = (uintptr_t)VeinholeMonsters[i];
+		SwizzleIDType id = Swizzler.ID_Of(VeinholeMonsters[i]);
 		stream.Serialize(id);
 		if (stream.Was_Error()) {
 			return(false);

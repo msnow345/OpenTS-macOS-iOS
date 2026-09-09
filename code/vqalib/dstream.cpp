@@ -70,7 +70,6 @@ static long filelength(int handle)
 }
 #endif
 
-
 intptr_t __cdecl Disk_VQA_Stream_Handler(VQAHandle *vqa, long action, void *buffer, long nbytes)
 {
 	long fh;
