@@ -53,6 +53,7 @@
 #include "netshare.h"
 #include "preview.h"
 #include "rules.h"
+#include "dbgprint.h"
 #include "session.h"
 #include "utf8.h"
 
@@ -787,6 +788,23 @@ void UILobbyPresenterClass::Say(std::string const & text)
 }
 
 
+/// <summary>
+/// Records what the driver loop is being asked to do next, and ends the pass.
+/// The answer is the screen's result as well, because the runner returns on a result and the
+/// driver reads the answer after it does; the family's own loop clears both before it shows
+/// the next screen.
+/// </summary>
+void UILobbyPresenterClass::Answer(ResponseType response)
+{
+	Response = response;
+
+	UIResult result;
+	result.Outcome = response == RESPONSE_CANCEL
+		? UIResult::OUTCOME_CANCELLED : UIResult::OUTCOME_ACCEPTED;
+	Result = result;
+}
+
+
 void UILobbyPresenterClass::Execute(UIIntent const & intent)
 {
 	if (intent.Action == UI_LOBBY_RENAME) {
@@ -852,7 +870,7 @@ void UILobbyPresenterClass::Execute(UIIntent const & intent)
 		// The button goes away until the driver has decided the game may begin, which is what
 		// disabling the window stood for; the driver puts it back when it refuses.
 		CanStart = false;
-		Response = RESPONSE_GO;
+		Answer(RESPONSE_GO);
 		return;
 	}
 
@@ -877,17 +895,17 @@ void UILobbyPresenterClass::Execute(UIIntent const & intent)
 	}
 
 	if (intent.Action == UI_LOBBY_JOIN) {
-		Response = RESPONSE_JOIN;
+		Answer(RESPONSE_JOIN);
 		return;
 	}
 
 	if (intent.Action == UI_LOBBY_NEW) {
-		Response = RESPONSE_NEW;
+		Answer(RESPONSE_NEW);
 		return;
 	}
 
 	if (intent.Action == UI_LOBBY_CANCEL) {
-		Response = RESPONSE_CANCEL;
+		Answer(RESPONSE_CANCEL);
 		return;
 	}
 }

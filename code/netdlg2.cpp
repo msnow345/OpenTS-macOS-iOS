@@ -326,16 +326,21 @@ void Net2DisplayUsers(void)
 /// </summary>
 void _Net2DisplayUsers(void)
 {
-	HWND win = WS_Top_Window();
-	HWND userwin = win ? GetDlgItem(win, IDC_USERS) : NULL;
-
-	if (win == NULL || userwin == NULL || Lobby_Screen() == NULL) {
+	if (Lobby_Screen() == NULL) {
 		return;
 	}
 
-	// The rows are built where the session changed rather than here, so what is drawn is
-	// the model the screen holds.
+	// The rows are built before anything is drawn, and before the window is even asked for,
+	// because this is the point the roster is known to have moved. A presentation that is not
+	// a window reads the model and would otherwise never be told.
 	Lobby_Screen()->Build_User_Rows();
+
+	HWND win = WS_Top_Window();
+	HWND userwin = win ? GetDlgItem(win, IDC_USERS) : NULL;
+
+	if (win == NULL || userwin == NULL) {
+		return;
+	}
 
 	OwnerDraw::CellData thecell;
 
@@ -478,13 +483,17 @@ void Net2ServiceGameList(void)
 /// </summary>
 void Net2DisplayGameList(void)
 {
-	HWND window = WS_Top_Window();
-
-	if (window == NULL || Lobby_Screen() == NULL) {
+	if (Lobby_Screen() == NULL) {
 		return;
 	}
 
 	Lobby_Screen()->Build_Game_Rows();
+
+	HWND window = WS_Top_Window();
+
+	if (window == NULL) {
+		return;
+	}
 
 	int top = SendDlgItemMessage(window, IDC_GAMELIST, LB_GETTOPINDEX, 0, 0);
 
@@ -870,6 +879,7 @@ bool Net2Remote_Connect(void)
 			// after the pump has returned. The lobby's own answer is one of the
 			// presenter's, and the other two screens still write theirs directly.
 			screen.Drain();
+			screen.Result.reset();
 			if (screen.Response != UILobbyPresenterClass::RESPONSE_NONE) {
 				_netresponse = Lobby_Response_Identifier(screen.Response);
 				screen.Response = UILobbyPresenterClass::RESPONSE_NONE;
@@ -1901,7 +1911,7 @@ void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init)
 	if (!game_timer || gamenow) {
 
 		game_timer = GAME_QUERY_TIME;
-		if ((WS_Top_Window_ID() != IDD_MPLAYER_HOST) || gamenow) {
+		if ((Net2LobbyScreenID() != IDD_MPLAYER_HOST) || gamenow) {
 			memset (&packet, 0, sizeof(GlobalPacketType));
 
 			packet.Command = NET_QUERY_GAME;
@@ -2109,14 +2119,14 @@ static void Get_Join_Responses(void)
 		}
 
 		if (Session.GPacket.Command==NET_PREVIEW_MODE) {
-			if (WS_Top_Window_ID() == IDD_MPLAYER_GUEST) {
+			if (Net2LobbyScreenID() == IDD_MPLAYER_GUEST) {
 				Receive_Random_Map_Preview();
 			}
 			continue;
 		}
 
 		if (Session.GPacket.Command==NET_REQ_PREVIEW) {
-			if (WS_Top_Window_ID() == IDD_MPLAYER_HOST) {
+			if (Net2LobbyScreenID() == IDD_MPLAYER_HOST) {
 				Send_Preview_To_Guests();
 			}
 			continue;
@@ -2427,7 +2437,7 @@ static void Get_Join_Responses(void)
 				if (item) {
 					ODMessageBox(item, 0, Net2Callback, 0);
 				}
-				if ( WS_Top_Window_ID() != IDD_MPLAYER_GAME_LIST ) {
+				if ( Net2LobbyScreenID() != IDD_MPLAYER_GAME_LIST ) {
 					_netresponse = IDCANCEL;
 				}
 				Send_Join_Queries (0, 0, 1, 0);
@@ -2515,7 +2525,7 @@ static void Get_Join_Responses(void)
 					//...............................................................
 					if (i==CurGame) {
 						Clear_Vector (&Session.Players);
-						if (WS_Top_Window_ID() != IDD_MPLAYER_GAME_LIST && WS_Top_Window_ID() == IDD_MPLAYER_GUEST) {
+						if (Net2LobbyScreenID() != IDD_MPLAYER_GAME_LIST && Net2LobbyScreenID() == IDD_MPLAYER_GUEST) {
 							_netresponse = 2;
 						}
 					}

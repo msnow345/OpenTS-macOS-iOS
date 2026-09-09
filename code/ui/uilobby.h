@@ -258,6 +258,7 @@ class UILobbyPresenterClass : public UIPresenterClass
 		bool OptionsChanged = false;
 
 	private:
+		void Answer(ResponseType response);
 		void Rename(std::string const & name);
 		void Pick_Game(int row);
 		void Say(std::string const & text);
