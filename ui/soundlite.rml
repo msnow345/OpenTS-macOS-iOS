@@ -1,0 +1,20 @@
+<rml>
+<head>
+	<title>Sound controls</title>
+	<link type="text/rcss" href="soundlite.rcss"/>
+</head>
+<body data-model="soundlite" data-event-keydown="key()">
+	<div id="dialog" data-class-unavailable="!available">
+		<div class="label" id="musiclabel">Music Volume:</div>
+		<input id="music" class="slider" type="range" orientation="horizontal" min="0" max="10" step="1" data-attr-value="music" data-event-change="volume('music')"/>
+
+		<div class="label" id="soundlabel">Sound Volume:</div>
+		<input id="sound" class="slider" type="range" orientation="horizontal" min="0" max="10" step="1" data-attr-value="sound" data-event-change="volume('sound')"/>
+
+		<div class="label" id="voicelabel">Voice Volume:</div>
+		<input id="voice" class="slider" type="range" orientation="horizontal" min="0" max="10" step="1" data-attr-value="voice" data-event-change="volume('voice')"/>
+
+		<div class="button" id="ok" tabindex="auto" data-event-click="press('accept')">OK</div>
+	</div>
+</body>
+</rml>

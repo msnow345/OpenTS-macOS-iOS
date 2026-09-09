@@ -25,12 +25,18 @@
 
 #include "uisound.h"
 
+#include "uirmlview.h"
+
 #include "audio/audioengine.h"
 #include "globals.h"
 #include "goptions.h"
 #include "incdec.h"
 #include "init.h"
 #include "theme.h"
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -170,4 +176,158 @@ void UISoundPresenterClass::Service(void)
 	if (!GameActive) {
 		Title_Screen_Restore();
 	}
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view. One document per dialog template, because the two templates differ by
+// which controls exist rather than by how one is arranged.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the sound screen.
+/// </summary>
+class SoundViewClass : public UIRmlViewClass
+{
+	public:
+		SoundViewClass(UISoundPresenterClass & presenter, char const * document);
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+		// A slider takes its position from the model as the document loads, and that raises
+		// a change event of its own. Nothing is queued until this is set, which is what
+		// DialogInitialized did for the dialog's own WM_HSCROLL.
+		void Settle(void) { Settled = true; }
+
+	private:
+		void Volume(char const * which, int step);
+
+		UISoundPresenterClass & Screen;
+		bool Settled = false;
+};
+
+
+SoundViewClass::SoundViewClass(UISoundPresenterClass & presenter, char const * document) :
+	UIRmlViewClass(presenter, document),
+	Screen(presenter)
+{
+}
+
+
+void SoundViewClass::Volume(char const * which, int step)
+{
+	if (!Settled) return;
+
+	// A position the screen already holds raises no intent, so setting a slider from the
+	// model cannot preview a volume the player did not move.
+	if (which == UI_SOUND_MUSIC && step == Screen.MusicVolume) return;
+	if (which == UI_SOUND_SOUND && step == Screen.SoundVolume) return;
+	if (which == UI_SOUND_VOICE && step == Screen.VoiceVolume) return;
+
+	Screen.Queue(UIIntent{which, "", step});
+}
+
+
+void SoundViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	if (auto track = model.RegisterStruct<UISoundPresenterClass::TrackType>()) {
+		track.RegisterMember("label", &UISoundPresenterClass::TrackType::Label);
+	}
+	model.RegisterArray<std::vector<UISoundPresenterClass::TrackType>>();
+
+	model.Bind("music", &Screen.MusicVolume);
+	model.Bind("sound", &Screen.SoundVolume);
+	model.Bind("voice", &Screen.VoiceVolume);
+	model.Bind("shuffle", &Screen.Shuffle);
+	model.Bind("repeat", &Screen.Repeat);
+	model.Bind("available", &Screen.Available);
+	model.Bind("tracks", &Screen.Tracks);
+	model.Bind("selected", &Screen.Selected);
+
+	// An event handler never acts: it queues, and the runner executes the queue after
+	// Context::Update has returned.
+	model.BindEventCallback("volume",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const which = arguments[0].Get<Rml::String>();
+			int const step = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
+
+			if (which == UI_SOUND_MUSIC) Volume(UI_SOUND_MUSIC, step);
+			else if (which == UI_SOUND_SOUND) Volume(UI_SOUND_SOUND, step);
+			else if (which == UI_SOUND_VOICE) Volume(UI_SOUND_VOICE, step);
+		});
+
+	model.BindEventCallback("toggle",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const which = arguments[0].Get<Rml::String>();
+			if (which == UI_SOUND_SHUFFLE) {
+				Screen.Queue(UIIntent{UI_SOUND_SHUFFLE, "", Screen.Shuffle ? 0 : 1});
+			} else if (which == UI_SOUND_REPEAT) {
+				Screen.Queue(UIIntent{UI_SOUND_REPEAT, "", Screen.Repeat ? 0 : 1});
+			}
+		});
+
+	model.BindEventCallback("pick",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_SOUND_SELECT, "", (int)arguments[0].Get<float>()});
+		});
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const what = arguments[0].Get<Rml::String>();
+			if (what == UI_SOUND_PLAY) Screen.Queue(UIIntent{UI_SOUND_PLAY, "", 0});
+			else if (what == UI_SOUND_STOP) Screen.Queue(UIIntent{UI_SOUND_STOP, "", 0});
+			else if (what == UI_SOUND_ACCEPT) Screen.Queue(UIIntent{UI_SOUND_ACCEPT, "", 0});
+		});
+
+	// Enter accepts, because the template names no default push button and Windows then
+	// sends the dialog IDOK. Escape does nothing, because the dialog procedure ignored the
+	// IDCANCEL it produces, so this screen has no cancel either.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_SOUND_ACCEPT, "", 0});
+			}
+		});
+}
+
+
+void SoundViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	// Only what an executed intent can change is dirtied. The volumes are not, because a
+	// slider already carries the position its own change event reported.
+	Model.DirtyVariable("shuffle");
+	Model.DirtyVariable("repeat");
+	Model.DirtyVariable("selected");
+}
+
+
+/// <summary>
+/// Shows the sound controls and waits for the player to accept them.
+/// </summary>
+UIResult UI_Sound_Screen(UISoundPresenterClass & presenter)
+{
+	SoundViewClass view(presenter, presenter.Is_Lite() ? "soundlite.rml" : "sound.rml");
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	view.Settle();
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
 }

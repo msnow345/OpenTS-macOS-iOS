@@ -45,6 +45,7 @@
 #include "language/language.h"
 #include "ownrdraw.h"
 #include "theme.h"
+#include "ui/uishell.h"
 #include "ui/uisound.h"
 #include "winfix.h"
 
@@ -88,6 +89,18 @@ void SoundControlsClass::Dialog(void)
 
 	UISoundPresenterClass screen;
 	screen.Refresh();
+
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Sound_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			DebugString("SoundControls: GameSpeed = %d, ScrollRate = %d, Detail = %d\n", Options.GameSpeed, Options.ScrollRate, Options.DetailLevel);
+			return;
+		}
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
 
 	_Screen = &screen;
 

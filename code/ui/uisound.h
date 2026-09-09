@@ -73,3 +73,9 @@ class UISoundPresenterClass : public UIPresenterClass
 		// has to choose a document.
 		bool Is_Lite(void) const { return(!HasMusic); }
 };
+
+
+// Shows the screen for the state the presenter was refreshed into and does not return until
+// the player accepts it. A OUTCOME_FAILED_TO_OPEN result means the document could not be
+// prepared and nothing was shown, which is the caller's cue to open the legacy dialog.
+UIResult UI_Sound_Screen(UISoundPresenterClass & presenter);
