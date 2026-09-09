@@ -550,8 +550,16 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int command_sho
 		}
 
 		if (Options.ScreenWidth == -1 || Options.ScreenHeight == -1) {
-			Options.ScreenWidth = 640;
-			Options.ScreenHeight = 480;
+			int framewidth = 0;
+			int frameheight = 0;
+
+			if (Win_Preferred_Frame_Size(framewidth, frameheight)) {
+				Options.ScreenWidth = framewidth;
+				Options.ScreenHeight = frameheight;
+			} else {
+				Options.ScreenWidth = 640;
+				Options.ScreenHeight = 480;
+			}
 		}
 
 		VisibleRect = Rect(0, 0, Options.ScreenWidth, Options.ScreenHeight);

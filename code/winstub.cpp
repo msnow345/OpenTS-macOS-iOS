@@ -377,6 +377,7 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
 extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
+extern "C" BOOL Win32Compat_Preferred_Frame_Size(int * width, int * height);
 bool Win32_Pointer_Can_Warp(void);
 bool Win32_Touch_Take_Scroll(int * x, int * y);
 void Win32_Touch_Set_Movie_Mode(bool playing);
@@ -404,6 +405,36 @@ bool Win_Window_Drawable_Size(HWND window, int & width, int & height)
 	width = client.right - client.left;
 	height = client.bottom - client.top;
 	return(width > 0 && height > 0);
+}
+
+
+/// <summary>
+/// Asks the host what size it wants the game's frame laid out in.
+/// The frame's size is what every button, cameo and menu entry on screen is measured in, so
+/// a host whose display the player can neither resize nor move the game off has an answer
+/// better than any default. A host whose window the player owns has none.
+/// </summary>
+/// <param name="width">Receives the frame width in pixels, untouched on a false return.</param>
+/// <param name="height">Receives the frame height in pixels, untouched on a false return.</param>
+/// <returns>bool; Did the host name a size?</returns>
+bool Win_Preferred_Frame_Size(int & width, int & height)
+{
+#ifdef _WIN32
+	(void)width;
+	(void)height;
+	return(false);
+#else
+	int hostwidth = 0;
+	int hostheight = 0;
+
+	if (Win32Compat_Preferred_Frame_Size(&hostwidth, &hostheight) == FALSE) {
+		return(false);
+	}
+
+	width = hostwidth;
+	height = hostheight;
+	return(true);
+#endif
 }
 
 

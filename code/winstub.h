@@ -22,6 +22,7 @@ struct NativeWindow;
 void Create_Main_Window ( HINSTANCE instance , int command_show , int width , int height);
 NativeWindow Win_Native_Window(HWND window);
 bool Win_Window_Drawable_Size(HWND window, int & width, int & height);
+bool Win_Preferred_Frame_Size(int & width, int & height);
 int Win_Window_Refresh_Rate(HWND window);
 bool Win_Set_Window_Fullscreen(HWND window, bool fullscreen);
 bool Win_Pointer_Can_Warp(void);
