@@ -18,12 +18,17 @@
 #include "uisurface.h"
 
 
+class MapPreviewClass;
+
+
 class MapPreviewSurfaceClass : public UISurfaceBufferClass
 {
 	public:
 		// The extents are the interior of the template's preview frame, in game logical
-		// units, because a provider's pixels are game logical units.
-		MapPreviewSurfaceClass(int width, int height);
+		// units, because a provider's pixels are game logical units. The source is the
+		// variable holding the picture, not the picture, because every owner replaces its
+		// preview object rather than redrawing one; NULL means the session's own.
+		MapPreviewSurfaceClass(int width, int height, MapPreviewClass * const * source = NULL);
 
 		// Draws the session's current preview, scaled and centered the way
 		// MapPreviewClass::Blit_Preview scales it into a dialog's group box. The letterbox
@@ -33,4 +38,5 @@ class MapPreviewSurfaceClass : public UISurfaceBufferClass
 	private:
 		int Width;
 		int Height;
+		MapPreviewClass * const * Source;
 };
