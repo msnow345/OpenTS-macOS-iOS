@@ -1,9 +1,9 @@
 # UI system design
 
 Status: in progress. Steps 1 to 10 of the migration plan have landed, and step
-11's first change and most of its second; nothing from step 12 onward is
-implemented. Everything outside the migration plan
-remains a proposal informed by source inspection and upstream documentation.
+11 except its reconnect dialog; nothing from step 12 onward is implemented.
+Everything outside the migration plan remains a proposal informed by source
+inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
 direction](DIRECTION.md) the wider architecture.
@@ -952,8 +952,19 @@ text beyond an ASCII test document.
     player and chat rosters and hand the driver one answer between them, and all
     three have their RmlUi view: `ui/gamelist.rml`, `ui/mphost.rml` and
     `ui/mpguest.rml`, sharing `ui/lobbybase.rcss` beside `ui/optionsbase.rcss`
-    and each carrying its own geometry. Disconnect, desync and reconnect are
-    outstanding.
+    and each carrying its own geometry. The out-of-sync screen follows in
+    `code/ui/uidesync.{h,cpp}` with `ui/desynchost.rml` and `ui/desyncwait.rml`
+    sharing `ui/desyncbase.rcss`, converted from the `IDD_DESYNC_HOST` and
+    `IDD_DESYNC_WAIT` templates. The reconnect and kick-vote dialog,
+    `IDD_MPLAYER_DISCONNECT` in `queue.cpp`, is outstanding.
+
+    A screen answered by the network rather than by a button has to be told to
+    step aside too. `Get_Join_Responses` writes the driver's answer straight
+    into `_netresponse` for a confirmed start, a rejected join and a host
+    signing off, and none of those changes the screen the family is on, so the
+    runner held the guest's document open and the guest never entered the match
+    the host had started. The lobby records that it has been answered and
+    suspends on it, which is the same hook one cause further on.
 
     A lobby screen changes without a result, so the runner has to be told. The
     join protocol moves the family from the game list to the guest screen from
