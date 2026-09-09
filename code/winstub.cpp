@@ -378,6 +378,7 @@ extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
 extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
 bool Win32_Pointer_Can_Warp(void);
+bool Win32_Touch_Take_Scroll(int * x, int * y);
 #endif
 
 
@@ -432,6 +433,24 @@ bool Win_Pointer_Can_Warp(void)
 	return(true);
 #else
 	return(Win32_Pointer_Can_Warp());
+#endif
+}
+
+
+/// <summary>
+/// Takes the offset a pointing device has asked the tactical view to travel.
+/// The offset is in the window's own pixels and is handed over whole, so a caller that
+/// polls at any rate loses none of it. A device that scrolls nothing answers false and
+/// leaves the values alone.
+/// </summary>
+bool Win_Pointer_Take_Scroll(int & x, int & y)
+{
+#ifdef _WIN32
+	(void)x;
+	(void)y;
+	return(false);
+#else
+	return(Win32_Touch_Take_Scroll(&x, &y));
 #endif
 }
 
