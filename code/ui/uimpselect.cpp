@@ -90,3 +90,74 @@ void UIMPSelectPresenterClass::Execute(UIIntent const & intent)
 	result.Value = Session_Type();
 	Result = result;
 }
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view. One document per template, because the two differ by which buttons exist
+// rather than by how one is arranged.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the multiplayer game selection screen.
+/// </summary>
+class MPSelectViewClass : public UIRmlViewClass
+{
+	public:
+		MPSelectViewClass(UIMPSelectPresenterClass & presenter, char const * document) :
+			UIRmlViewClass(presenter, document),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override {}
+
+	private:
+		UIMPSelectPresenterClass & Screen;
+};
+
+
+void MPSelectViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	model.Bind("internet", &Screen.InternetAvailable);
+	model.Bind("worlddom", &Screen.WorldDominationAvailable);
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// The Main Menu button is the template's IDCANCEL, and Enter reaches the same default
+	// arm the dialog sent every unhandled identifier to.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE || key == Rml::Input::KI_RETURN
+				|| key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_MPSELECT_BACK, "", 0});
+			}
+		});
+}
+
+
+/// <summary>
+/// Shows the multiplayer game choices and waits for the player to make one.
+/// </summary>
+UIResult UI_MPlayer_Select_Screen(UIMPSelectPresenterClass & presenter)
+{
+	char const * const document =
+		(presenter.Variant == UIMPSelectPresenterClass::VARIANT_FIRESTORM) ? "mpselectfs.rml" : "mpselect.rml";
+
+	MPSelectViewClass view(presenter, document);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
+}

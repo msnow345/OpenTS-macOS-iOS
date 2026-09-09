@@ -1,0 +1,18 @@
+<rml>
+<head>
+	<title>Select multiplayer game</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="mpselectfs.rcss"/>
+</head>
+<body data-model="mpselect" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="question">Select Multiplayer Game</div>
+		<div class="button" id="internet" data-class-disabled="!internet" data-event-click="press('internet')">Internet</div>
+		<div class="button" id="worlddom" data-class-disabled="!worlddom" data-event-click="press('worlddom')">World Domination! (Internet)</div>
+		<div class="button" id="modem" data-event-click="press('modem')">Modem / Serial</div>
+		<div class="button" id="network" data-event-click="press('network')">Network</div>
+		<div class="button" id="skirmish" data-event-click="press('skirmish')">Skirmish</div>
+		<div class="button" id="back" data-event-click="press('back')">Main Menu</div>
+	</div>
+</body>
+</rml>

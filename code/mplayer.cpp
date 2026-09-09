@@ -48,6 +48,7 @@
 #include "ownrdraw.h"
 #include "session.h"
 #include "ui/uimpselect.h"
+#include "ui/uishell.h"
 
 class ListClass;
 
@@ -69,6 +70,19 @@ GameType Select_MPlayer_Game (void)
 
 	UIMPSelectPresenterClass screen;
 	screen.Refresh();
+
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		if (UI_MPlayer_Select_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			retval = (GameType)screen.Session_Type();
+			Session.Read_Scenario_Descriptions();
+			return(retval);
+		}
+
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
 
 	_MPSelectScreen = &screen;
 

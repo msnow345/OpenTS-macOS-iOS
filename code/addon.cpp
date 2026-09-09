@@ -17,6 +17,7 @@
 #include "language/language.h"
 #include "ownrdraw.h"
 #include "ui/uigametype.h"
+#include "ui/uishell.h"
 
 INT_PTR CALLBACK Select_Game_Type_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
@@ -63,6 +64,20 @@ bool Select_Game_Type_Dialog(AddonType &type)
 	if (Addon_Installed(ADDON_ANY)) {
 		UIGameTypePresenterClass screen;
 		screen.Refresh();
+
+		// The selection is latched here, at screen entry, and the legacy dialog opens only
+		// when the document could not be prepared.
+		if (UI_Use_Rml()) {
+			if (UI_Game_Type_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+				int addon = ADDON_BASE_GAME;
+				bool const carry_on = screen.Apply(addon);
+				type = (AddonType)addon;
+				return(carry_on);
+			}
+
+			screen.IsClosing = false;
+			screen.Result.reset();
+		}
 
 		_GameTypeScreen = &screen;
 

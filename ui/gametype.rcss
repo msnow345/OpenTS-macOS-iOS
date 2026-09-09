@@ -1,0 +1,41 @@
+/* The game type choice. Geometry from the IDD_SELECT_GAME_TYPE template, converted from
+   dialog units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625
+   down, with a child's offset taken from the panel's content box and the panel's declared
+   size taken inside its own border. */
+
+/* 228 x 108 dialog units, so 342 x 175.5 pixels. This is the one screen of the family its
+   driver does not move, so it is centred both ways. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -171dp;
+	margin-top: -87.75dp;
+
+	width: 338dp;
+	height: 171.5dp;
+}
+
+/* CTEXT with SS_CENTERIMAGE, 184 x 19 dialog units at 22, 12. */
+#question
+{
+	left: 31dp;
+	top: 17.5dp;
+	width: 276dp;
+	height: 30.875dp;
+	line-height: 30.875dp;
+	text-align: center;
+}
+
+/* Three buttons, all 104 x 14 dialog units at x 62. */
+.button
+{
+	left: 91dp;
+	width: 156dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}
+
+#original  { top: 66.25dp; }
+#firestorm { top: 98.75dp; }
+#back      { top: 131.25dp; }

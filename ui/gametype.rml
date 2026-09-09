@@ -1,0 +1,15 @@
+<rml>
+<head>
+	<title>Select game type</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="gametype.rcss"/>
+</head>
+<body data-model="gametype" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="question">Select Game Type</div>
+		<div class="button" id="original" data-event-click="press('original')">Tiberian Sun (Original)</div>
+		<div class="button" id="firestorm" data-event-click="press('firestorm')">Firestorm</div>
+		<div class="button" id="back" data-event-click="press('back')">Main Menu</div>
+	</div>
+</body>
+</rml>

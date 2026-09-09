@@ -86,3 +86,68 @@ void UIGameTypePresenterClass::Execute(UIIntent const & intent)
 
 	Result = result;
 }
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the game type screen.
+/// </summary>
+class GameTypeViewClass : public UIRmlViewClass
+{
+	public:
+		GameTypeViewClass(UIGameTypePresenterClass & presenter) :
+			UIRmlViewClass(presenter, "gametype.rml"),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override {}
+
+	private:
+		UIGameTypePresenterClass & Screen;
+};
+
+
+void GameTypeViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// The Main Menu button is the template's IDCANCEL, so Escape is what it is, and Enter
+	// reaches the dialog's default arm, which is the base game.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Screen.Queue(UIIntent{UI_GAMETYPE_BACK, "", 0});
+			} else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_GAMETYPE_ORIGINAL, "", 0});
+			}
+		});
+}
+
+
+/// <summary>
+/// Shows the game type choice and waits for the player to make it.
+/// </summary>
+UIResult UI_Game_Type_Screen(UIGameTypePresenterClass & presenter)
+{
+	GameTypeViewClass view(presenter);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
+}
