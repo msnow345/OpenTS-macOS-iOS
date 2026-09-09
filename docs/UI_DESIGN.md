@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 10 of the migration plan have landed, and step
-11 except its reconnect dialog; nothing from step 12 onward is implemented.
+Status: in progress. Steps 1 to 12 of the migration plan have landed; nothing
+from step 13 onward is implemented.
 Everything outside the migration plan remains a proposal informed by source
 inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
@@ -955,8 +955,20 @@ text beyond an ASCII test document.
     and each carrying its own geometry. The out-of-sync screen follows in
     `code/ui/uidesync.{h,cpp}` with `ui/desynchost.rml` and `ui/desyncwait.rml`
     sharing `ui/desyncbase.rcss`, converted from the `IDD_DESYNC_HOST` and
-    `IDD_DESYNC_WAIT` templates. The reconnect and kick-vote dialog,
-    `IDD_MPLAYER_DISCONNECT` in `queue.cpp`, is outstanding.
+    `IDD_DESYNC_WAIT` templates. The reconnect and kick-vote dialog follows in
+    `code/ui/uireconnect.{h,cpp}` with `ui/reconnect.rml`, converted from
+    `IDD_MPLAYER_DISCONNECT`. That screen has no loop of its own:
+    `Wait_For_Players` keeps servicing the network while the game is stalled, so
+    it opens the screen, services it once a pass and closes it, the way it created
+    and destroyed a modeless dialog.
+
+    A list row states its own positioning context as well as its width. The
+    out-of-sync seat list gives each row three absolutely positioned cells, and
+    without `position: relative` on the row those cells resolved against the list
+    instead, so every seat painted over the first and a two-player game listed one
+    seat. A `std::vector<std::string>` bound to a data model needs its array type
+    registered like any other; without that the binding is refused and the list
+    stays empty.
 
     A screen answered by the network rather than by a button has to be told to
     step aside too. `Get_Join_Responses` writes the driver's answer straight
@@ -998,7 +1010,30 @@ text beyond an ASCII test document.
     A screen answers its driver with a result as well as a response, because
     the runner returns on a result; a family whose members are opened one after
     another clears both before it shows the next screen.
-12. **Map generator and WDT** (L).
+12. **Map generator and WDT** (L). Landed: `code/ui/uimapgen.{h,cpp}` holds all
+    three templates as one screen, with `ui/mapgen.rml`, `ui/mapgenfs.rml` and
+    `ui/mapgenwdt.rml` sharing `ui/mapgenbase.rcss` beside `ui/optionsbase.rcss`
+    and each carrying its own geometry, converted from `IDD_MAPGEN`,
+    `IDD_MAPGEN_FS` and `IDD_MAPGEN_WDT`. The variant is chosen by whether
+    Firestorm is enabled and whether the session names a tournament territory,
+    not by the caller, which is step 5's shape. `IDD_WDT_PICK_CLAN` is a template
+    no code opens, so the WDT half has no OwnerDraw dialog of its own and the rest
+    of WDT stays with MSEngine.
+
+    The load, save and delete browsers step 9 built draw where this screen is, so
+    the screen steps aside for them on the hook step 8 added. The seed field keeps
+    its place and its width but is hidden, because all three templates declare it
+    `NOT WS_VISIBLE` and nothing ever shows it: it is where the number lives
+    between `Set_Settings` and `Get_Settings` rather than something a player types
+    in. The environment and time of day lists are sorted by name and the two size
+    lists are not, because only the first two combo boxes carry `CBS_SORT`.
+
+    The preview is resampled rather than blitted. `Bit_Blit` copies the smaller of
+    the two rectangles row for row, so an engine surface blit between rectangles
+    of different sizes crops the picture instead of scaling it; only `DSurface`'s
+    own blitter stretches, and a `UISurfaceBufferClass` is not one.
+    `MapPreviewSurfaceClass` had relied on that blit since step 10, where the two
+    sizes were close enough to hide it.
 13. **Retire OwnerDraw** (M). Delete `ownrdraw.cpp`, `windlg.cpp`, the
     modeless dialog list, the dialog templates, the kill switch, and the
     coexistence assertions. String tables stay.
