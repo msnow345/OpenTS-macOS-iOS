@@ -61,6 +61,7 @@
 #include "theme.h"
 #include "timer.h"
 #include "tracker.h"
+#include "video.h"
 #include "ui/uishell.h"
 
 #include "bench.hh"
@@ -628,8 +629,15 @@ void Sync_Delay(void)
 					break;
 				}
 			}
+			/*
+			 * The wait for the frame timer is spent drawing, so that the view keeps up with
+			 * the player between simulation frames. Once the display has a frame and will
+			 * not take another yet, there is nothing left to draw, and yielding in a tight
+			 * loop instead of waiting for it costs a whole processor and the battery behind
+			 * it for pictures that are never shown.
+			 */
 			if (GameInFocus || (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH)) {
-				Host_Sleep(0);
+				Host_Sleep(Video_Milliseconds_Until_Present());
 			} else {
 				Host_Sleep(16 * FrameTimer);
 			}

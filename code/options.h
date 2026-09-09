@@ -179,6 +179,12 @@ class OptionsClass {
 		bool IntegerScaling;
 
 		/*
+		 * The most frames a second the game will put on screen, or zero to follow the
+		 * display's own refresh rate.
+		 */
+		int MaxFrameRate;
+
+		/*
 		 * If presents are to wait for the display's refresh, then this flag will be true.
 		 * Presents are already limited to the refresh rate without it.
 		 */

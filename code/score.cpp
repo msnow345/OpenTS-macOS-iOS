@@ -70,6 +70,7 @@
 #include "scenario.h"
 #include "session.h"
 #include "shapeset.h"
+#include "video.h"
 #include "surface.h"
 #include "theme.h"
 #include "utf8.h"
@@ -1054,7 +1055,7 @@ void ScoreClass::Call_Back_Delay(int time)
 				cd.Start();
 			}
 
-			Host_Sleep(0);
+			Host_Sleep(Video_Milliseconds_Until_Present());
 
 		} while (cd > 0);
 

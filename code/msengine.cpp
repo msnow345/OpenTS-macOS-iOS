@@ -378,7 +378,7 @@ void MSEngine::Wait_Delay(int delay)
 				timer.Start();
 			}
 
-			Host_Sleep(0);
+			Host_Sleep(Video_Milliseconds_Until_Present());
 
 		} while (timer.Value() > 0);
 

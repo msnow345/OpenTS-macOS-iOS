@@ -996,6 +996,10 @@ UIResult UI_Run_Modal(UIPresenterClass & presenter, UIRmlViewClass & view)
 
 		Mark_Overlay_Dirty();
 		Video_Present_If_Dirty();
+
+		// The screen is finished until the display will take another frame, and spinning
+		// through it again in the meantime costs a whole processor for nothing.
+		Host_Sleep(Video_Milliseconds_Until_Present());
 	}
 
 	_RunningModal--;

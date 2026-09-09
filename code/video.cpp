@@ -81,6 +81,26 @@ static void Update_Present_Interval(int refreshrate)
 
 
 /// <summary>
+/// The shortest gap between presents in force, in milliseconds.
+/// A configured frame rate limit wins over the display's own, so a player who would rather
+/// spend less of the machine on frames can say so without a new build.
+/// </summary>
+static unsigned int Present_Interval(void)
+{
+	if (Options.MaxFrameRate <= 0) {
+		return(_PresentInterval);
+	}
+
+	unsigned int interval = (unsigned int)(1000 / Options.MaxFrameRate);
+
+	if (interval < 3) interval = 3;
+	if (interval > 100) interval = 100;
+
+	return(interval);
+}
+
+
+/// <summary>
 /// Works out where the game's frame sits inside the window.
 /// The frame keeps its shape, so it is grown by whichever of the two axes runs out first
 /// and centered in what is left over.
@@ -320,11 +340,40 @@ void Video_Present_If_Dirty(void)
 	}
 
 	unsigned int now = Host_Milliseconds();
-	if ((now - _LastPresentTime) < _PresentInterval) {
+	if ((now - _LastPresentTime) < Present_Interval()) {
 		return;
 	}
 
 	Video_Present();
+}
+
+
+/// <summary>
+/// Reports how long the display has left to wait before it will accept another frame.
+/// A loop with nothing further to draw may sleep for this long without costing a frame,
+/// rather than spending the wait re-rendering pictures no one will ever see.
+/// </summary>
+/// <returns>The milliseconds left to wait, or zero when a frame is ready and due now.</returns>
+unsigned int Video_Milliseconds_Until_Present(void)
+{
+	if (!_Initialized) {
+		return(0);
+	}
+
+	/*
+	 * Nothing has been drawn since the last present, so a whole interval may pass before
+	 * there is anything to show. What changes the picture next is the frame timer or the
+	 * player, and neither arrives sooner for being waited on.
+	 */
+	unsigned int const interval = Present_Interval();
+
+	if (!_FrameIsDirty && !UI_Overlay_Is_Dirty()) {
+		return(interval);
+	}
+
+	unsigned int const elapsed = Host_Milliseconds() - _LastPresentTime;
+
+	return(elapsed >= interval ? 0 : interval - elapsed);
 }
 
 

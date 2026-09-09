@@ -49,6 +49,12 @@ void Video_Mark_Dirty(void);
 void Video_Present(void);
 void Video_Present_If_Dirty(void);
 
+/*
+ * How long the display has left before it will accept another frame. A loop that has drawn
+ * everything it can draw has nothing to do until then.
+ */
+unsigned int Video_Milliseconds_Until_Present(void);
+
 VideoScaleInfo const & Video_Get_Scale_Info(void);
 
 int * EnumDisplayModes(int minwidth, int minheight, int maxwidth, int maxheight);
