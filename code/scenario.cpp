@@ -716,6 +716,7 @@ bool Read_Scenario(char const * fname)
 		}
 
 		Progress.Set_Graphic_Data((players > 1) ? "PROGBARM.SHP" : "PROGBAR.SHP", background, prog_msg, prog_bar_pos);
+		Progress.Announce_Milestones();
 		Progress.Display_Progress();
 
 		if (PacketTransport != NULL && Ipx.Transport_Mode() == IPXManagerClass::TRANSPORT_DIRECT && Session.Players.Count() > 1) {

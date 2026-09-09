@@ -197,15 +197,15 @@ double ProgressScreenClass::Get_Current_Progress(void) const
 
 
 /// <summary>
-/// Draws the progress screen.
-/// This routine paints a progress bar for every player being tracked, and in the single
-/// player case announces the next loading message as the work passes each milestone. The
-/// progress percent routines and the dialog's paint handler call it.
+/// Announces the loading messages the job has just passed.
+/// Each message is printed and its notification sound played once, when the progress first
+/// reaches the threshold that names it. This is an effect of the progress moving rather
+/// than of the screen being drawn, so a repaint cannot repeat a message and a presentation
+/// that repaints a different number of times cannot lose one.
 /// </summary>
-/// <param name="xpt">The screen position to draw at, or Point2D(-1,-1) to use the
-/// position established by Set_Graphic_Data.</param>
-/// <remarks>Nothing is drawn until Initialize has been called.</remarks>
-void ProgressScreenClass::Display_Progress(Point2D xpt)
+/// <remarks>The full screen single player presentation is the only one that shows these;
+/// the dialog presentation and the multiplayer bars carry no messages.</remarks>
+void ProgressScreenClass::Announce_Milestones(void)
 {
 	static struct {
 		int Progress;
@@ -221,6 +221,42 @@ void ProgressScreenClass::Display_Progress(Point2D xpt)
 		{ 100,	TXT_LOADING_GAME1H }
 	};
 
+	if (!IsActive || PlayerCount != 1 || Dialog != 0 || Shape == NULL) {
+		return;
+	}
+
+	int const progress = PlayerProgress[0];
+	int const percent = Percentage;
+
+	if (progress <= percent) {
+		return;
+	}
+
+	for (int j = 0; j < ARRAY_SIZE(_progress_messages); j++) {
+		if (_progress_messages[j].Progress <= progress && _progress_messages[j].Progress > percent) {
+			Fancy_Text_Print(Fetch_String(_progress_messages[j].Text), *HiddenSurface, HiddenSurface->Get_Rect(), Pos + Point2D(0, 10 * j), Fetch_Scheme_By_Name("Green"), 0, TextPrintType(TPF_NOSHADOW|TPF_EFNT));
+			Sound_Effect(VocClass::From_Name("Notify"), 0.4f);
+			Percentage = _progress_messages[j].Progress;
+			Update_Visible_Surface();
+			break;
+		}
+	}
+}
+
+
+/// <summary>
+/// Draws the progress screen.
+/// This routine paints a progress bar for every player being tracked. Drawing it again
+/// changes nothing else: the loading messages and the clamp that used to happen here now
+/// belong to the progress moving.
+/// </summary>
+/// <param name="xpt">The screen position to draw at, or Point2D(-1,-1) to use the
+/// position established by Set_Graphic_Data.</param>
+/// <remarks>Nothing is drawn until Initialize has been called. The full screen single
+/// player presentation draws no bar at all, which is what it has always done -- its
+/// progress is shown by the messages Announce_Milestones prints.</remarks>
+void ProgressScreenClass::Display_Progress(Point2D xpt)
+{
 	if (IsActive) {
 		Point2D pt = xpt;
 
@@ -233,9 +269,6 @@ void ProgressScreenClass::Display_Progress(Point2D xpt)
 
 		ConvertClass * drawer = NormalDrawer;
 		for (int i = 0; i < PlayerCount; i++) {
-			if (PlayerProgress[i] > MainProgress) {
-				PlayerProgress[i] = MainProgress;
-			}
 			if (Shape != NULL) {
 				if (pt == Point2D(-1,-1)) {
 					if (PlayerCount == 1) {
@@ -244,21 +277,6 @@ void ProgressScreenClass::Display_Progress(Point2D xpt)
 							Get_Display_Rect(GetDlgItem(Dialog, IDC_PROGRESS_BAR_FRAME), &crect);
 							pt = Point2D(crect.left + (crect.right - crect.left) / 2, crect.top + (crect.bottom - crect.top) / 2);
 						} else {
-							int progress = PlayerProgress[i];
-							int percent = Percentage;
-							if (progress > percent) {
-								for (int j = 0; j < ARRAY_SIZE(_progress_messages); j++) {
-									if (_progress_messages[j].Progress <= progress && _progress_messages[j].Progress > percent) {
-										Fancy_Text_Print(Fetch_String(_progress_messages[j].Text), *HiddenSurface, HiddenSurface->Get_Rect(), Pos + Point2D(0, 10 * j), Fetch_Scheme_By_Name("Green"), 0, TextPrintType(TPF_NOSHADOW|TPF_EFNT));
-										Sound_Effect(VocClass::From_Name("Notify"), 0.4f);
-										Percentage = _progress_messages[j].Progress;
-										if (surface == HiddenSurface) {
-											Update_Visible_Surface();
-										}
-										break;
-									}
-								}
-							}
 							return;
 						}
 					} else {
@@ -318,11 +336,7 @@ void ProgressScreenClass::Set_Progress_Percent(int index, double value, Point2D 
 	PlayerProgress[index] = (MainProgress / 100.0) * value;
 
 	if (PlayerProgress[index] != prog1) {
-		if (Dialog != NULL) {
-			SendMessage(Dialog, WM_PAINT, 0, 0);
-		} else {
-			Display_Progress(pt);
-		}
+		Progress_Changed(pt);
 	}
 }
 
@@ -341,11 +355,32 @@ void ProgressScreenClass::Add_Progress_Percent(int index, double value, Point2D 
 	PlayerProgress[index] += (MainProgress / 100.0) * value;
 
 	if (PlayerProgress[index] != prog1) {
-		if (Dialog != NULL) {
-			SendMessage(Dialog, WM_PAINT, 0, 0);
-		} else {
-			Display_Progress(pt);
+		Progress_Changed(pt);
+	}
+}
+
+
+/// <summary>
+/// Carries out what a moved gauge asks for: the job may not be more than finished, the
+/// messages it has just passed are announced, and the screen is drawn again.
+/// </summary>
+/// <param name="pt">The screen position the caller asked the bars be drawn at.</param>
+void ProgressScreenClass::Progress_Changed(Point2D pt)
+{
+	for (int i = 0; i < PlayerCount; i++) {
+		if (PlayerProgress[i] > MainProgress) {
+			PlayerProgress[i] = MainProgress;
 		}
+	}
+
+	if (pt == Point2D(-1,-1)) {
+		Announce_Milestones();
+	}
+
+	if (Dialog != NULL) {
+		SendMessage(Dialog, WM_PAINT, 0, 0);
+	} else {
+		Display_Progress(pt);
 	}
 }
 
