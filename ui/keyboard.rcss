@@ -49,13 +49,10 @@
 	width: 207dp;
 	height: 20dp;
 
-	color: #b9bcae;
-	background-color: #2b2f25;
-	border-width: 2dp;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
 #category selectvalue
@@ -74,20 +71,7 @@
 	width: 16dp;
 	height: 16dp;
 
-	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
-}
-
-#category selectarrow:active
-{
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
+	decorator: image(dnarrowr.pcx);
 }
 
 /* The dropped list, capped at the 146 dialog units the template gives it. */
@@ -97,12 +81,9 @@
 	max-height: 237.25dp;
 	overflow-y: auto;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
+	border-color: #ffffff;
 }
 
 #category selectbox option
@@ -112,14 +93,14 @@
 	line-height: 20dp;
 	padding: 0dp 4dp;
 	white-space: nowrap;
-	color: #b9bcae;
+	color: #70ff00;
 }
 
-#category selectbox option:hover  { color: #e4e6da; }
+#category selectbox option:hover  { color: #70ff00; }
 #category selectbox option:checked
 {
-	background-color: #3f4536;
-	color: #e4e6da;
+	background-color: #225061;
+	color: #70ff00;
 }
 
 /* The command list, 146 x 104 dialog units at 168, 41. */
@@ -149,12 +130,9 @@
 	line-height: 14dp;
 	padding-left: 8dp;
 
-	color: #b9bcae;
+	color: #70ff00;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 #description
@@ -167,7 +145,7 @@
 	width: 190.5dp;
 	height: 68.25dp;
 	overflow: hidden;
-	color: #d6d8cc;
+	color: #70ff00;
 }
 
 /* The capture control, 85 x 14 dialog units at 22, 131. It stands where msctls_hotkey32
@@ -187,16 +165,13 @@
 	white-space: nowrap;
 	overflow: hidden;
 
-	color: #e4e6da;
-	background-color: #14160f;
-	border-width: 2dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
-#capture:focus { background-color: #1d2017; }
+#capture:focus { background-color: #000000b4; }
 
 /* Assign, Reset All, OK and Cancel. */
 .button { height: 22.75dp; line-height: 22.75dp; }

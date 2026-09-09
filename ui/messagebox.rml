@@ -1,10 +1,11 @@
 <rml>
 <head>
 	<title>Message</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
 	<link type="text/rcss" href="messagebox.rcss"/>
 </head>
 <body data-model="messagebox" data-event-keydown="key()">
-	<div id="dialog">
+	<div id="dialog" class="panel">
 		<div id="text">{{ message }}</div>
 		<div class="button first" data-if="shown1" data-class-centred="centred" data-event-click="press(0)">{{ button1 }}</div>
 		<div class="button third" data-if="shown3" data-event-click="press(2)">{{ button3 }}</div>

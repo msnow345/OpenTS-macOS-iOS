@@ -92,11 +92,11 @@
 /* What WS_DISABLED looks like: shown, dimmed and out of reach. */
 .off
 {
-	color: #6b6e63;
+	color: #909090;
 	pointer-events: none;
 }
 
-.off sliderbar { background-color: #3f4336; border-top-color: #5c6152; border-left-color: #5c6152; }
+.off sliderbar { background-color: #000000b4; border-color: #ffffff; }
 
 /* Cancel and Accept, both 58 x 18 dialog units at 279, 215 and 350, 215. */
 .button { height: 29.25dp; line-height: 29.25dp; width: 87dp; }

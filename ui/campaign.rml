@@ -5,7 +5,7 @@
 	<link type="text/rcss" href="campaign.rcss"/>
 </head>
 <body data-model="campaign" data-event-keydown="key()">
-	<div id="dialog" class="panel">
+	<div id="dialog" class="panel raised">
 		<div class="caption" id="question">Select Campaign:</div>
 
 		<div class="list" id="campaignlist">

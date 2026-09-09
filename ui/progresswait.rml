@@ -1,10 +1,11 @@
 <rml>
 <head>
 	<title>Working</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
 	<link type="text/rcss" href="progresswait.rcss"/>
 </head>
 <body data-model="progresswait">
-	<div id="dialog">
+	<div id="dialog" class="panel">
 		<div id="text">{{ caption }}</div>
 		<div id="frame"><surface src="progressbar"/></div>
 	</div>

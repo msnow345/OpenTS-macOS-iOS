@@ -1,35 +1,72 @@
 /* What every options family document looks like. Only the look lives here; each document's
    own stylesheet carries its geometry, converted from its dialog template's units.
 
-   The palette and the raised and sunken borders are the ones ui/sound.rcss established for
-   the same family of dialogs. The panel is drawn rather than blitted because the dialogs'
-   own background is a PCX, and PCX decoding arrives with the first screen that shows game
-   art. Everything here stays inside the styling profile docs/UI_DESIGN.md declares: text,
-   ordinary layout, borders and basic decorators, with no filter, layer, shader or
-   transform. */
+   The artwork is the game's own. A dialog backdrop is the slice of dbak6440.pcx that lies
+   under the dialog, with leftbar.pcx and rightbar.pcx tiled down its edges and the four
+   bar_ corner pieces over them, which is what Draw_Dialog_Back composed. A push button is
+   bue_li24, bue_mi24 and bue_ri24 in a row, and bde_ the same while it is held down. A
+   check box is cue_i.pcx, or cce_i.pcx when it is ticked, beside its caption. The colours
+   are the ones OwnerDraw::Initialize set: text is RGB(112,255,0), disabled text is
+   RGB(144,144,144), a track bar's frame is RGB(78,182,220) and a picked list row is
+   RGB(34,80,97). A control that stood over the wallpaper -- a list, a field, a combo box,
+   a track bar -- showed it blended 180/255 toward black.
+
+   Two things the original did that are not reproduced. The sixteen inward glow passes
+   around a dialog edge need a fade over sixteen pixels, which no decorator in the profile
+   docs/UI_DESIGN.md declares can express. A disabled button is the enabled artwork under
+   image-color rather than under a half-black rectangle; the result is the same product.
+
+   Everything here stays inside that profile: text, images, ordinary layout, borders and
+   basic decorators, with no filter, layer, shader or transform. */
 
 body
 {
 	font-family: LatoLatin;
 	font-size: 12dp;
-	color: #d6d8cc;
+	color: #70ff00;
 
 	width: 100%;
 	height: 100%;
 }
 
-/* A dialog panel. A document states its own size and where it sits. */
+/* A dialog panel. A document states its own size and where it sits. The border keeps the
+   width the templates were converted against; the artwork is painted over all of it. */
 .panel
 {
 	display: block;
 	position: absolute;
 
-	background-color: #23261fF2;
 	border-width: 2dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
+	border-color: transparent;
+
+	/* The colour is what the panel is left with if the artwork cannot be read, which is what
+	   a document shown before the mix files are mounted would see. A background paints under
+	   the decorators, so it is invisible whenever they load. */
+	background-color: #23261fF2;
+
+	decorator:
+		image(bar_ul.pcx scale-none left top) border-box,
+		image(bar_ur.pcx scale-none right top) border-box,
+		image(bar_ll.pcx scale-none left bottom) border-box,
+		image(bar_lr.pcx scale-none right bottom) border-box,
+		image(leftbar.pcx repeat-y left top) border-box,
+		image(rightbar.pcx repeat-y right top) border-box,
+		image(dbak6440.pcx scale-none 50% 50%) border-box;
+}
+
+/* A panel the main menu family raises above the middle of the frame. Its wallpaper slice
+   is taken 147dp above its own top edge, which is where the frame's centred artwork sits
+   under a panel whose top is 53dp above the middle. */
+.panel.raised
+{
+	decorator:
+		image(bar_ul.pcx scale-none left top) border-box,
+		image(bar_ur.pcx scale-none right top) border-box,
+		image(bar_ll.pcx scale-none left bottom) border-box,
+		image(bar_lr.pcx scale-none right bottom) border-box,
+		image(leftbar.pcx repeat-y left top) border-box,
+		image(rightbar.pcx repeat-y right top) border-box,
+		image(dbak6440.pcx scale-none 50% 91%) border-box;
 }
 
 /* An owner-draw push button. */
@@ -45,63 +82,51 @@ body
 	white-space: nowrap;
 	overflow: hidden;
 
-	color: #e4e6da;
+	color: #70ff00;
 	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
+	decorator: tiled-horizontal(bue_li24.pcx, bue_mi24.pcx, bue_ri24.pcx);
 }
-
-.button:hover { background-color: #474d3d; }
 
 .button:active
 {
-	background-color: #2a2e24;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
+	decorator: tiled-horizontal(bde_li24.pcx, bde_mi24.pcx, bde_ri24.pcx);
 }
 
 .button.disabled,
 .disabled .button
 {
-	color: #6b6e63;
-	background-color: #2a2d24;
+	color: #909090;
+	image-color: #808080;
 	pointer-events: none;
 }
 
-/* A BS_FLAT check box, which reads as pressed in rather than as a tick beside a caption. */
+/* A BS_AUTOCHECKBOX with BS_FLAT: an eighteen pixel box at the left edge of the control
+   with the caption beside it, which is what CheckBoxCtrlProc drew. */
 .check
 {
 	display: block;
 	position: absolute;
 	box-sizing: border-box;
-	text-align: center;
+	text-align: left;
+	padding-left: 26dp;
 	white-space: nowrap;
 	overflow: hidden;
 
-	color: #b9bcae;
-	background-color: #2b2f25;
-	border-width: 2dp;
-	border-top-color: #5c6152;
-	border-left-color: #5c6152;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
+	color: #70ff00;
+	decorator: image(cue_i.pcx contain left center);
 }
-
-.check:hover { background-color: #3b4032; }
 
 .check.ticked
 {
-	color: #e4e6da;
-	background-color: #4a5140;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
+	decorator: image(cce_i.pcx contain left center);
+}
+
+.check.disabled,
+.disabled .check
+{
+	color: #909090;
+	image-color: #808080;
+	pointer-events: none;
 }
 
 /* A static caption. A document says where it sits and how it is aligned. */
@@ -113,11 +138,17 @@ body
 	overflow: hidden;
 }
 
-/* A TBS_NOTICKS track bar: a plain groove with a thumb. */
+/* A TBS_NOTICKS track bar. The original drew no groove: the control is the wallpaper
+   dimmed inside a one pixel frame, with trakgrip.pcx spanning its whole height. */
 .slider
 {
 	display: block;
 	position: absolute;
+	box-sizing: border-box;
+
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #4eb6dc;
 }
 
 .slider slider
@@ -128,31 +159,16 @@ body
 
 .slider sliderbar
 {
-	width: 14dp;
+	width: 12dp;
 	height: 100%;
 
-	background-color: #5c6152;
-	border-width: 2dp;
-	border-top-color: #949a84;
-	border-left-color: #949a84;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
+	decorator: image(trakgrip.pcx);
 }
-
-.slider sliderbar:hover { background-color: #6f7563; }
-.slider sliderbar:active { background-color: #4a4e41; }
 
 .slider slidertrack
 {
 	width: 100%;
-	height: 6dp;
-
-	background-color: #14160f;
-	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	height: 100%;
 }
 
 .slider sliderarrowdec,
@@ -168,8 +184,11 @@ body
 {
 	display: block;
 	position: absolute;
+	box-sizing: border-box;
 
-	background-color: #14160f;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 	overflow-y: auto;
 	overflow-x: hidden;
 }
@@ -180,39 +199,44 @@ body
 	box-sizing: border-box;
 	padding: 1dp 4dp;
 	white-space: nowrap;
-	color: #b9bcae;
+	color: #70ff00;
 }
-
-.list .row:hover { color: #e4e6da; }
 
 .list .row.picked
 {
-	background-color: #3f4536;
-	color: #e4e6da;
+	background-color: #225061;
 }
 
 .list scrollbarvertical
 {
-	width: 12dp;
-	background-color: #23261f;
+	width: 18dp;
+	background-color: #000000b4;
 }
 
 .list scrollbarvertical slidertrack
 {
-	width: 12dp;
+	width: 18dp;
 	margin-top: 0dp;
-	background-color: #14160f;
+	background-color: transparent;
 	border-width: 0dp;
 }
 
 .list scrollbarvertical sliderbar
 {
-	width: 12dp;
+	width: 18dp;
 	min-height: 20dp;
-	background-color: #5c6152;
-	border-width: 2dp;
-	border-top-color: #949a84;
-	border-left-color: #949a84;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
+
+	decorator: tiled-vertical(sbgript.pcx, sbgripm.pcx, sbgripb.pcx);
 }
+
+.list scrollbarvertical sliderarrowdec,
+.list scrollbarvertical sliderarrowinc
+{
+	width: 18dp;
+	height: 22dp;
+}
+
+.list scrollbarvertical sliderarrowdec { decorator: image(uparrowr.pcx); }
+.list scrollbarvertical sliderarrowinc { decorator: image(dnarrowr.pcx); }
+.list scrollbarvertical sliderarrowdec:active { decorator: image(uparrowp.pcx); }
+.list scrollbarvertical sliderarrowinc:active { decorator: image(dnarrowp.pcx); }

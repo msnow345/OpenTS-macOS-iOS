@@ -49,16 +49,13 @@
 	overflow: hidden;
 
 	font-family: LatoLatin;
-	color: #e4e6da;
-	background-color: #14160f;
-	border-width: 2dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
-#name:focus { background-color: #1d2017; }
+#name:focus { background-color: #000000b4; }
 
 /* The two CBS_DROPDOWNLIST combo boxes, 78 dialog units wide at 22, 52 and 22, 82. A
    closed combo stands as tall as the item height ownrdraw.cpp sets, which is the 14 pixel
@@ -74,13 +71,10 @@
 	width: 117dp;
 	height: 20dp;
 
-	color: #b9bcae;
-	background-color: #2b2f25;
-	border-width: 2dp;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
 #side  { top: 82.5dp; }
@@ -104,23 +98,10 @@
 	width: 16dp;
 	height: 16dp;
 
-	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
+	decorator: image(dnarrowr.pcx);
 }
 
 #side selectarrow:active,
-#color selectarrow:active
-{
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
-}
-
 /* The dropped lists, capped at the 74 and 73 dialog units the template gives them. */
 #side selectbox,
 #color selectbox
@@ -128,12 +109,9 @@
 	width: 113dp;
 	overflow-y: auto;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
+	border-color: #ffffff;
 }
 
 #side selectbox  { max-height: 120.25dp; }
@@ -147,13 +125,13 @@
 	line-height: 18dp;
 	padding: 0dp 4dp;
 	white-space: nowrap;
-	color: #b9bcae;
+	color: #70ff00;
 }
 
-#side selectbox option:hover { color: #e4e6da; }
+#side selectbox option:hover { color: #70ff00; }
 
 #side selectbox option:checked,
-#color selectbox option:checked { background-color: #3f4536; }
+#color selectbox option:checked { background-color: #225061; }
 
 /* The preview frame, a GROUPBOX 215 x 106 dialog units at 22, 122. The picture inside it is
    drawn by the screen and reaches the document through the <surface> element. */
@@ -167,12 +145,9 @@
 	width: 322.5dp;
 	height: 172.25dp;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 /* The template's own CTEXT inside the frame, which the picture is drawn over the way the
@@ -188,7 +163,7 @@
 	height: 21.125dp;
 	line-height: 21.125dp;
 	text-align: center;
-	color: #6e7360;
+	color: #909090;
 }
 
 /* The picture takes its size from the provider, which is the frame's interior in game
@@ -211,10 +186,7 @@
 	box-sizing: border-box;
 
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 #optionbox { left: 173.5dp; top: 17.5dp; width: 250.5dp; height: 156dp; }

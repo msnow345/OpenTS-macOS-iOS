@@ -5,7 +5,7 @@
 	<link type="text/rcss" href="options.rcss"/>
 </head>
 <body data-model="options" data-event-keydown="key()">
-	<div id="dialog" class="panel">
+	<div id="dialog" class="panel raised">
 		<div class="button" id="settings" data-event-click="press('settings')">Game Settings</div>
 		<div class="button" id="display" data-event-click="press('display')">Display</div>
 		<div class="button" id="sound" data-class-disabled="!available" data-event-click="press('sound')">Sound</div>

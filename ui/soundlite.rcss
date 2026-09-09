@@ -4,16 +4,13 @@
    taken from the panel's content box and a bordered element's declared size taken inside
    its own border. It carries the three volumes alone, as that template does.
 
-   The panel is drawn rather than blitted because the dialog's own background is a PCX, and
-   PCX decoding arrives with the first screen that shows game art. Everything here stays
-   inside the styling profile docs/UI_DESIGN.md declares: text, ordinary layout, borders and
-   basic decorators, with no filter, layer, shader or transform. */
+   The dialog look, including the panel artwork, comes from ui/optionsbase.rcss. */
 
 body
 {
 	font-family: LatoLatin;
 	font-size: 12dp;
-	color: #d6d8cc;
+	color: #70ff00;
 
 	width: 100%;
 	height: 100%;
@@ -32,13 +29,6 @@ body
 
 	width: 437dp;
 	height: 178dp;
-
-	background-color: #23261fF2;
-	border-width: 2dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
 }
 
 /* The three right-aligned captions, 70 x 15 dialog units at x 22. */
@@ -72,48 +62,6 @@ body
 #sound { top: 65dp; }
 #voice { top: 100.8dp; }
 
-slider
-{
-	width: 100%;
-	height: 100%;
-}
-
-sliderbar
-{
-	width: 14dp;
-	height: 100%;
-
-	background-color: #5c6152;
-	border-width: 2dp;
-	border-top-color: #949a84;
-	border-left-color: #949a84;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
-}
-
-sliderbar:hover { background-color: #6f7563; }
-sliderbar:active { background-color: #4a4e41; }
-
-slidertrack
-{
-	width: 100%;
-	height: 6dp;
-	margin-top: 9.2dp;
-
-	background-color: #14160f;
-	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
-}
-
-sliderarrowdec, sliderarrowinc
-{
-	width: 0dp;
-	height: 0dp;
-}
-
 /* OK, 62 x 14 dialog units at 115, 86, centred across the panel as the template places it. */
 .button
 {
@@ -125,31 +73,13 @@ sliderarrowdec, sliderarrowinc
 	height: 22.8dp;
 	line-height: 22.8dp;
 	text-align: center;
-
-	color: #e4e6da;
-	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
 }
 
-.button:hover { background-color: #474d3d; }
-
-.button:active
-{
-	background-color: #2a2e24;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
-}
 
 /* With no audio device the sliders are dimmed and inert. OK stays live, because the dialog
    left it enabled. */
 .unavailable .slider
 {
-	color: #6b6e63;
+	color: #909090;
 	pointer-events: none;
 }

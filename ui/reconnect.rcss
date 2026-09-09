@@ -47,12 +47,9 @@
 	width: 60dp;
 	height: 16.25dp;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 /* The bar shrinks and changes color as the wait on its seat drags on, which is what
@@ -77,7 +74,7 @@
 	width: 418.5dp;
 	height: 13dp;
 	line-height: 13dp;
-	color: #e4e6da;
+	color: #70ff00;
 }
 
 /* The message list, 295 x 84 units at 22, 103. It is a LBS_NOSEL list box, which is what

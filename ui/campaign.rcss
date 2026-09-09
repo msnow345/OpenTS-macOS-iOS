@@ -64,7 +64,6 @@
 	height: 24.375dp;
 }
 
-.slider slidertrack { margin-top: 9.1875dp; }
 
 /* OK and Cancel, both 50 x 16 dialog units at y 121. */
 .button

@@ -13,9 +13,9 @@ geometry's indices in a static buffer but streams its vertices through a
 transient one, because the program the overlays share is bgfx's embedded imgui
 shader, whose vertex stage multiplies by `u_viewProj` alone and so ignores the
 per-draw model transform; a program with a model transform restores the static
-vertex buffer the renderer table describes. `uitexture.cpp` reads PNG and
-TGA only, so PCX and SHP files wait for the first screen that shows game art,
-and the cursor and clipboard requests are recorded rather than acted on. Step 6
+vertex buffer the renderer table describes. `uitexture.cpp` read PNG and TGA
+only until the dialog artwork needed PCX and SHP, and the cursor and clipboard
+requests are recorded rather than acted on. Step 6
 brought the `<surface>` element, which is the other route to game art: pixels
 the engine draws rather than a file a document names.
 
@@ -26,9 +26,9 @@ legacy dialog, and the keyboard queue is cleared as the scope opens and closes.
 The version screen needed no name table, because it composes its own text and
 takes its one string-table entry through `Fetch_String`, which already yields
 UTF-8 on a build whose active code page is 65001; a document that writes
-`[[TXT_OK]]` waited for the name table step 4 brought. The screen draws its
-panel rather than blitting `dbak6440.pcx`, which waits for PCX decoding with the rest of the
-game art.
+`[[TXT_OK]]` waited for the name table step 4 brought. The screen drew its
+panel rather than blitting `dbak6440.pcx` until PCX decoding arrived with the rest of the
+game art; it blits it now.
 
 Step 4 put the runner under load. `UI_Run_Modal` runs the game as well as a
 screen: in a network session it steps `Main_Loop` between passes and reports a
@@ -98,10 +98,14 @@ OwnerDraw was the largest and the least portable. Each dialog was a real Win32
 child window of `MainWindow`, created from a resource template by
 `CreateDialogIndirectParam`. Every control is subclassed; its window procedure
 paints into `AlternateSurface` and blits the result into `VisibleSurface`
-itself. `Draw_Dialog_Back` composes `dbak6440.pcx`, the side bars, and sixteen
-glow passes into a cached surface and assumes 640x400 art centered on the
-screen. Text is GDI "MS Sans Serif" at 14 and 12 pixels through `WS_Get_Font`,
-plus the `dlgsys` remap sheets for list text. Tooltips save and restore the
+itself. `Draw_Dialog_Back` composes `dbak6440.pcx`, the two side bars, the four
+`bar_` corner pieces and sixteen glow passes into a cached surface and assumes
+640x400 art centered on the screen. Buttons, check boxes, static captions, tabs
+and combo boxes draw their text from the `dlgsys` remap sheets; list boxes,
+tooltips and the hotkey control use GDI "MS Sans Serif" at 14 and 12 pixels
+through `WS_Get_Font`. Text is `RGB(112,255,0)` and `RGB(144,144,144)` when
+disabled; a control that stands over the wallpaper shows it blended 180/255
+toward black. Tooltips save and restore the
 pixels under them. `Heal_Dialog_Controls` forces every child window to repaint
 after each `Update_Visible_Surface`, so a dialog repaints once per game frame.
 The templates hold 322 `CONTROL` entries: 103 owner-draw buttons, 40 track
@@ -587,9 +591,14 @@ required document, style, or font fails preparation with the name reported.
 
 Images resolve by extension. PNG and TGA decode through `bimg_decode`, which
 is already vendored and needs only linking. PCX goes through `Read_PCX_File`
-with the palette named in the source string. SHP frames use a
-`name.shp#frame` form with an optional palette, decoded to RGBA with index
-zero transparent. Surfaces the engine draws at runtime (the map preview, the
+and uses the palette the file carries, or the one a `name.pcx#palette.pal`
+source names instead. SHP frames use a `name.shp#frame` form, with
+`name.shp#frame#palette.pal` naming a palette and `GamePalette` standing in
+when none is named, decoded to RGBA with index zero transparent. A `.pal` file
+holds six-bit guns, so its values are scaled the way `init.cpp` scales the
+palettes it loads. A source whose file cannot be read leaves the element with
+whatever its background and border draw, which is why the dialog panel and
+button in `ui/optionsbase.rcss` keep a flat colour under their artwork. Surfaces the engine draws at runtime (the map preview, the
 desync host icons, a progress bar) reach a document through a `<surface>`
 custom element bound to a named provider; the shell re-uploads the texture
 when the provider marks it dirty. A document writes `<surface src="name"/>`

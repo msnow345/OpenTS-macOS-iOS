@@ -43,12 +43,9 @@
 	line-height: 14dp;
 	padding-left: 8dp;
 
-	color: #b9bcae;
+	color: #70ff00;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 /* Two track bars, 148 x 13 dialog units at x 95. */
@@ -59,7 +56,6 @@
 	height: 21.125dp;
 }
 
-.slider slidertrack { margin-top: 7.5dp; }
 
 #connection { top: 176.75dp; }
 #speed      { top: 212.5dp; }

@@ -7,7 +7,7 @@ body
 {
 	font-family: LatoLatin;
 	font-size: 12dp;
-	color: #d6d8cc;
+	color: #70ff00;
 
 	width: 100%;
 	height: 100%;
@@ -25,13 +25,6 @@ body
 
 	width: 323dp;
 	height: 100dp;
-
-	background-color: #23261fF2;
-	border-width: 2dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
 }
 
 /* 22, 12, 174 x 23 dialog units. */
@@ -60,26 +53,6 @@ body
 	height: 18.75dp;
 	line-height: 18.75dp;
 	text-align: center;
-
-	color: #e4e6da;
-	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
 }
 
-#cancel:hover
-{
-	background-color: #474d3d;
-}
 
-#cancel:active
-{
-	background-color: #2a2e24;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
-}

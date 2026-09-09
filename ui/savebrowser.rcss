@@ -66,13 +66,10 @@
 	white-space: nowrap;
 	overflow: hidden;
 
-	color: #e4e6da;
-	background-color: #14160f;
-	border-width: 2dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
-.field:focus { background-color: #1d2017; }
+.field:focus { background-color: #000000b4; }

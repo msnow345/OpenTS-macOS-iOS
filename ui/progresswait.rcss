@@ -11,7 +11,7 @@ body
 {
 	font-family: LatoLatin;
 	font-size: 12dp;
-	color: #d6d8cc;
+	color: #70ff00;
 
 	width: 100%;
 	height: 100%;
@@ -30,13 +30,6 @@ body
 
 	width: 284dp;
 	height: 82.125dp;
-
-	background-color: #23261fF2;
-	border-width: 2dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
 }
 
 /* 22, 12, 148 x 11 dialog units. CTEXT with SS_CENTERIMAGE, so the caption is centred both
@@ -71,10 +64,7 @@ body
 	text-align: center;
 
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 surface

@@ -9,7 +9,7 @@
 
 /* A caption the templates give SS_CENTERIMAGE, so its text sits in the middle of the box
    the template declares rather than at the top of it. */
-.caption { color: #b9bcae; }
+.caption { color: #70ff00; }
 
 /* The preview frame, a GROUPBOX 197 x 134 dialog units on all three templates. The picture
    inside it is drawn by the screen and reaches the document through the <surface> element,
@@ -22,12 +22,9 @@
 	width: 295.5dp;
 	height: 217.75dp;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 #previewframe surface
@@ -46,7 +43,7 @@
 	left: 0dp;
 	width: 100%;
 	text-align: center;
-	color: #6e7360;
+	color: #909090;
 }
 
 /* The seed field, an ES_NUMBER edit all three templates declare NOT WS_VISIBLE and
@@ -66,22 +63,19 @@
 	padding: 0dp 4dp;
 
 	font-family: LatoLatin;
-	color: #e4e6da;
-	background-color: #14160f;
-	border-width: 2dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
-#seed:focus { background-color: #1d2017; }
+#seed:focus { background-color: #000000b4; }
 
 /* A control the tournament territory has fixed. It is shown rather than hidden, so the
    screen keeps its shape whatever the territory allows. */
 .locked
 {
-	color: #6b6e63;
+	color: #909090;
 	pointer-events: none;
 }
 
@@ -98,13 +92,10 @@
 	box-sizing: border-box;
 	height: 20dp;
 
-	color: #b9bcae;
-	background-color: #2b2f25;
-	border-width: 2dp;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
 .combo selectvalue
@@ -123,12 +114,7 @@
 	width: 16dp;
 	height: 16dp;
 
-	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
+	decorator: image(dnarrowr.pcx);
 }
 
 .combo selectbox
@@ -136,12 +122,9 @@
 	width: 100%;
 	overflow-y: auto;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
+	border-color: #ffffff;
 }
 
 .combo selectbox option
@@ -151,11 +134,11 @@
 	line-height: 18dp;
 	padding: 0dp 4dp;
 	white-space: nowrap;
-	color: #b9bcae;
+	color: #70ff00;
 }
 
-.combo selectbox option:hover { color: #e4e6da; }
-.combo selectbox option:checked { background-color: #3f4536; }
+.combo selectbox option:hover { color: #70ff00; }
+.combo selectbox option:checked { background-color: #225061; }
 
 /* The five buttons across the bottom row, 65 x 14 dialog units at y 220, and the two above
    the preview, 88 x 14. */

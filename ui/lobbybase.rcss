@@ -19,7 +19,7 @@
 	position: absolute;
 	box-sizing: border-box;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	overflow-y: auto;
 	overflow-x: hidden;
 }
@@ -30,7 +30,7 @@
 	box-sizing: border-box;
 	padding: 0dp 2dp;
 	line-height: 14dp;
-	color: #b9bcae;
+	color: #70ff00;
 }
 
 /* The player list's own columns. The two setup dialogs register them with OD_ADDCOLUMN at
@@ -63,7 +63,7 @@
 	width: 37dp;
 	white-space: nowrap;
 	overflow: hidden;
-	color: #949a84;
+	color: #70ff00;
 }
 
 /* The host and accepted markers, which the list drew as the wolhost.pcx and wolacpt.pcx
@@ -77,7 +77,7 @@
 	top: 0dp;
 	width: 20dp;
 	text-align: center;
-	color: #e4e6da;
+	color: #70ff00;
 }
 
 /* The chat entry, where the templates put an EDITTEXT. It states a width, because a field
@@ -93,16 +93,13 @@
 	padding: 0dp 4dp;
 
 	font-family: LatoLatin;
-	color: #e4e6da;
-	background-color: #14160f;
-	border-width: 2dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
-.field:focus { background-color: #1d2017; }
+.field:focus { background-color: #000000b4; }
 
 /* A CBS_DROPDOWNLIST combo, sized the way ownrdraw.cpp sizes one: the item height, which is
    the 14 pixel dialog font plus two, inside a two pixel border. The template's own height is
@@ -114,13 +111,10 @@
 	box-sizing: border-box;
 	height: 20dp;
 
-	color: #b9bcae;
-	background-color: #2b2f25;
-	border-width: 2dp;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
 }
 
 .combo selectvalue
@@ -139,20 +133,7 @@
 	width: 16dp;
 	height: 16dp;
 
-	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
-}
-
-.combo selectarrow:active
-{
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
+	decorator: image(dnarrowr.pcx);
 }
 
 .combo selectbox
@@ -160,12 +141,9 @@
 	width: 114dp;
 	overflow-y: auto;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
+	border-color: #ffffff;
 }
 
 .combo selectbox option
@@ -175,11 +153,11 @@
 	line-height: 18dp;
 	padding: 0dp 4dp;
 	white-space: nowrap;
-	color: #b9bcae;
+	color: #70ff00;
 }
 
-.combo selectbox option:hover { color: #e4e6da; }
-.combo selectbox option:checked { background-color: #3f4536; }
+.combo selectbox option:hover { color: #70ff00; }
+.combo selectbox option:checked { background-color: #225061; }
 
 /* The preview frame, a GROUPBOX 126 x 73 dialog units at 281, 138 on both setup templates.
    The picture inside it is drawn by the screen and reaches the document through the
@@ -194,12 +172,9 @@
 	width: 189dp;
 	height: 118.625dp;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 .previewframe surface

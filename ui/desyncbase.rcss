@@ -27,7 +27,7 @@
 	height: 16.25dp;
 	line-height: 16.25dp;
 	text-align: center;
-	color: #e4e6da;
+	color: #70ff00;
 }
 
 /* "Players:" at 30, 23 and the 120 x 105 seat list at 30, 35. */
@@ -54,7 +54,7 @@
 	top: 0dp;
 	width: 16dp;
 	text-align: center;
-	color: #e4e6da;
+	color: #70ff00;
 }
 
 #players .name
@@ -88,7 +88,7 @@
 	box-sizing: border-box;
 	left: 240dp;
 	width: 270dp;
-	color: #b9bcae;
+	color: #70ff00;
 	line-height: 16dp;
 }
 
@@ -122,12 +122,9 @@
 	width: 223.5dp;
 	height: 19.5dp;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 /* The bar shrinks as the load nears, which is what Draw_Countdown_Bar drew straight into

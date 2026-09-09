@@ -23,7 +23,6 @@
 	height: 21.125dp;
 }
 
-.slider slidertrack { margin-top: 7.5dp; }
 
 #speed      { top: 17.5dp; }
 #scroll     { top: 53.25dp; }

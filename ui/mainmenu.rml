@@ -5,7 +5,7 @@
 	<link type="text/rcss" href="mainmenu.rcss"/>
 </head>
 <body data-model="mainmenu" data-event-keydown="key()" data-event-textinput="typed()">
-	<div id="dialog" class="panel">
+	<div id="dialog" class="panel raised">
 		<div class="button" id="campaign" data-event-click="press('campaign')">New Campaign</div>
 		<div class="button" id="load" data-class-disabled="!canload" data-event-click="press('load')">Load Mission</div>
 		<div class="button" id="multiplayer" data-event-click="press('multiplayer')">Multiplayer Game</div>

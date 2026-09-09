@@ -4,16 +4,13 @@
    from the panel's content box and a bordered element's declared size taken inside its own
    border.
 
-   The panel is drawn rather than blitted because the dialog's own background is a PCX, and
-   PCX decoding arrives with the first screen that shows game art. Everything here stays
-   inside the styling profile docs/UI_DESIGN.md declares: text, ordinary layout, borders and
-   basic decorators, with no filter, layer, shader or transform. */
+   The dialog look, including the panel artwork, comes from ui/optionsbase.rcss. */
 
 body
 {
 	font-family: LatoLatin;
 	font-size: 12dp;
-	color: #d6d8cc;
+	color: #70ff00;
 
 	width: 100%;
 	height: 100%;
@@ -32,13 +29,6 @@ body
 
 	width: 437dp;
 	height: 345.4dp;
-
-	background-color: #23261fF2;
-	border-width: 2dp;
-	border-top-color: #6e7360;
-	border-left-color: #6e7360;
-	border-right-color: #10120e;
-	border-bottom-color: #10120e;
 }
 
 /* The three right-aligned captions, 70 x 15 dialog units at x 22. */
@@ -72,48 +62,6 @@ body
 #sound { top: 55.3dp; }
 #voice { top: 91dp; }
 
-slider
-{
-	width: 100%;
-	height: 100%;
-}
-
-sliderbar
-{
-	width: 14dp;
-	height: 100%;
-
-	background-color: #5c6152;
-	border-width: 2dp;
-	border-top-color: #949a84;
-	border-left-color: #949a84;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
-}
-
-sliderbar:hover { background-color: #6f7563; }
-sliderbar:active { background-color: #4a4e41; }
-
-slidertrack
-{
-	width: 100%;
-	height: 6dp;
-	margin-top: 9.2dp;
-
-	background-color: #14160f;
-	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
-}
-
-sliderarrowdec, sliderarrowinc
-{
-	width: 0dp;
-	height: 0dp;
-}
-
 /* The track list, 175 x 99 dialog units at 97, 82. */
 #tracklist
 {
@@ -124,7 +72,7 @@ sliderarrowdec, sliderarrowinc
 	width: 262.5dp;
 	height: 160.9dp;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	overflow-y: auto;
 	overflow-x: hidden;
 }
@@ -138,41 +86,49 @@ sliderarrowdec, sliderarrowinc
 	width: 250.5dp;
 	padding: 1dp 4dp;
 	white-space: nowrap;
-	color: #b9bcae;
+	color: #70ff00;
 }
 
 #tracklist scrollbarvertical
 {
-	width: 12dp;
-	background-color: #23261f;
+	width: 18dp;
+	background-color: #000000b4;
 }
 
 #tracklist scrollbarvertical slidertrack
 {
-	width: 12dp;
+	width: 18dp;
 	margin-top: 0dp;
-	background-color: #14160f;
+	background-color: transparent;
 	border-width: 0dp;
 }
 
 #tracklist scrollbarvertical sliderbar
 {
-	width: 12dp;
+	width: 18dp;
 	min-height: 20dp;
-	background-color: #5c6152;
-	border-width: 2dp;
-	border-top-color: #949a84;
-	border-left-color: #949a84;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
+
+	decorator: tiled-vertical(sbgript.pcx, sbgripm.pcx, sbgripb.pcx);
 }
 
-.track:hover { color: #e4e6da; }
+#tracklist scrollbarvertical sliderarrowdec,
+#tracklist scrollbarvertical sliderarrowinc
+{
+	width: 18dp;
+	height: 22dp;
+}
+
+#tracklist scrollbarvertical sliderarrowdec { decorator: image(uparrowr.pcx); }
+#tracklist scrollbarvertical sliderarrowinc { decorator: image(dnarrowr.pcx); }
+#tracklist scrollbarvertical sliderarrowdec:active { decorator: image(uparrowp.pcx); }
+#tracklist scrollbarvertical sliderarrowinc:active { decorator: image(dnarrowp.pcx); }
+
+.track:hover { color: #70ff00; }
 
 .track.picked
 {
-	background-color: #3f4536;
-	color: #e4e6da;
+	background-color: #225061;
+	color: #70ff00;
 }
 
 /* Play and Stop, 70 x 14 dialog units at x 22, and OK, 62 x 14 at 210, 189. */
@@ -183,33 +139,14 @@ sliderarrowdec, sliderarrowinc
 	height: 22.8dp;
 	line-height: 22.8dp;
 	text-align: center;
-
-	color: #e4e6da;
-	background-color: #33372c;
-	border-width: 2dp;
-	border-top-color: #767c68;
-	border-left-color: #767c68;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
 }
 
 #play { left: 33dp; top: 139.8dp; width: 101dp; }
 #stop { left: 33dp; top: 183.6dp; width: 101dp; }
 #ok { left: 315dp; top: 307.1dp; width: 89dp; }
 
-.button:hover { background-color: #474d3d; }
 
-.button:active
-{
-	background-color: #2a2e24;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
-}
-
-/* Shuffle and Repeat, 70 x 14 dialog units at x 22. BS_FLAT check boxes, so a ticked one
-   reads as pressed in rather than as a tick beside a caption. */
+/* Shuffle and Repeat, 70 x 14 dialog units at x 22. */
 .check
 {
 	display: block;
@@ -218,31 +155,11 @@ sliderarrowdec, sliderarrowinc
 	width: 101dp;
 	height: 22.8dp;
 	line-height: 22.8dp;
-	text-align: center;
-
-	color: #b9bcae;
-	background-color: #2b2f25;
-	border-width: 2dp;
-	border-top-color: #5c6152;
-	border-left-color: #5c6152;
-	border-right-color: #14160f;
-	border-bottom-color: #14160f;
 }
 
 #shuffle { top: 227.5dp; }
 #repeat { top: 271.4dp; }
 
-.check:hover { background-color: #3b4032; }
-
-.check.ticked
-{
-	color: #e4e6da;
-	background-color: #4a5140;
-	border-top-color: #14160f;
-	border-left-color: #14160f;
-	border-right-color: #767c68;
-	border-bottom-color: #767c68;
-}
 
 /* With no audio device every control the dialog disabled is dimmed and inert. OK stays
    live, because the dialog left it enabled. */
@@ -252,6 +169,5 @@ sliderarrowdec, sliderarrowinc
 .unavailable #play,
 .unavailable #stop
 {
-	color: #6b6e63;
 	pointer-events: none;
 }

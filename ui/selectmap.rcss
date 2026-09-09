@@ -56,12 +56,9 @@
 	width: 193.5dp;
 	height: 130dp;
 
-	background-color: #14160f;
+	background-color: #000000b4;
 	border-width: 1dp;
-	border-top-color: #10120e;
-	border-left-color: #10120e;
-	border-right-color: #6e7360;
-	border-bottom-color: #6e7360;
+	border-color: #ffffff;
 }
 
 /* The picture takes its size from the provider, which is the frame's own extents in game

@@ -5,7 +5,7 @@
 	<link type="text/rcss" href="mpselect.rcss"/>
 </head>
 <body data-model="mpselect" data-event-keydown="key()">
-	<div id="dialog" class="panel">
+	<div id="dialog" class="panel raised">
 		<div class="caption" id="question">Select Multiplayer Game</div>
 		<div class="button" id="internet" data-class-disabled="!internet" data-event-click="press('internet')">Internet</div>
 		<div class="button" id="modem" data-event-click="press('modem')">Modem / Serial</div>
