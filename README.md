@@ -15,6 +15,10 @@ OpenTS is a community-led, open-source reconstruction of *Command & Conquer:
 Tiberian Sun*. Instead of patching or extending the retail executable, it
 rebuilds the engine as a standalone program.
 
+This fork carries a native Apple Silicon macOS build of that engine. See
+[Running on macOS](#running-on-macos) for the data script, the build and how to
+start it. Everything below describes OpenTS itself and applies here too.
+
 OpenTS gives equal weight to two goals: maintaining a playable engine and
 providing a capable platform for modding and engine development. Work on one
 goal should not come at the expense of the other.
@@ -69,6 +73,59 @@ but there is no supported native Linux build. The engine asks Windows for the
 UTF-8 code page, which needs Windows 10 version 1903 or newer. Older Windows
 keeps its own code page, so game text still shows, but a path or file name
 holding a character that code page lacks may fail.
+
+## Running on macOS
+
+This fork builds and runs the engine natively on Apple Silicon. The game data
+still comes from a copy of Tiberian Sun you own.
+
+Install the tools:
+
+```bash
+brew install cmake ninja
+brew install --cask steamcmd
+```
+
+Fetch the game data from your own Steam account:
+
+```bash
+./scripts/get-assets.sh <your_steam_username>
+```
+
+The script downloads app 2229880 into `Run/`, skips the Windows executables the
+engine replaces, and checks that the archives startup needs actually arrived.
+Steam Guard prompts for a code on first login. **Quit the Steam desktop client
+first**: steamcmd shares its data directory, and a running client holds a lock
+that makes steamcmd hang after "Verifying installation..." with no error. Set
+`OPENTS_GAME_DIR` to put the data somewhere other than `Run/`.
+
+Build the engine:
+
+```bash
+git submodule update --init --recursive
+cmake -S . -B build/native -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DOPENTS_EXPERIMENTAL_NATIVE=ON
+cmake --build build/native --target OpenTS
+```
+
+Build the `OpenTS` target rather than everything: the C++ test harnesses pass
+MSVC-only flags and link `kernel32`, so they do not configure here.
+
+Run it:
+
+```bash
+build/native/bin/Game -DATADIR=Run -USERDIR=build/native/user
+```
+
+`-USERDIR` is where saves, `SUN.INI` and logs are written, so pointing it at a
+scratch directory leaves an existing install untouched. Full screen is a
+setting in the display options screen.
+
+Windows supplies the window, message loop and cursor itself; every other
+platform gets them from `platform/win32compat`, which serves the Win32 surface
+the engine is written against out of [SDL](https://github.com/libsdl-org/SDL).
+[Building OpenTS](docs/BUILDING.md) covers the build in full.
 
 ## Documentation
 
