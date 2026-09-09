@@ -48,6 +48,10 @@ class ProgressScreenClass
 
 		void Begin_Dialog(void);
 		void End_Dialog(void);
+
+		// Is the dialog presentation up, whichever of the two it is?
+		bool Has_Dialog(void) const { return(Dialog != NULL || IsOverlay); }
+
 	private:
 		static INT_PTR CALLBACK Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
@@ -105,6 +109,13 @@ class ProgressScreenClass
 		 * works rather than take the screen over.
 		 */
 		HWND Dialog;
+
+		/*
+		 * If the dialog presentation is a document rather than a window, then this flag will
+		 * be true and Dialog stays NULL. The document draws its own frame and bar, so the
+		 * routines that paint into the game's surfaces stand aside for it.
+		 */
+		bool IsOverlay;
 
 		/*
 		 * This is the center of the progress bar display, expressed in screen pixels. A job

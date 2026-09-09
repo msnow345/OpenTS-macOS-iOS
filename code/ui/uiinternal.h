@@ -55,6 +55,13 @@ void UI_Message_Box_Service(void);
 void UI_Surface_Element_Init(void);
 void UI_Surface_Element_Shutdown(void);
 
+// uishell.cpp. Puts what the shell draws on screen, which is the synchronous repaint a
+// modeless dialog got from SendMessage(WM_PAINT). Only a screen with no loop of its own
+// needs it; a screen inside UI_Run_Modal is presented by every pass. An immediate paint
+// ignores the present pacing, which a box that must be seen before a long operation begins
+// cannot afford to be skipped by.
+void UI_Paint_Now(bool immediate);
+
 // uisystem.cpp
 Rml::SystemInterface * UI_System_Interface(void);
 

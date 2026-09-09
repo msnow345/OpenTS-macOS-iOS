@@ -348,6 +348,27 @@ bool UI_Overlay_Is_Dirty(void)
 	return(_OverlayIsDirty);
 }
 
+
+/// <summary>
+/// Lays out and presents what the shell draws.
+/// A screen that has no loop of its own -- the wait box, the progress box -- is on screen
+/// only when something else pumps, so this is the equivalent of the synchronous WM_PAINT
+/// those boxes were repainted with.
+/// </summary>
+/// <param name="immediate">Present whether or not the pacing is ready for another frame.
+/// A box that must be seen before a long operation begins gets no second chance.</param>
+void UI_Paint_Now(bool immediate)
+{
+	UI_Tick();
+
+	if (immediate) {
+		Video_Present();
+	} else {
+		Video_Present_If_Dirty();
+	}
+}
+
+
 bool UI_Document_Is_Visible(void)
 {
 	return(_Initialized && _Context != nullptr && _Context->GetNumDocuments() > 0);

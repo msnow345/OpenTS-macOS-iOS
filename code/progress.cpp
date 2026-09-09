@@ -28,6 +28,8 @@
 #include "session.h"
 #include "shapeset.h"
 #include "surface.h"
+#include "ui/uiprogress.h"
+#include "ui/uishell.h"
 #include "voc.h"
 #include "windlg.h"
 
@@ -49,6 +51,7 @@ ProgressScreenClass::ProgressScreenClass(void)
 	Shape = NULL;
 	Background = NULL;
 	IsActive = false;
+	IsOverlay = false;
 	for (int i = 0; i < MAX_PLAYERS; i++) {
 		PlayerProgress[i] = 0;
 	}
@@ -83,7 +86,7 @@ void ProgressScreenClass::Initialize(double progress, int count, bool usedialog)
 	IsActive = true;
 
 	if (usedialog) {
-		if (Dialog == NULL) {
+		if (!Has_Dialog()) {
 			Begin_Dialog();
 		}
 	} else {
@@ -133,6 +136,10 @@ void ProgressScreenClass::Set_Graphic_Data(const char * progbar, const char * ba
 	} else {
 		Pos.X = pt.X;
 		Pos.Y = pt.Y;
+	}
+
+	if (progbar != NULL && IsOverlay) {
+		UI_Progress_Wait_Set_Bar(progbar);
 	}
 
 	if (progbar != NULL) {
@@ -221,7 +228,7 @@ void ProgressScreenClass::Announce_Milestones(void)
 		{ 100,	TXT_LOADING_GAME1H }
 	};
 
-	if (!IsActive || PlayerCount != 1 || Dialog != 0 || Shape == NULL) {
+	if (!IsActive || PlayerCount != 1 || Has_Dialog() || Shape == NULL) {
 		return;
 	}
 
@@ -257,6 +264,10 @@ void ProgressScreenClass::Announce_Milestones(void)
 /// progress is shown by the messages Announce_Milestones prints.</remarks>
 void ProgressScreenClass::Display_Progress(Point2D xpt)
 {
+	if (IsOverlay) {
+		return;
+	}
+
 	if (IsActive) {
 		Point2D pt = xpt;
 
@@ -377,7 +388,9 @@ void ProgressScreenClass::Progress_Changed(Point2D pt)
 		Announce_Milestones();
 	}
 
-	if (Dialog != NULL) {
+	if (IsOverlay) {
+		UI_Progress_Wait_Set_Progress(Get_Current_Progress(0));
+	} else if (Dialog != NULL) {
 		SendMessage(Dialog, WM_PAINT, 0, 0);
 	} else {
 		Display_Progress(pt);
@@ -393,6 +406,11 @@ void ProgressScreenClass::Progress_Changed(Point2D pt)
 /// </summary>
 void ProgressScreenClass::Begin_Dialog(void)
 {
+	if (UI_Use_Rml() && UI_Progress_Wait_Open()) {
+		IsOverlay = true;
+		return;
+	}
+
 	Dialog = OwnerDraw::Begin_Dialog(IDD_PROGRESS_WAIT, ProgressScreenClass::Dialog_Proc);
 	if (Dialog != NULL) {
 		SetWindowLongPtr(Dialog, DWLP_USER, (LONG_PTR)this);
@@ -409,6 +427,12 @@ void ProgressScreenClass::Begin_Dialog(void)
 /// </summary>
 void ProgressScreenClass::End_Dialog(void)
 {
+	if (IsOverlay) {
+		UI_Progress_Wait_Close();
+		IsOverlay = false;
+		return;
+	}
+
 	if (Dialog != NULL) {
 		OwnerDraw::End_Dialog(Dialog);
 		Dialog = NULL;
