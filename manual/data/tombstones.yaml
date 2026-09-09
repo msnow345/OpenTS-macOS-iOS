@@ -1,6 +1,20 @@
 # Removed settings live here only after source history establishes their removal.
 # They remain searchable and directly addressable, but active indexes omit them.
 - type: command
+  id: fixed:main-menu-version
+  route: /commands/fixed-main-menu-version/
+  search_aliases:
+    - Open version information
+    - Ctrl+V
+  summary: Opened the version dialog from the classic main menu. The main menu no longer reads the keyboard for it; the version screen is still reached from the menu itself.
+- type: command
+  id: fixed:main-menu-credits
+  route: /commands/fixed-main-menu-credits/
+  search_aliases:
+    - Open credits
+    - Ctrl+Alt+C
+  summary: Opened the credits from the classic main menu. The main menu no longer reads the keyboard for it; the credits still run and Escape still stops them.
+- type: command
   id: fixed:cancel-modem-operation
   route: /commands/fixed-cancel-modem-operation/
   search_aliases:

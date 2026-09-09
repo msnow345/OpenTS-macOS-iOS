@@ -225,24 +225,6 @@ fixed_controls:
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_LBUTTON }
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_ESCAPE }
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_SPACE }
-  - id: fixed:main-menu-version
-    title: Open version information
-    description: Opens the version dialog from the classic main menu.
-    audience: player
-    bindings: [Ctrl+V]
-    context: Classic main menu
-    availability: *all
-    sites:
-      - { file: code/init.cpp, function: Main_Menu, expression: KN_V+KN_CTRL_BIT }
-  - id: fixed:main-menu-credits
-    title: Open credits
-    description: Opens the credits from the classic main menu.
-    audience: player
-    bindings: [Ctrl+Alt+C]
-    context: Classic main menu
-    availability: *all
-    sites:
-      - { file: code/init.cpp, function: Main_Menu, expression: VK_C+KN_CTRL_BIT+KN_ALT_BIT }
   - id: fixed:skip-credits
     title: Exit credits
     description: Stops the credits and returns to the menu.
@@ -349,8 +331,6 @@ fixed_exclusions:
     reason: Generic graphic-menu polling and activation, not a named application control.
   - site: { file: code/grphmsct.cpp, function: GM_Build_Key, expression: VK_NONE }
     reason: Sentinel used while translating a menu accelerator into a virtual key.
-  - site: { file: code/init.cpp, function: Main_Menu, expression: KN_RLSE_BIT }
-    reason: Filters release events before the classic main-menu cheat handler.
   - sites:
       - { file: code/init.cpp, function: Init_Commands, expression: KN_DELETE }
       - { file: code/init.cpp, function: Init_Commands, expression: KN_ESC }
@@ -389,16 +369,10 @@ fixed_exclusions:
       - { file: code/msglist.cpp, function: MessageListClass::Input, expression: KN_BACKSPACE }
       - { file: code/msglist.cpp, function: MessageListClass::Input, expression: KN_ESC }
     reason: Message editor polling, cursor placement, and text-edit termination.
-  - site: { file: code/ownrdraw.cpp, function: CtrlProc_Internal, expression: VK_TAB }
-    reason: Windows dialog focus traversal handled by the shared control procedure.
   - sites:
-      - { file: code/ownrdraw.cpp, function: EditBoxCtrlProc, expression: VK_TAB }
-      - { file: code/ownrdraw.cpp, function: EditBoxCtrlProc, expression: VK_RETURN }
-    reason: Windows edit-control navigation handled by the shared dialog procedure.
-  - sites:
-      - { file: code/ownrdraw.cpp, function: Build_Hotkey_String, expression: VK_MENU }
-      - { file: code/ownrdraw.cpp, function: Build_Hotkey_String, expression: VK_CONTROL }
-      - { file: code/ownrdraw.cpp, function: Build_Hotkey_String, expression: VK_SHIFT }
+      - { file: code/keyboard.cpp, function: Build_Hotkey_String, expression: VK_MENU }
+      - { file: code/keyboard.cpp, function: Build_Hotkey_String, expression: VK_CONTROL }
+      - { file: code/keyboard.cpp, function: Build_Hotkey_String, expression: VK_SHIFT }
     reason: Converts modifier virtual keys to display names; it does not consume input.
   - sites:
       - { file: code/restate.cpp, function: RestateMission::User_Input, expression: KN_NONE }

@@ -57,9 +57,6 @@
 #include <RmlUi/Core/Input.h>
 
 
-// Build_Hotkey_String lives in ownrdraw.cpp and is the only thing this screen wants from
-// there. It spells a key, not a control, and moves with the rest of the keyboard support
-// when OwnerDraw is retired.
 std::string UIKeyboardPresenterClass::Key_Name(int key)
 {
 	char buffer[64];

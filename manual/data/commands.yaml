@@ -2117,32 +2117,6 @@ fixed_controls:
   _provenance:
     source: code/mpscore.cpp
     guard: null
-- id: fixed:main-menu-version
-  route_id: fixed-main-menu-version
-  kind: fixed
-  title: Open version information
-  description: Opens the version dialog from the classic main menu.
-  audience: player
-  availability: *id001
-  bindings:
-  - Ctrl+V
-  context: Classic main menu
-  _provenance:
-    source: code/init.cpp
-    guard: null
-- id: fixed:main-menu-credits
-  route_id: fixed-main-menu-credits
-  kind: fixed
-  title: Open credits
-  description: Opens the credits from the classic main menu.
-  audience: player
-  availability: *id001
-  bindings:
-  - Ctrl+Alt+C
-  context: Classic main menu
-  _provenance:
-    source: code/init.cpp
-    guard: null
 - id: fixed:skip-credits
   route_id: fixed-skip-credits
   kind: fixed
