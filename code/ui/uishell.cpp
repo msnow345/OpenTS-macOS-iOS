@@ -22,6 +22,7 @@
 #include "uirmlview.h"
 
 #include "_keyboar.h"
+#include "_xmouse.h"
 #include "dbgprint.h"
 #include "hostclock.h"
 #include "conquer.h"
@@ -56,6 +57,11 @@ static bool _Changing = false;
 // the way IgnoreInput does around a legacy dialog, and screens nest, so this counts rather
 // than flags.
 static int _ModalDepth = 0;
+
+// How many shown documents have handed the mouse pointer to the host. A legacy dialog gave
+// the pointer back to Windows for as long as it was up, which is what drew an arrow over it;
+// the game's own pointer is a shape it only has while a scenario is running.
+static int _PointerDepth = 0;
 
 // How many modal runners are on the stack. A runner owns the context between its own
 // passes, so the tick that Main_Loop and Call_Back make from inside one is dropped rather
@@ -604,6 +610,37 @@ static bool Handle_Developer_Key(WPARAM key)
 
 
 /// <summary>
+/// Hands the mouse pointer to the host while a document is shown.
+/// OwnerDraw::Capture_Mouse did this for every legacy dialog: with the game's mouse
+/// released, WM_SETCURSOR falls through to the window class and Windows draws an arrow.
+/// A front end has no game pointer of its own, so without this a document shows none.
+/// </summary>
+static void Release_Pointer_To_Host(void)
+{
+	if (MouseCursor != nullptr && MouseCursor->Is_Captured()) {
+		MouseCursor->Release_Mouse();
+	}
+
+	_PointerDepth++;
+}
+
+
+/// <summary>
+/// Takes the pointer back once the last document has gone.
+/// </summary>
+static void Recapture_Pointer(void)
+{
+	if (_PointerDepth > 0) {
+		_PointerDepth--;
+	}
+
+	if (_PointerDepth == 0 && MouseCursor != nullptr && !MouseCursor->Is_Captured()) {
+		MouseCursor->Capture_Mouse();
+	}
+}
+
+
+/// <summary>
 /// Opens an exclusive input scope for a modal document.
 /// The keyboard queue is cleared so a key pressed before the screen opened cannot be read
 /// by whatever runs underneath it, and the screen is marked changing first so that the
@@ -849,6 +886,8 @@ bool UIRmlViewClass::Prepare(bool modal)
 
 	Element->Show(modal ? Rml::ModalFlag::Modal : Rml::ModalFlag::None);
 
+	Release_Pointer_To_Host();
+
 	if (modal) {
 		IsModal = true;
 		Enter_Modal_Scope();
@@ -873,6 +912,8 @@ void UIRmlViewClass::Hide(void)
 
 	Element->Hide();
 
+	Recapture_Pointer();
+
 	if (IsModal) {
 		Leave_Modal_Scope();
 	}
@@ -891,6 +932,8 @@ void UIRmlViewClass::Show(void)
 	}
 
 	Element->Show(IsModal ? Rml::ModalFlag::Modal : Rml::ModalFlag::None);
+
+	Release_Pointer_To_Host();
 
 	if (IsModal) {
 		Enter_Modal_Scope();
@@ -912,8 +955,14 @@ void UIRmlViewClass::Close(void)
 	Presenter.IsClosing = true;
 	Presenter.Discard();
 
+	bool const wasvisible = Element->IsVisible();
+
 	Element->Close();
 	Element = nullptr;
+
+	if (wasvisible) {
+		Recapture_Pointer();
+	}
 
 	_Context->RemoveDataModel(ModelName);
 	Model = Rml::DataModelHandle();
