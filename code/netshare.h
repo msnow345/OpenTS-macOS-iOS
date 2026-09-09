@@ -23,6 +23,11 @@ bool Set_Scenario_Info_From_Index(int index);
 void Commit_Session_Specials(void);
 void PregameSetup(void);
 void Update_Network_Dialog_Preview(HWND win);
+void Rebuild_Network_Map_Preview(void);
+
+// Runs the map selection screen and reports whether the player settled on a map. This is
+// the entry a screen uses, because a presenter names no window.
+bool Pick_Scenario_Screen(void);
 void Receive_Random_Map_Preview(void);
 void Send_Preview_To_Guests(void);
 int CountAliveTeams(HouseClass * house);

@@ -10,6 +10,7 @@
 #include "always.h"
 
 #include "netshare.h"
+#include "ui/uiscenariopick.h"
 
 #include "_rules.h"
 #include "conquer.h"
@@ -1117,41 +1118,78 @@ int RandomMapWaypointCount(int index)
 
 
 static int LastPreviewedScenario;
-static int OriginalScenario;
 static HWND ScenarioPick;
+
+// The screen the map selection dialog is showing. The dialog's own driver is a wait
+// callback with no argument, so the screen it is driving is held here the way the dialog
+// held its result in DWLP_USER.
+static UIScenarioPickPresenterClass * ScenarioScreen;
+
+
+/// <summary>
+/// Puts the view-model on the dialog's own controls.
+/// </summary>
+static void Scenario_Sync_Controls(HWND window, UIScenarioPickPresenterClass & screen)
+{
+	if (screen.ListChanged) {
+		screen.ListChanged = false;
+		SendDlgItemMessage(window, IDC_SELECTMAP_LIST, LB_RESETCONTENT, 0, 0);
+		for (int index = 0; index < Session.Scenarios.Count(); index++) {
+			SendDlgItemMessage(window, IDC_SELECTMAP_LIST, LB_INSERTSTRING, -1, (LPARAM)Session.Scenarios[index]);
+		}
+		SendDlgItemMessage(window, IDC_SELECTMAP_LIST, LB_SETCURSEL, screen.Selected, 0);
+		InvalidateRect(window, NULL, FALSE);
+	}
+}
 
 
 /// <summary>
 /// Handles the idle processing while the map selection dialog is up.
-/// This routine keeps the preview in step with whichever map is highlighted and pumps the
-/// network layer the session is using, so that a game sitting in the lobby does not stall
-/// while the host browses for a scenario.
+/// The screen's own maintenance keeps the preview in step with whichever map is highlighted
+/// and pumps the network layer, so a game sitting in the lobby does not stall while the host
+/// browses for a scenario.
 /// </summary>
 /// <returns>bool; Should the dialog be shut down?</returns>
 bool Scenario_Select_Callback(void)
 {
-	int index = SendDlgItemMessage(ScenarioPick, IDC_AILEVEL_SLIDER, LB_GETCURSEL, 0, 0);
-	if (index != LastPreviewedScenario && index != -1) {
-		Set_Scenario_Info_From_Index(index);
-		if (stricmp(Session.Scenarios[index]->Get_Filename(), "RandMap.Sed") == 0) {
-			delete MultiplayerMapPreview;
-			MultiplayerMapPreview = new MapPreviewClass;
-			MultiplayerMapPreview->Read_PCX_Preview("RandMap.img");
-			if (MultiplayerMapPreview->Get_Preview_Surface() == NULL) {
-				Update_Network_Dialog_Preview(ScenarioPick);
-			}
-			InvalidateRect(ScenarioPick, NULL, FALSE);
-		} else {
-			Update_Network_Dialog_Preview(ScenarioPick);
-		}
-		LastPreviewedScenario = index;
-		Session.Options.ScenarioIndex = OriginalScenario;
-		Set_Scenario_Info_From_Index(OriginalScenario);
+	if (ScenarioScreen == NULL) {
+		Call_Back();
+		return(false);
 	}
-	if (Session.Type == GAME_IPX || Session.Type == GAME_INTERNET) {
-		return(Net2Callback());
+
+	int const index = SendDlgItemMessage(ScenarioPick, IDC_SELECTMAP_LIST, LB_GETCURSEL, 0, 0);
+	if (index != -1 && index != ScenarioScreen->Selected) {
+		ScenarioScreen->Queue(UIIntent{UI_SCENARIOPICK_SELECT, "", index});
 	}
-	Call_Back();
+
+	// A control handler queues rather than acts, so the queue is executed here.
+	ScenarioScreen->Drain();
+
+	unsigned int const generation = ScenarioScreen->PreviewGeneration;
+
+	// The map generator draws where this screen is, so the dialog gets out of its way.
+	if (ScenarioScreen->Pending != UIScenarioPickPresenterClass::SUB_NONE) {
+		ShowWindow(ScenarioPick, SW_HIDE);
+		ScenarioScreen->Run_Pending();
+		ShowWindow(ScenarioPick, SW_SHOW);
+	}
+
+	ScenarioScreen->Service();
+	Scenario_Sync_Controls(ScenarioPick, *ScenarioScreen);
+
+	if (ScenarioScreen->PreviewGeneration != generation) {
+		InvalidateRect(ScenarioPick, NULL, FALSE);
+	}
+
+	if (ScenarioScreen->Result.has_value()) {
+		WS_Destroy_Dialog(ScenarioPick,
+			ScenarioScreen->Result->Outcome == UIResult::OUTCOME_ACCEPTED ? IDOK : IDCANCEL);
+		return(true);
+	}
+
+	if (Session.Type != GAME_IPX && Session.Type != GAME_INTERNET) {
+		Call_Back();
+	}
 	return(false);
 }
 
@@ -1168,21 +1206,42 @@ INT_PTR CALLBACK Scenario_DlgProc(HWND window, UINT message, WPARAM wparam, LPAR
 /// IDCANCEL.</returns>
 int Scenario_Dialog(HWND top)
 {
+	UIScenarioPickPresenterClass screen;
+	screen.Refresh();
+
+	ScenarioScreen = &screen;
+
 	Hide_Mouse();
 	Draw_Menu_Background();
 	Show_Mouse();
 	ScenarioPick = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_SELECT_MAP, top, Scenario_DlgProc, FALSE);
 	Center_Window_Within_Window(ScenarioPick);
 	OwnerDraw::Subclass_Dialog(ScenarioPick, 0);
+	Scenario_Sync_Controls(ScenarioPick, screen);
 	ShowWindow(ScenarioPick, SW_NORMAL);
-	return(WS_Wait_Dialog(ScenarioPick, Scenario_Select_Callback));
+	int const rc = WS_Wait_Dialog(ScenarioPick, Scenario_Select_Callback);
+
+	ScenarioScreen = NULL;
+	return(rc);
+}
+
+
+/// <summary>
+/// Runs the map selection screen.
+/// This is the entry a screen uses rather than the dialog, because a presenter names no
+/// window.
+/// </summary>
+/// <returns>bool; Did the player settle on a map?</returns>
+bool Pick_Scenario_Screen(void)
+{
+	return(Scenario_Dialog(MainWindow) == IDOK);
 }
 
 
 /// <summary>
 /// Handles the messages for the multiplayer map selection dialog.
-/// This routine fills the map list, paints the preview of the highlighted map, and services
-/// the random map generator button.
+/// This routine paints the preview of the highlighted map and queues what its buttons stand
+/// for; the wait callback executes the queue.
 /// </summary>
 /// <returns>Returns with TRUE if the message was dealt with here, FALSE to leave it to the
 /// dialog manager.</returns>
@@ -1209,54 +1268,33 @@ INT_PTR CALLBACK Scenario_DlgProc(HWND window, UINT message, WPARAM wparam, LPAR
 			return(TRUE);
 
 		case WM_COMMAND:
+			if (ScenarioScreen == NULL) {
+				break;
+			}
 			switch (LOWORD(wparam)) {
-				case IDC_AILEVEL_SLIDER:
+				case IDC_SELECTMAP_LIST:
 					return(FALSE);
 
-				case IDOK: {
-					int index = SendDlgItemMessage(window, IDC_AILEVEL_SLIDER, LB_GETCURSEL, 0, 0);
-					Session.Options.ScenarioIndex = std::max(0, index);
-					WS_Destroy_Dialog(window, IDOK);
-					SendDlgItemMessage(GameoptWindow(), IDC_SCENARIONAME, WM_SETTEXT, 0, (LPARAM)Session.Scenarios[Session.Options.ScenarioIndex]);
+				case IDOK:
+					ScenarioScreen->Queue(UIIntent{UI_SCENARIOPICK_ACCEPT, "", 0});
 					break;
-				}
 
 				case IDCANCEL:
-					WS_Destroy_Dialog(window, IDCANCEL);
+					ScenarioScreen->Queue(UIIntent{UI_SCENARIOPICK_CANCEL, "", 0});
 					break;
 
-				case IDC_CREATE_RANDOM_MAP: {
-					ShowWindow(window, SW_HIDE);
-					int scenario = CreateRandomMap();
-					if (scenario != -1) {
-						SendDlgItemMessage(window, IDC_AILEVEL_SLIDER, LB_RESETCONTENT, 0, 0);
-						for (int i = 0; i < Session.Scenarios.Count(); i++) {
-							SendDlgItemMessage(window, IDC_AILEVEL_SLIDER, LB_INSERTSTRING, -1, (LPARAM)Session.Scenarios[i]);
-						}
-						SendDlgItemMessage(window, IDC_AILEVEL_SLIDER, LB_SETCURSEL, scenario, 0);
-						Set_Scenario_Info_From_Index(scenario);
-						if (!MultiplayerMapPreview->Get_Preview_Surface()) {
-							Update_Network_Dialog_Preview(window);
-						}
-						Session.Options.ScenarioIndex = OriginalScenario;
-						Set_Scenario_Info_From_Index(OriginalScenario);
-					}
-					ShowWindow(window, SW_SHOW);
+				case IDC_CREATE_RANDOM_MAP:
+					ScenarioScreen->Queue(UIIntent{UI_SCENARIOPICK_RANDOM, "", 0});
 					break;
-				}
 			}
 			break;
 
-		case OD_SUBCLASSED: {
-			SendDlgItemMessage(window, IDC_AILEVEL_SLIDER, LB_RESETCONTENT, 0, 0);
-			for (int i = 0; i < Session.Scenarios.Count(); i++) {
-				SendDlgItemMessage(window, IDC_AILEVEL_SLIDER, LB_INSERTSTRING, -1, (LPARAM)Session.Scenarios[i]);
+		case OD_SUBCLASSED:
+			if (ScenarioScreen != NULL) {
+				ScenarioScreen->ListChanged = true;
+				Scenario_Sync_Controls(window, *ScenarioScreen);
 			}
-			SendDlgItemMessage(window, IDC_AILEVEL_SLIDER, LB_SETCURSEL, Session.Options.ScenarioIndex, 0);
-			OriginalScenario = Session.Options.ScenarioIndex;
-			LastPreviewedScenario = -1;
 			break;
-		}
 	}
 	return(FALSE);
 }
@@ -1303,6 +1341,21 @@ void PregameSetup(void)
 /// <param name="win">The dialog window that displays the preview.</param>
 void Update_Network_Dialog_Preview(HWND win)
 {
+	Rebuild_Network_Map_Preview();
+
+	if (MultiplayerMapPreview != NULL) {
+		InvalidateRect(win, NULL, FALSE);
+	}
+}
+
+
+/// <summary>
+/// Rebuilds the map preview for the scenario the session currently names.
+/// This is the half of the update that owns the preview itself, split from the half that
+/// tells a window to repaint, so a presentation that is not a window can ask for it.
+/// </summary>
+void Rebuild_Network_Map_Preview(void)
+{
 	delete MultiplayerMapPreview;
 	MultiplayerMapPreview = NULL;
 
@@ -1342,7 +1395,6 @@ void Update_Network_Dialog_Preview(HWND win)
 	MultiplayerMapPreview = new MapPreviewClass;
 	if (MultiplayerMapPreview != NULL) {
 		MultiplayerMapPreview->Read_INI_Preview(Session.ScenarioFileName);
-		InvalidateRect(win, NULL, FALSE);
 	}
 }
 

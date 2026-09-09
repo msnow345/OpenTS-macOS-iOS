@@ -26,6 +26,8 @@
 #include "newmenu.h"
 #include "ownrdraw.h"
 #include "rules.h"
+#include "ui/uiskirmish.h"
+#include "ui/uishell.h"
 #include "win.h"
 
 
@@ -34,178 +36,142 @@ BOOL Skirmish_On_WM_INITDIALOG(HWND window, WPARAM wparam, LPARAM lparam);
 
 
 /// <summary>
-/// Handles a control notification from the skirmish dialog.
-/// This routine services the buttons and check boxes of the setup dialog. When the player
-/// accepts the dialog, the slider and combo box settings are harvested into the session
-/// options and the local player is added to the player list; when the player cancels, only
-/// the handle, side, and color are remembered.
+/// Reads the controls the screen takes its settings from and queues what they hold.
+/// The dialog read its sliders, name field and boxes when a button was pressed rather than
+/// tracking them, because a keyboard or page move changes a track bar without raising the
+/// notification a tracking handler would follow.
 /// </summary>
-/// <param name="message">The identifier of the control that sent the notification.</param>
-/// <param name="lparam">The notification code that came with the command.</param>
-void Skirmish_On_WM_COMMAND(HWND window, int message, WPARAM wparam, LPARAM lparam)
+static void Skirmish_Read_Controls(HWND window, UISkirmishPresenterClass & screen)
 {
-	int * rc = (int *)GetWindowLongPtr(window, DWLP_USER);
-	char buffer[256];
-	HWND handle;
+	static struct { int id; char const * name; } const sliders[] = {
+		{ IDC_SKIRMISH_UNITCOUNT, UI_SKIRMISH_UNITCOUNT },
+		{ IDC_SKIRMISH_CREDITS,   UI_SKIRMISH_CREDITS },
+		{ IDC_SKIRMISH_TECHLEVEL, UI_SKIRMISH_TECHLEVEL },
+		{ IDC_DIFFICULTY_SLIDER,  UI_SKIRMISH_AILEVEL },
+		{ IDC_SKIRMISH_AIPLAYERS, UI_SKIRMISH_AIPLAYERS },
+		{ IDC_GAME_SPEED_SLIDER,  UI_SKIRMISH_GAMESPEED },
+	};
 
-	switch (message) {
-		case IDOK: {
-			if (lparam == 0) {
-				EnableWindow(GetDlgItem(window, 1), FALSE);
+	for (auto const & entry : sliders) {
+		HWND const handle = GetDlgItem(window, entry.id);
+		if (handle) {
+			screen.Queue(UIIntent{UI_SKIRMISH_SLIDER, entry.name, Slider_GetPos(handle)});
+		}
+	}
 
-				int waypoint_count = RandomMapWaypointCount(Session.Options.ScenarioIndex);
-				int waypoint = 1;
+	char buffer[128];
+	GetWindowText(GetDlgItem(window, IDC_SKIRMISH_NAME), buffer, sizeof(buffer));
+	screen.Queue(UIIntent{UI_SKIRMISH_HANDLE, buffer, 0});
 
-				handle = GetDlgItem(window, IDC_SKIRMISH_AIPLAYERS);
-				if (handle) waypoint = Slider_GetPos(handle) + 1;
-
-				if (waypoint_count < waypoint) {
-					sprintf(buffer, Fetch_String(TXT_SCENARIO_TOO_SMALL), waypoint_count);
-					WWMessageBox().Process(buffer, TXT_OK);
-					EnableWindow(GetDlgItem(window, 1), TRUE);
-					return;
-				}
-
-				GetWindowText(GetDlgItem(window, IDC_SKIRMISH_NAME), Session.Handle, sizeof(Session.Handle));
-
-				handle = GetDlgItem(window, IDC_SKIRMISH_UNITCOUNT);
-				if (handle) Session.Options.UnitCount = Slider_GetPos(handle);
-
-				handle = GetDlgItem(window, IDC_SKIRMISH_TECHLEVEL);
-				if (handle) BuildLevel = Slider_GetPos(handle);
-
-				handle = GetDlgItem(window, IDC_SKIRMISH_CREDITS);
-				if (handle) Session.Options.Credits = Slider_GetPos(handle);
-
-				handle = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
-				if (handle) Session.Options.AIDifficulty = (DiffType)Slider_GetPos(handle);
-
-				handle = GetDlgItem(window, IDC_SKIRMISH_AIPLAYERS);
-				if (handle) Session.Options.AIPlayers = Slider_GetPos(handle);
-
-				handle = GetDlgItem(window, IDC_GAME_SPEED_SLIDER);
-				if (handle) {
-					Session.Options.GameSpeed = 6 - Slider_GetPos(handle);
-					Options.GameSpeed = Session.Options.GameSpeed;
-				}
-
-				handle = GetDlgItem(window, IDC_SKIRMISH_SIDE);
-				if (handle) Session.House = Country_From_Box(handle);
-
-				handle = GetDlgItem(window, IDC_SKIRMISH_COLOR);
-				if (handle) {
-					Session.ColorIdx = ComboBox_GetCurSel(handle);
-					Session.PrefColor = Session.ColorIdx;
-				}
-
-				NodeNameType * who = new NodeNameType;
-				if (who) {
-					strcpy(who->Name, Session.Handle);
-					who->Player.House = Session.House;
-					who->Player.Color = Session.ColorIdx;
-					who->Player.ProcessTime = -1;
-					Session.Players.Add(who);
-				}
-
-				handle = GetDlgItem(window, IDC_SKIRMISH_BASES);
-				if (handle) Session.Options.Bases = Button_GetCheck(handle) == BST_CHECKED;
-				handle = GetDlgItem(window, IDC_SKIRMISH_CRATES);
-				if (handle) Session.Options.Goodies = Button_GetCheck(handle) == BST_CHECKED;
-				handle = GetDlgItem(window, IDC_SKIRMISH_FOG);
-				if (handle) Session.Options.FogOfWar = Button_GetCheck(handle) == BST_CHECKED;
-				handle = GetDlgItem(window, IDC_SKIRMISH_BRIDGES);
-				if (handle) Session.Options.BridgeDestruction = Button_GetCheck(handle) == BST_CHECKED;
-				handle = GetDlgItem(window, IDC_REDEPLOY_MCV);
-				if (handle) Session.Options.MCVRedeploy = Button_GetCheck(handle) == BST_CHECKED;
-				handle = GetDlgItem(window, IDC_SHORT_GAME);
-				if (handle) Session.Options.ShortGame = Button_GetCheck(handle) == BST_CHECKED;
-				Session.Options.HarvTruce = false;
-				handle = GetDlgItem(window, IDC_MULTI_ENGINEER);
-				if (handle) Session.Options.CrapEngineers = Button_GetCheck(handle) == BST_CHECKED;
-
-				if (MultiplayerMapPreview) {
-					delete MultiplayerMapPreview;
-					MultiplayerMapPreview = NULL;
-				}
-				*rc = IDOK;
+	HWND handle = GetDlgItem(window, IDC_SKIRMISH_SIDE);
+	if (handle) {
+		int const country = Country_From_Box(handle);
+		for (int row = 0; row < (int)screen.Sides.size(); row++) {
+			if (screen.Sides[row].Country == country) {
+				screen.Queue(UIIntent{UI_SKIRMISH_SIDE, "", row});
+				break;
 			}
 		}
+	}
+
+	handle = GetDlgItem(window, IDC_SKIRMISH_COLOR);
+	if (handle) {
+		screen.Queue(UIIntent{UI_SKIRMISH_COLOR, "", (int)ComboBox_GetCurSel(handle)});
+	}
+}
+
+
+/// <summary>
+/// Handles a control notification from the skirmish dialog.
+/// The controls are read into the view-model and the command is queued as an intent; the
+/// driver executes the queue after the pump returns.
+/// </summary>
+void Skirmish_On_WM_COMMAND(HWND window, int message, WPARAM wparam, LPARAM lparam)
+{
+	UISkirmishPresenterClass * const screen =
+		(UISkirmishPresenterClass *)GetWindowLongPtr(window, DWLP_USER);
+	if (screen == NULL) {
+		return;
+	}
+
+	switch (message) {
+		case IDOK:
+			if (lparam == 0) {
+				EnableWindow(GetDlgItem(window, 1), FALSE);
+				Skirmish_Read_Controls(window, *screen);
+				screen->Queue(UIIntent{UI_SKIRMISH_ACCEPT, "", 0});
+			}
 			break;
 
 		case IDCANCEL:
 			if (!lparam) {
-				GetWindowText(GetDlgItem(window, IDC_SKIRMISH_NAME), Session.Handle, sizeof(Session.Handle));
-				handle = GetDlgItem(window, IDC_SKIRMISH_SIDE);
-				if (handle) Session.House = Country_From_Box(handle);
-				handle = GetDlgItem(window, IDC_SKIRMISH_COLOR);
-				if (handle) {
-					Session.ColorIdx = ComboBox_GetCurSel(handle);
-					Session.PrefColor = Session.ColorIdx;
-				}
-				*rc = IDCANCEL;
+				Skirmish_Read_Controls(window, *screen);
+				screen->Queue(UIIntent{UI_SKIRMISH_CANCEL, "", 0});
 			}
 			break;
 
 		case IDC_SHORT_GAME:
-			handle = GetDlgItem(window, IDC_SHORT_GAME);
-			if (handle && Button_GetCheck(handle) == BST_CHECKED) {
-				SendDlgItemMessage(window, IDC_SKIRMISH_BASES, BM_SETCHECK, TRUE, 0);
-			}
-			break;
-
-		case IDC_MULTIMAP: {
-			int old_scen = Session.Options.ScenarioIndex;
-			strcpy(buffer, Session.ScenarioFileName);
-			strcpy(buffer, Session.Options.ScenarioDescription);
-			ShowWindow(window, SW_HIDE);
-			if (Scenario_Dialog(MainWindow) == IDCANCEL) {
-				Session.Options.ScenarioIndex = old_scen;
-				Set_Scenario_Info_From_Index(old_scen);
-				Update_Network_Dialog_Preview(window);
-				ShowWindow(window, SW_SHOW);
-				if (stricmp(Session.Scenarios[Session.Options.ScenarioIndex]->Get_Filename(), RANDOM_MAP_FILE_NAME) == 0) {
-					delete MultiplayerMapPreview;
-					MultiplayerMapPreview = new MapPreviewClass;
-					MultiplayerMapPreview->Read_PCX_Preview("RandMap.img");
-					if (MultiplayerMapPreview->Get_Preview_Surface() == NULL) {
-						Update_Network_Dialog_Preview(window);
-					}
-					InvalidateRect(window, NULL, FALSE);
-				} else {
-					Update_Network_Dialog_Preview(window);
-				}
-				InvalidateRect(window, NULL, FALSE);
-			} else {
-				ShowWindow(window, SW_SHOW);
-				if (Set_Scenario_Info_From_Index(Session.Options.ScenarioIndex) == true) {
-					SendDlgItemMessage(window, IDC_SCENARIONAME, WM_SETTEXT, 0, (LPARAM)Session.Options.ScenarioDescription);
-					if (stricmp(Session.Scenarios[Session.Options.ScenarioIndex]->Get_Filename(), "RandMap.Sed") == 0) {
-						if (MultiplayerMapPreview != NULL) {
-							delete MultiplayerMapPreview;
-							MultiplayerMapPreview = new MapPreviewClass;
-							MultiplayerMapPreview->Read_PCX_Preview("RandMap.img");
-						}
-						if (MultiplayerMapPreview->Get_Preview_Surface() == NULL) {
-							Update_Network_Dialog_Preview(window);
-						}
-						InvalidateRect(window, NULL, FALSE);
-					} else {
-						Update_Network_Dialog_Preview(window);
-					}
-				} else {
-					Session.Options.ScenarioIndex = old_scen;
-				}
-			}
-		}
+			screen->Queue(UIIntent{UI_SKIRMISH_TOGGLE, UI_SKIRMISH_SHORTGAME, 0});
 			break;
 
 		case IDC_SKIRMISH_BASES:
-			handle = GetDlgItem(window, IDC_SKIRMISH_BASES);
-			if (handle && Button_GetCheck(handle) != 1) {
-				SendDlgItemMessage(window, IDC_SHORT_GAME, BM_SETCHECK, 0, 0);
-			}
+			screen->Queue(UIIntent{UI_SKIRMISH_TOGGLE, UI_SKIRMISH_BASES, 0});
+			break;
+
+		case IDC_SKIRMISH_CRATES:
+			screen->Queue(UIIntent{UI_SKIRMISH_TOGGLE, UI_SKIRMISH_CRATES, 0});
+			break;
+
+		case IDC_SKIRMISH_FOG:
+			screen->Queue(UIIntent{UI_SKIRMISH_TOGGLE, UI_SKIRMISH_FOG, 0});
+			break;
+
+		case IDC_SKIRMISH_BRIDGES:
+			screen->Queue(UIIntent{UI_SKIRMISH_TOGGLE, UI_SKIRMISH_BRIDGES, 0});
+			break;
+
+		case IDC_REDEPLOY_MCV:
+			screen->Queue(UIIntent{UI_SKIRMISH_TOGGLE, UI_SKIRMISH_MCV, 0});
+			break;
+
+		case IDC_MULTI_ENGINEER:
+			screen->Queue(UIIntent{UI_SKIRMISH_TOGGLE, UI_SKIRMISH_ENGINEER, 0});
+			break;
+
+		case IDC_MULTIMAP:
+			screen->Queue(UIIntent{UI_SKIRMISH_PICK_MAP, "", 0});
 			break;
 	}
+}
+
+
+/// <summary>
+/// Puts the view-model on the dialog's own controls.
+/// </summary>
+static void Skirmish_Sync_Controls(HWND window, UISkirmishPresenterClass & screen)
+{
+	static struct { int id; bool UISkirmishPresenterClass::* field; } const boxes[] = {
+		{ IDC_SKIRMISH_BASES,   &UISkirmishPresenterClass::Bases },
+		{ IDC_SKIRMISH_CRATES,  &UISkirmishPresenterClass::Crates },
+		{ IDC_SKIRMISH_FOG,     &UISkirmishPresenterClass::FogOfWar },
+		{ IDC_SKIRMISH_BRIDGES, &UISkirmishPresenterClass::Bridges },
+		{ IDC_REDEPLOY_MCV,     &UISkirmishPresenterClass::MCVRedeploy },
+		{ IDC_SHORT_GAME,       &UISkirmishPresenterClass::ShortGame },
+		{ IDC_MULTI_ENGINEER,   &UISkirmishPresenterClass::MultiEngineer },
+	};
+
+	for (auto const & entry : boxes) {
+		HWND const handle = GetDlgItem(window, entry.id);
+		if (handle == NULL) continue;
+
+		int const wanted = (screen.*(entry.field)) ? BST_CHECKED : BST_UNCHECKED;
+		if (Button_GetCheck(handle) != wanted) {
+			Button_SetCheck(handle, wanted);
+		}
+	}
+
+	SendDlgItemMessage(window, IDC_SCENARIONAME, WM_SETTEXT, 0, (LPARAM)screen.ScenarioName.c_str());
+	EnableWindow(GetDlgItem(window, 1), screen.CanAccept ? TRUE : FALSE);
 }
 
 
@@ -227,25 +193,41 @@ bool Skirmish_Mode_Dialog(void)
 	Draw_Menu_Background();
 	Show_Mouse();
 
+	UISkirmishPresenterClass screen;
+	screen.Refresh();
+
 	HWND dialog = OwnerDraw::Begin_Dialog(IDD_SKIRMISH, Skirmish_Dialog_Proc);
 	if (dialog) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&rc);
+		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&screen);
+		Skirmish_Sync_Controls(dialog, screen);
 		OwnerDraw::Display_Dialog(dialog);
-		while (rc != IDOK && rc != IDCANCEL) {
+		while (!screen.Result.has_value()) {
 			if (OwnerDraw::Dialog_Message_Handler() == IDOK) {
 				break;
 			}
-			Title_Screen_Restore();
+
+			// A control handler queues rather than acts, so the queue is executed here,
+			// after the pump has returned.
+			screen.Drain();
+
+			// The map selection screen draws where this one is, so the dialog gets out of
+			// its way, which is what its own ShowWindow did.
+			if (screen.Pending != UISkirmishPresenterClass::SUB_NONE) {
+				ShowWindow(dialog, SW_HIDE);
+				screen.Run_Pending();
+				ShowWindow(dialog, SW_SHOW);
+				InvalidateRect(dialog, NULL, FALSE);
+			}
+
+			Skirmish_Sync_Controls(dialog, screen);
+			screen.Service();
 		}
 		OwnerDraw::End_Dialog(dialog);
 	}
 
-	if (MultiplayerMapPreview != NULL) {
-		delete MultiplayerMapPreview;
-		MultiplayerMapPreview = NULL;
-	}
+	rc = screen.Accepted() ? IDOK : IDCANCEL;
 
-	Session.Write_MultiPlayer_Settings();
+	screen.End();
 
 	if (rc == IDCANCEL) {
 		Hide_Mouse();
