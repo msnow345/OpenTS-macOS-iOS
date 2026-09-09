@@ -21,6 +21,7 @@
 #include "win.h"
 #include "xmouse.h"
 
+#include <cstdint>
 #include <cstring>
 
 
@@ -120,26 +121,43 @@ static HCURSOR Build_Cursor(ShapeSet const * shape, int frame, int hotx, int hot
 	// what turns one into the other.
 	unsigned short const * table = (unsigned short const *)MouseDrawer->Get_Translate_Table();
 
-	for (int y = 0; y < rect.Height; y++) {
-		for (int x = 0; x < rect.Width; x++) {
+	bool const compressed = shape->Is_RLE_Compressed(frame);
+	unsigned char const * line = data;
 
-			unsigned char index = data[y * rect.Width + x];
+	for (int y = 0; y < rect.Height; y++) {
+
+		// A compressed line starts with its own byte length and then runs of pixels, where
+		// a zero introduces a count of transparent ones.
+		unsigned char const * source = compressed ? line + sizeof(unsigned short) : data + y * rect.Width;
+		int x = 0;
+
+		while (x < rect.Width) {
+
+			unsigned char index = *source++;
+
 			if (index == 0) {
+				x += compressed ? *source++ : 1;
 				continue;
 			}
 
 			unsigned short pixel = table[index];
-			unsigned long red = ((pixel >> 11) & 0x1F) << 3;
-			unsigned long green = ((pixel >> 5) & 0x3F) << 2;
-			unsigned long blue = (pixel & 0x1F) << 3;
-			unsigned long argb = 0xFF000000UL | (red << 16) | (green << 8) | blue;
+			std::uint32_t red = ((pixel >> 11) & 0x1F) << 3;
+			std::uint32_t green = ((pixel >> 5) & 0x3F) << 2;
+			std::uint32_t blue = (pixel & 0x1F) << 3;
+			std::uint32_t argb = 0xFF000000U | (red << 16) | (green << 8) | blue;
 
 			for (int suby = 0; suby < scale; suby++) {
-				unsigned long * row = (unsigned long *)bits + ((rect.Y + y) * scale + suby) * width + (rect.X + x) * scale;
+				std::uint32_t * row = (std::uint32_t *)bits + ((rect.Y + y) * scale + suby) * width + (rect.X + x) * scale;
 				for (int subx = 0; subx < scale; subx++) {
 					row[subx] = argb;
 				}
 			}
+
+			x++;
+		}
+
+		if (compressed) {
+			line += *(unsigned short const *)line;
 		}
 	}
 

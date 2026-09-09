@@ -1,0 +1,76 @@
+<rml>
+<head>
+	<title>Host a network game</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="lobbybase.rcss"/>
+	<link type="text/rcss" href="mphost.rcss"/>
+</head>
+<body data-model="mphost" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="sidelabel">Your Side:</div>
+		<select id="side" class="combo" data-attr-value="selectedside" data-event-change="chooseside()">
+			<option data-for="entry : sides" data-attr-value="it_index">{{ entry.name }}</option>
+		</select>
+
+		<div class="caption" id="colorlabel">Your Color:</div>
+		<select id="color" class="combo" data-attr-value="selectedcolor" data-event-change="choosecolor()">
+			<option data-for="swatch : colors" data-attr-value="it_index" data-style-color="swatch.hex">{{ swatch.name }}</option>
+		</select>
+
+		<div class="button" id="multimap" data-event-click="press('pickmap')">Multiplayer Map</div>
+		<div class="caption" id="scenarioname">{{ scenarioname }}</div>
+
+		<div class="caption" id="playerslabel">Players:</div>
+		<div id="users" class="list users">
+			<div class="row" data-for="entry : users" data-class-picked="entry.picked" data-event-click="pickuser(it_index)">
+				<div class="name" data-style-color="entry.hex">{{ entry.name }}</div>
+				<div class="side">{{ entry.sidename }}</div>
+				<div class="mark">{{ entry.mark }}</div>
+			</div>
+		</div>
+
+		<div class="button" id="kick" data-event-click="press('kick')">Kick</div>
+
+		<div id="messages" class="log">
+			<div class="line" data-for="entry : messages" data-style-color="entry.hex">{{ entry.text }}</div>
+		</div>
+
+		<input type="text" id="say" class="field" maxlength="255" data-event-keydown="submit()"/>
+
+		<div class="caption rcaption" id="gamespeedlabel">Game Speed:</div>
+		<input id="gamespeed" class="slider" type="range" orientation="horizontal" data-attr-value="gamespeed.value" data-event-change="move('gamespeed')"/>
+
+		<div class="caption rcaption" id="aiplayerslabel">AI Players:</div>
+		<input id="aiplayers" class="slider" type="range" orientation="horizontal" data-attr-value="aiplayers.value" data-event-change="move('aiplayers')"/>
+
+		<div class="caption rcaption" id="ailevellabel">AI Level:</div>
+		<input id="ailevel" class="slider" type="range" orientation="horizontal" data-attr-value="ailevel.value" data-event-change="move('ailevel')"/>
+
+		<div class="caption rcaption" id="unitcountlabel">Unit Count:</div>
+		<input id="unitcount" class="slider" type="range" orientation="horizontal" data-attr-value="unitcount.value" data-event-change="move('unitcount')"/>
+
+		<div class="caption rcaption" id="techlevellabel">Tech Level:</div>
+		<input id="techlevel" class="slider" type="range" orientation="horizontal" data-attr-value="techlevel.value" data-event-change="move('techlevel')"/>
+
+		<div class="caption rcaption" id="creditslabel">Credits:</div>
+		<input id="credits" class="slider" type="range" orientation="horizontal" data-attr-value="credits.value" data-event-change="move('credits')"/>
+
+		<div class="check" id="allies" data-class-ticked="allies" data-event-click="toggle('allies')">Allies allowed</div>
+		<div class="check" id="harvtruce" data-class-ticked="harvtruce" data-event-click="toggle('harvtruce')">Harvester Truce</div>
+		<div class="check" id="bases" data-class-ticked="bases" data-event-click="toggle('bases')">Bases</div>
+		<div class="check" id="mcv" data-class-ticked="mcv" data-event-click="toggle('mcv')">Re-Deployable MCV</div>
+		<div class="check" id="fog" data-class-ticked="fog" data-event-click="toggle('fog')">Fog Of War</div>
+		<div class="check" id="bridges" data-class-ticked="bridges" data-event-click="toggle('bridges')">Bridges Destroyable</div>
+		<div class="check" id="crates" data-class-ticked="crates" data-event-click="toggle('crates')">Crates</div>
+		<div class="check" id="shortgame" data-class-ticked="shortgame" data-event-click="toggle('shortgame')">Short Game</div>
+		<div class="check" id="engineer" data-class-ticked="engineer" data-event-click="toggle('engineer')">Multi Engineer</div>
+
+		<div id="previewframe" class="previewframe">
+			<surface data-attr-src="preview"/>
+		</div>
+
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+		<div class="button" id="go" data-class-disabled="!canstart" data-event-click="press('go')">Go!</div>
+	</div>
+</body>
+</rml>

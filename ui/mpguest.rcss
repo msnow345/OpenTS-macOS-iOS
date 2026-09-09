@@ -1,0 +1,109 @@
+/* The guest's game setup. Geometry from the IDD_MPLAYER_GUEST template, converted from
+   dialog units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625
+   down, with a child's offset taken from the panel's content box and the panel's declared
+   size taken inside its own border.
+
+   The template gives every game option WS_DISABLED on this screen: the guest is shown what
+   the host has chosen and cannot change any of it. */
+
+/* 426 x 240 dialog units, so 639 x 390 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -319.5dp;
+	margin-top: -195dp;
+
+	width: 635dp;
+	height: 386dp;
+}
+
+/* The player's own settings, top left. The combos are 76 dialog units wide at 66, 7 and
+   66, 24; these two are the only controls this screen may touch. */
+#sidelabel  { left: 25dp; top: 9.375dp; width: 75dp; height: 19.5dp; line-height: 19.5dp; }
+#colorlabel { left: 25dp; top: 37dp;    width: 75dp; height: 19.5dp; line-height: 19.5dp; }
+
+#side, #color { left: 97dp; width: 114dp; }
+#side  { top: 9.375dp; }
+#color { top: 37dp; }
+
+#side selectbox  { max-height: 164.125dp; }
+#color selectbox { max-height: 235.625dp; }
+
+/* "Map:" at 149, 7 and the scenario's own name at 176, 7. */
+#maplabel     { left: 221.5dp; top: 9.375dp; width: 39dp;  height: 16.25dp; line-height: 16.25dp; }
+#scenarioname { left: 262dp;   top: 9.375dp; width: 348dp; height: 16.25dp; line-height: 16.25dp; }
+
+/* "Players:" at 18, 42 and the 150 x 68 player list at 18, 56. */
+#playerslabel { left: 25dp; top: 66.25dp; width: 75dp;  height: 19.5dp; line-height: 19.5dp; }
+#users        { left: 25dp; top: 89dp;    width: 225dp; height: 110.5dp; }
+#users .row   { width: 213dp; }
+
+/* The message log, 256 x 65 at 18, 130, and the chat entry, 256 x 12 at 18, 199. */
+#messages { left: 25dp; top: 209.25dp; width: 384dp; height: 105.625dp; }
+#messages .line { width: 372dp; }
+
+#say { left: 25dp; top: 321.375dp; width: 384dp; height: 19.5dp; line-height: 15.5dp; }
+
+/* The six track bars, 66 x 12 dialog units at x 227, and their right aligned captions,
+   57 x 10 at x 162. */
+#gamespeedlabel,
+#aiplayerslabel,
+#ailevellabel,
+#unitcountlabel,
+#techlevellabel,
+#creditslabel
+{
+	left: 241dp;
+	width: 85.5dp;
+	height: 16.25dp;
+	line-height: 16.25dp;
+}
+
+#gamespeedlabel { top: 43.5dp; }
+#aiplayerslabel { top: 69.5dp; }
+#ailevellabel   { top: 95.5dp; }
+#unitcountlabel { top: 121.5dp; }
+#techlevellabel { top: 147.5dp; }
+#creditslabel   { top: 173.5dp; }
+
+.slider { left: 338.5dp; width: 99dp; height: 19.5dp; }
+
+#gamespeed { top: 41.875dp; }
+#aiplayers { top: 67.875dp; }
+#ailevel   { top: 93.875dp; }
+#unitcount { top: 119.875dp; }
+#techlevel { top: 145.875dp; }
+#credits   { top: 171.875dp; }
+
+/* The nine check boxes, 108 dialog units wide at x 300 but Allies, 105, and Short Game, 84. */
+.check { left: 448dp; width: 162dp; height: 16.25dp; line-height: 16.25dp; }
+
+#allies    { top: 38.625dp;  width: 157.5dp; }
+#harvtruce { top: 58.125dp; }
+#bases     { top: 77.625dp; }
+#mcv       { top: 97.125dp; }
+#fog       { top: 116.625dp; }
+#bridges   { top: 136.125dp; }
+#crates    { top: 155.625dp; }
+#shortgame { top: 175.125dp; width: 126dp; }
+#engineer  { top: 194.625dp; }
+
+/* What WS_DISABLED looks like: shown, dimmed and out of reach. */
+.off
+{
+	color: #909090;
+	pointer-events: none;
+}
+
+.off sliderbar { background-color: #000000b4; border-color: #ffffff; }
+
+/* Cancel and Accept, both 58 x 18 dialog units at 279, 215 and 350, 215. */
+.button { height: 29.25dp; line-height: 29.25dp; width: 87dp; }
+
+#cancel { left: 416.5dp; top: 347.375dp; }
+#accept { left: 523dp;   top: 347.375dp; }
+
+/* The map name comes from the scenario, not from a template, so this one keeps the clip
+   optionsbase.rcss drops for a static caption. At 16.25dp a dlgsys cell is not clipped. */
+#scenarioname { overflow: hidden; }

@@ -1,0 +1,15 @@
+<rml>
+<head>
+	<title>Version information</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="version.rcss"/>
+</head>
+<body data-model="version" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div id="info">
+			<div class="line" data-for="line : lines">{{ line }}</div>
+		</div>
+		<div id="ok" class="button" tabindex="auto" data-event-click="dismiss('accept')">OK</div>
+	</div>
+</body>
+</rml>

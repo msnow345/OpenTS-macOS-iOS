@@ -45,9 +45,30 @@
 #include	"vqaplayp.h"
 #include	<stdio.h>
 #include	<fcntl.h>
+#ifdef _WIN32
 #include	<io.h>
+#else
+#include	<unistd.h>
+#endif
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 #include	<string.h>
 
+#ifndef _WIN32
+/// The MSVC runtime reports a descriptor's length without disturbing its position.
+static long filelength(int handle)
+{
+	off_t const here = lseek(handle, 0, SEEK_CUR);
+	if (here < 0) {
+		return(-1);
+	}
+	off_t const end = lseek(handle, 0, SEEK_END);
+	lseek(handle, here, SEEK_SET);
+	return((long)end);
+}
+#endif
 
 intptr_t __cdecl Disk_VQA_Stream_Handler(VQAHandle *vqa, long action, void *buffer, long nbytes)
 {

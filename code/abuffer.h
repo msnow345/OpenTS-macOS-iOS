@@ -11,6 +11,8 @@
 
 #include "rect.h"
 
+#include <cstdint>
+
 class Surface;
 
 class ABuffer

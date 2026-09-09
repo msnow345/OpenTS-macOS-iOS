@@ -1,0 +1,78 @@
+/* The game controls shown during an internet game. Geometry from the IDD_OPT_CTRL_GAME_WOL
+   template, converted at 1.5 pixels across and 1.625 down. The template carries no game
+   speed slider, because a speed change in an internet session is an event every player has
+   to agree on rather than a setting one of them holds. */
+
+/* 294 x 144 dialog units, so 441 x 234 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -220.5dp;
+	margin-top: -117dp;
+
+	width: 437dp;
+	height: 230dp;
+}
+
+/* Two track bars, 128 x 15 dialog units at x 90. */
+.slider
+{
+	left: 133dp;
+	width: 192dp;
+	height: 24.375dp;
+}
+
+
+#scroll { top: 17.5dp; }
+#detail { top: 67.875dp; }
+
+/* The left captions are RTEXT, 63 x 15 at x 22; the value captions are LTEXT, 50 x 15 at
+   x 226. Both carry SS_CENTERIMAGE. */
+.caption
+{
+	height: 24.375dp;
+	line-height: 24.375dp;
+}
+
+#scrolllabel, #detaillabel
+{
+	left: 31dp;
+	width: 94.5dp;
+	text-align: right;
+}
+
+.value
+{
+	left: 337dp;
+	width: 75dp;
+}
+
+#scrolllabel, #scrollvalue { top: 17.5dp; }
+#detaillabel, #detailvalue { top: 67.875dp; }
+
+/* Five BS_FLAT check boxes in two columns. */
+.check
+{
+	height: 16.25dp;
+	line-height: 16.25dp;
+}
+
+#cameotext   { left: 31dp; top: 100.375dp; width: 178.5dp; }
+#actionlines { left: 31dp; top: 129.625dp; width: 178.5dp; }
+#edgescroll  { left: 31dp; top: 158.875dp; width: 178.5dp; }
+#tooltips    { left: 218.5dp; top: 100.375dp; width: 193.5dp; }
+#coasting    { left: 218.5dp; top: 129.625dp; width: 193.5dp; }
+
+/* Three buttons, all 77 x 14 dialog units on the same row. */
+.button
+{
+	top: 189.75dp;
+	width: 115.5dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}
+
+#sound    { left: 31dp; }
+#keyboard { left: 161.5dp; }
+#accept   { left: 292dp; }

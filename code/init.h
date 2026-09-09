@@ -41,6 +41,10 @@ void Reset_Selection_Filters(void);
 
 void Title_Screen_Restore(bool force=false);
 
+// Spells a cheat word out one character at a time and answers when one is completed. The
+// main menu screen owns this; it is not a key binding and never reaches the command list.
+bool Cheat_Key_Process(char chr);
+
 void Init_Campaigns(void);
 
 void Prepare_Theater_Roster(void);

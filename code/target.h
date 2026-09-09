@@ -186,6 +186,10 @@ class TargetClass : public xTargetClass
 };
 #pragma pack(pop)
 
+// A target rides inside the network event union, so it stays two 32-bit fields.
+static_assert(sizeof(xTargetClass) == 8, "Target layout changed");
+static_assert(sizeof(TargetClass) == 8, "Target layout changed");
+
 template<class INDEX, class T> class IndexClass;
 
 extern IndexClass<int, AbstractClass *> TargetTracker;

@@ -91,3 +91,187 @@
 #ifndef _stricmp
 #define _stricmp stricmp
 #endif
+
+
+/*
+** Define some Windows specific values that are used throghout the games
+*/
+#ifndef _WIN32
+
+#define _MAX_DRIVE 3
+#define _MAX_DIR   256
+#define _MAX_FNAME 255
+#define _MAX_EXT   8
+#define _MAX_PATH  512
+#define MAX_PATH   _MAX_PATH
+#define _CONTROL   0x20  // space, first non-control character in ASCII
+
+#undef _stricmp
+#define stricmp  strcasecmp
+#define _stricmp strcasecmp
+#define strnicmp strncasecmp
+#define _strnicmp strncasecmp
+#define memicmp  strncasecmp
+#define _memicmp strncasecmp
+#define __cdecl
+
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
+#include <cctype>
+#include <unistd.h>
+
+/// The USER32 formatter the game uses for short strings. Windows caps its output at 1024
+/// characters, so the substitute caps it at the same place rather than at the buffer.
+inline static int wvsprintf(char* buffer, const char* format, va_list args)
+{
+	return(vsnprintf(buffer, 1024, format, args));
+}
+
+inline static int wsprintf(char* buffer, const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	int const result = wvsprintf(buffer, format, args);
+	va_end(args);
+	return(result);
+}
+
+inline static long filelength(int handle)
+{
+	off_t const here = lseek(handle, 0, SEEK_CUR);
+	if (here < 0) {
+		return(-1);
+	}
+	off_t const end = lseek(handle, 0, SEEK_END);
+	lseek(handle, here, SEEK_SET);
+	return((long)end);
+}
+
+inline static int freopen_s(FILE** stream, const char* path, const char* mode, FILE* old)
+{
+	if (stream == NULL) {
+		return(-1);
+	}
+	*stream = freopen(path, mode, old);
+	return(*stream != NULL ? 0 : -1);
+}
+
+inline static void _makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
+{
+	if (!path) {
+		return;
+	}
+
+	path[0] = '\0';
+
+	if (drive && drive[0] != '\0') {
+		sprintf(path + strlen(path), "%c:", drive[0]);
+	}
+
+	if (dir && dir[0] != '\0') {
+		char const last = dir[strlen(dir) - 1];
+		sprintf(path + strlen(path), "%s%s", dir, (last == '/' || last == '\\') ? "" : "/");
+	}
+
+	if (fname && fname[0] != '\0') {
+		sprintf(path + strlen(path), "%s", fname);
+	}
+
+	if (ext && ext[0] != '\0') {
+		sprintf(path + strlen(path), "%s%s", (ext[0] == '.' ? "" : "."), ext);
+	}
+}
+
+/// <summary>
+/// Splits a path into the components the caller asked for.
+/// Every non-null component is written, empty where the path has nothing to put in it, so a
+/// caller may ask for any subset. Each buffer must hold its documented _MAX_ size, and the
+/// extension carries its leading dot as the Microsoft routine's does.
+/// </summary>
+inline static void _splitpath(const char* path, char* drive, char* dir, char* fname, char* ext)
+{
+	if (drive) drive[0] = '\0';
+	if (dir) dir[0] = '\0';
+	if (fname) fname[0] = '\0';
+	if (ext) ext[0] = '\0';
+
+	if (!path) {
+		return;
+	}
+
+	// A path read out of a game file was written on Windows, so both separators and a drive
+	// letter are recognised whatever the host uses.
+	const char* start = path;
+	if (path[0] != '\0' && path[1] == ':') {
+		if (drive) {
+			drive[0] = path[0];
+			drive[1] = ':';
+			drive[2] = '\0';
+		}
+		start = path + 2;
+	}
+
+	const char* slash = NULL;
+	for (const char* scan = start; *scan != '\0'; ++scan) {
+		if (*scan == '/' || *scan == '\\') {
+			slash = scan;
+		}
+	}
+
+	const char* base = (slash != NULL) ? slash + 1 : start;
+
+	if (dir && slash != NULL) {
+		size_t length = (size_t)(base - start);
+		if (length > _MAX_DIR - 1) length = _MAX_DIR - 1;
+		memcpy(dir, start, length);
+		dir[length] = '\0';
+	}
+
+	const char* dot = strrchr(base, '.');
+
+	if (fname) {
+		size_t length = (dot != NULL) ? (size_t)(dot - base) : strlen(base);
+		if (length > _MAX_FNAME - 1) length = _MAX_FNAME - 1;
+		memcpy(fname, base, length);
+		fname[length] = '\0';
+	}
+
+	if (ext && dot != NULL) {
+		size_t length = strlen(dot);
+		if (length > _MAX_EXT - 1) length = _MAX_EXT - 1;
+		memcpy(ext, dot, length);
+		ext[length] = '\0';
+	}
+}
+
+inline static char* strupr(char* str)
+{
+	char* ret = str;
+	while (*str != '\0') {
+		*str = toupper(*str);
+		++str;
+	}
+	return(ret);
+}
+
+inline static void strrev(char* str)
+{
+	int len = strlen(str);
+
+	for (int i = 0; i < len / 2; i++) {
+		char c = str[i];
+		str[i] = str[len - i - 1];
+		str[len - i - 1] = c;
+	}
+}
+
+inline static void _strlwr(char* str)
+{
+	while (*str != '\0') {
+		*str = tolower(*str);
+		++str;
+	}
+}
+
+#endif // not _WIN32

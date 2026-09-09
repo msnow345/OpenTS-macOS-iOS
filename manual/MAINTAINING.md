@@ -73,8 +73,10 @@ spelling live where it works.
 Command discovery is also fail-closed. Objects registered through
 `AllCommands` form the rebindable command catalog. Every discovered direct key
 handler and launch-parser branch needs exactly one public adapter or one
-reasoned exclusion. Command IDs are case-sensitive. Do not infer default
-bindings from a declaration or nearby code.
+reasoned exclusion. Discovery reads the key names of every layer that delivers
+one, so a screen driven by the UI toolkit is scanned for its key identifiers as
+the game's own handlers are scanned for theirs. Command IDs are case-sensitive.
+Do not infer default bindings from a declaration or nearby code.
 
 Enums are authored selections backed by explicit source adapters. Documenting
 an existing fixed domain is documentation work, not an engine change. Its

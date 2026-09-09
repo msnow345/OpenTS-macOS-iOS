@@ -1,0 +1,75 @@
+/* The message box. Its geometry is the IDD_MSGBOX_3 template's, converted from dialog units
+   at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625 down, with a
+   child's offset taken from the panel's content box and a bordered element's declared size
+   taken inside its own border.
+
+   The dialog look, including the panel artwork, comes from ui/optionsbase.rcss. */
+
+body
+{
+	font-family: LatoLatin;
+	font-size: 12dp;
+	color: #70ff00;
+
+	width: 100%;
+	height: 100%;
+}
+
+/* 260 x 84 dialog units. The panel is centred on the frame and re-centres itself when the
+   frame is resized, because the offsets are a proportion of the context. */
+#dialog
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin-left: -195dp;
+	margin-top: -68.25dp;
+
+	width: 386dp;
+	height: 132.5dp;
+}
+
+/* The message: 22, 12, 216 x 38 dialog units, centred both ways as the template's CTEXT with
+   SS_CENTERIMAGE was. A message that carries its own line breaks keeps them. */
+#text
+{
+	display: block;
+	position: absolute;
+	left: 31dp;
+	top: 17.5dp;
+	width: 324dp;
+	height: 61.75dp;
+
+	text-align: center;
+	white-space: pre-line;
+	overflow: hidden;
+}
+
+/* The three buttons, 60 x 14 dialog units each, on one row 58 units down. They are laid out
+   first, third, second across the box, which is where the template puts them. */
+.button
+{
+	display: block;
+	position: absolute;
+	top: 92.25dp;
+	width: 86dp;
+	height: 18.75dp;
+	line-height: 18.75dp;
+	text-align: center;
+}
+
+.first { left: 31dp; }
+.third { left: 148dp; }
+.second { left: 265dp; }
+
+/* A lone button takes the middle slot, as the dialog moved it there. */
+.first.centred { left: 148dp; }
+
+/* The message, a static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#text
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

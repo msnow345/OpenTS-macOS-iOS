@@ -1,0 +1,65 @@
+/* The Firestorm map generator, IDD_MAPGEN_FS: 426 x 242 dialog units, so 639 x 393.25
+   pixels. It adds the veinhole bar and the three Firestorm check boxes down the right hand
+   side, moves the two sorted combos left, and puts the seed field under the bars. */
+
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -319.5dp;
+	margin-top: -196.625dp;
+
+	width: 635dp;
+	height: 389.25dp;
+}
+
+#environmentlabel { left: 33dp; top: 11.375dp; width: 79.5dp; height: 22.75dp; line-height: 22.75dp; }
+#timelabel { left: 33dp; top: 39dp; width: 79.5dp; height: 22.75dp; line-height: 22.75dp; }
+#playerslabel { left: 33dp; top: 66.625dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#cliffslabel { left: 33dp; top: 94.25dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#accessibilitylabel { left: 33dp; top: 121.875dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#hillslabel { left: 33dp; top: 149.5dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#tiberiumlabel { left: 33dp; top: 177.125dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#tiberiumfieldslabel { left: 33dp; top: 204.75dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#waterlabel { left: 33dp; top: 232.375dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#vegetationlabel { left: 33dp; top: 260dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#citieslabel { left: 33dp; top: 287.625dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#veinholeslabel { left: 33dp; top: 315.25dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#widthlabel { left: 280.5dp; top: 13dp; width: 79.5dp; height: 19.5dp; line-height: 19.5dp; }
+#heightlabel { left: 279dp; top: 40.625dp; width: 79.5dp; height: 19.5dp; line-height: 19.5dp; }
+#ionstorms { left: 480dp; top: 13dp; width: 126dp; height: 16.25dp; line-height: 16.25dp; }
+#transitions { left: 480dp; top: 42.25dp; width: 126dp; height: 16.25dp; line-height: 16.25dp; }
+#lifeforms { left: 480dp; top: 71.5dp; width: 126dp; height: 16.25dp; line-height: 16.25dp; }
+
+/* The track bars. */
+#players { left: 142.5dp; top: 66.625dp; }
+#cliffs { left: 142.5dp; top: 94.25dp; }
+#accessibility { left: 142.5dp; top: 121.875dp; }
+#hills { left: 142.5dp; top: 149.5dp; }
+#tiberium { left: 142.5dp; top: 177.125dp; }
+#tiberiumfields { left: 142.5dp; top: 204.75dp; }
+#water { left: 142.5dp; top: 232.375dp; }
+#vegetation { left: 142.5dp; top: 260dp; }
+#cities { left: 142.5dp; top: 287.625dp; }
+#veinholes { left: 142.5dp; top: 315.25dp; }
+
+/* The combo boxes. */
+#biome { left: 118.5dp; top: 13dp; width: 150dp; }
+#time { left: 118.5dp; top: 40.625dp; width: 150dp; }
+#width { left: 372dp; top: 13dp; width: 94.5dp; }
+#height { left: 372dp; top: 42.25dp; width: 94.5dp; }
+
+#seed { left: 33dp; top: 334.75dp; width: 85.5dp; height: 19.5dp; line-height: 19.5dp; }
+
+#previewframe { left: 310.5dp; top: 92.625dp; }
+#previewword { top: 107.25dp; height: 26dp; line-height: 26dp; }
+
+#surprise { left: 307.5dp; top: 325dp; }
+#previewmap { left: 474dp; top: 325dp; }
+
+/* The bottom row: save, load, delete, then OK and cancel. */
+#save { left: 33dp; }
+#load { left: 150dp; }
+#delete { left: 267dp; }
+#ok { left: 397.5dp; }
+#cancel { left: 505.5dp; }

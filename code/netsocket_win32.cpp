@@ -80,6 +80,7 @@ class WinsockSocketClass : public SocketClass
 		bool Open(unsigned short port) override;
 		void Close(void) override;
 		bool Is_Open(void) const override { return(Socket != INVALID_SOCKET); }
+		unsigned short Bound_Port(void) const override { return(BoundPort); }
 
 		bool Set_Broadcast(bool enable) override;
 		bool Set_Buffer_Sizes(int receive, int send) override;
@@ -92,6 +93,7 @@ class WinsockSocketClass : public SocketClass
 
 	private:
 		SOCKET Socket = INVALID_SOCKET;
+		unsigned short BoundPort = 0;
 		bool Started = false;
 };
 
@@ -140,6 +142,15 @@ bool WinsockSocketClass::Open(unsigned short port)
 		return(false);
 	}
 
+	// A port of zero was bound to whatever Winsock had spare, so ask for the one it
+	// chose; the receive pass recognizes our own broadcast by it.
+	BoundPort = port;
+	sockaddr_in bound = {};
+	int bound_len = sizeof(bound);
+	if (getsockname(Socket, reinterpret_cast<sockaddr *>(&bound), &bound_len) == 0) {
+		BoundPort = ntohs(bound.sin_port);
+	}
+
 	// The transport polls, so the socket must never wait on a call.
 	u_long nonblocking = 1;
 	if (ioctlsocket(Socket, FIONBIO, &nonblocking) == SOCKET_ERROR) {
@@ -166,6 +177,7 @@ void WinsockSocketClass::Close(void)
 		closesocket(Socket);
 		Socket = INVALID_SOCKET;
 	}
+	BoundPort = 0;
 }
 
 

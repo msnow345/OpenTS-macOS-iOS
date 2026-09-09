@@ -1,0 +1,85 @@
+/* The sound controls the game shows with no game running. The geometry is the
+   IDD_SOUND_OPTIONS_DIALOG_LITE template's, converted from dialog units at the 8 point MS
+   Sans Serif the template names: 1.5 pixels across and 1.625 down, with a child's offset
+   taken from the panel's content box and a bordered element's declared size taken inside
+   its own border. It carries the three volumes alone, as that template does.
+
+   The dialog look, including the panel artwork, comes from ui/optionsbase.rcss. */
+
+body
+{
+	font-family: LatoLatin;
+	font-size: 12dp;
+	color: #70ff00;
+
+	width: 100%;
+	height: 100%;
+}
+
+/* 294 x 112 dialog units. The panel is centred on the frame and re-centres itself when the
+   frame is resized, because the offsets are a proportion of the context. */
+#dialog
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin-left: -220.5dp;
+	margin-top: -91dp;
+
+	width: 437dp;
+	height: 178dp;
+}
+
+/* The three right-aligned captions, 70 x 15 dialog units at x 22. */
+.label
+{
+	display: block;
+	position: absolute;
+	left: 33dp;
+	width: 105dp;
+	height: 24.4dp;
+	line-height: 24.4dp;
+	text-align: right;
+}
+
+#musiclabel { top: 27.6dp; }
+#soundlabel { top: 65dp; width: 106.5dp; }
+#voicelabel { top: 100.8dp; width: 106.5dp; }
+
+/* The three track bars, 173 x 15 dialog units at x 99. TBS_NOTICKS, so the bar is a plain
+   groove with a thumb. */
+.slider
+{
+	display: block;
+	position: absolute;
+	left: 148.5dp;
+	width: 259.5dp;
+	height: 24.4dp;
+}
+
+#music { top: 27.6dp; }
+#sound { top: 65dp; }
+#voice { top: 100.8dp; }
+
+/* OK, 62 x 14 dialog units at 115, 86, centred across the panel as the template places it. */
+.button
+{
+	display: block;
+	position: absolute;
+	left: 172.5dp;
+	top: 139.8dp;
+	width: 89dp;
+	height: 22.8dp;
+	line-height: 22.8dp;
+	text-align: center;
+}
+
+
+/* With no audio device the sliders are dimmed and inert. OK stays live, because the dialog
+   left it enabled. */
+.unavailable .slider
+{
+	color: #909090;
+	pointer-events: none;
+}

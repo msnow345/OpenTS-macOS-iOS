@@ -22,6 +22,8 @@
 #include "isotype.hh"
 #include "land.hh"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 class LightConvertClass;
@@ -79,6 +81,10 @@ struct IsoTileRecord
 	 */
 	unsigned int IsRandomized:1;
 
+	// The flag bits fill a whole 32-bit word on disk. Without this padding a compiler that
+	// packs a following byte into the same word reads the rest of the record four bytes early.
+	unsigned int :29;
+
 	/*
 	 * This is the number of height levels this sub-tile lifts the cell it covers, so that a
 	 * tile laid across rising ground raises each of its cells by the right amount.
@@ -105,6 +111,11 @@ struct IsoTileRecord
 	RGBStruct HighColor;
 };
 #pragma pack()
+
+static_assert(sizeof(IsoTileRecord) == 52, "Isometric tile record layout changed");
+static_assert(offsetof(IsoTileRecord, ExtraZOffset) == 16, "Isometric tile record layout changed");
+static_assert(offsetof(IsoTileRecord, Height) == 40, "Isometric tile record layout changed");
+static_assert(offsetof(IsoTileRecord, LowColor) == 43, "Isometric tile record layout changed");
 
 #pragma pack(4)
 class IsoTileSet
@@ -175,6 +186,7 @@ class IsoTileSet
 	private:
 		IsoTileRecord const * Record_At(int index) const
 		{
+			static_assert(offsetof(IsoTileSet, TileOffsets) == 16, "Isometric tile set header layout changed");
 			if (TileOffsets[index] == 0) {
 				return(NULL);
 			}
@@ -191,6 +203,8 @@ class IsoTileSet
 };
 #pragma pack()
 
+static_assert(sizeof(IsoTileSet) == 20, "Isometric tile set header layout changed");
+
 
 /****************************************************************************
 **	The tile type objects are controlled by this class. It specifies the form
@@ -206,7 +220,7 @@ class IsometricTileTypeClass : public ObjectTypeClass
 		IsometricTileTypeClass(IsometricTileType type = ISOTILE_CLEAR, int unknown1 = 0, unsigned char unknown2 = 0, char const *ininame = NULL, bool skip_registration = false);
 		virtual ~IsometricTileTypeClass(void) override;
 
-		virtual HRESULT STDMETHODCALLTYPE GetClassID(CLSID * retval) override;
+		virtual ClassID Class_ID(void) const override;
 
 		virtual void Serialize(SaveStreamClass & stream) override;
 		virtual void Post_Load(void) override;

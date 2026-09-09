@@ -39,8 +39,10 @@ void Backend_Shutdown(void);
 bool Backend_Set_Frame_Size(int width, int height);
 void Backend_On_Resize(int drawablewidth, int drawableheight);
 
-// Uploads the frame and presents it. The pixels are 16 bit 565 and stay owned by the
-// caller; they are consumed before this returns.
-void Backend_Present(void const * pixels, int pitch, int destx, int desty, int destwidth, int destheight, BackendScaleMode mode);
+// Uploads the frame and submits it. The pixels are 16 bit 565 and stay owned by the
+// caller; they are consumed before this returns. Nothing reaches the screen until
+// Backend_End_Frame, so an overlay drawn in between shares the frame.
+void Backend_Present(void const * pixels, int pitch, int destx, int desty, int destwidth, int destheight, BackendScaleMode mode, bool upload);
+void Backend_End_Frame(void);
 
 char const * Backend_Renderer_Name(void);

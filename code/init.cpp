@@ -115,7 +115,10 @@
 #include "gamedirs.h"
 #include "gamedlg.h"
 #include "getcpu.h"
+#include "ui/uishell.h"
+#include "ui/uiversion.h"
 #include "globals.h"
+#include "hostclock.h"
 #include "houstype.h"
 #include "incdec.h"
 #include "infatype.h"
@@ -145,7 +148,6 @@
 #include "overlay.h"
 #include "overtype.h"
 #include "ovrlight.h"
-#include "ownrdraw.h"
 #include "partsys.h"
 #include "pcx.h"
 #include "queue.h"
@@ -185,6 +187,7 @@
 #include "vqoption.h"
 #include "wave.h"
 #include "waypoint.h"
+#include "winfix.h"
 #include "winstub.h"
 #include "wsproto.h"
 #include "wspudp.h"
@@ -192,6 +195,8 @@
 
 #include "bench.hh"
 #include "scrnsel.hh"
+#include "ui/uicampaign.h"
+#include "ui/uimainmenu.h"
 
 #include <algorithm>
 #include <conio.h>
@@ -202,10 +207,6 @@
 
 extern VoxelDataStruct DropPodVoxel;
 
-struct ChooseCampaignStruct {
-	CampaignType ChosenCampaign;
-	bool ChoiceMade;
-};
 
 /**********************************************************************
 **	Optional parameter control for special options.
@@ -275,7 +276,7 @@ static CheatEntryStruct CheatEntries[] = {
 };
 
 static void Cheat_Disable(void);
-static bool Cheat_Key_Process(char chr);
+bool Cheat_Key_Process(char chr);
 static void Cheat_Version_Suffix(char * string);
 
 
@@ -414,6 +415,11 @@ int Init_Game(int , char * [])
 	DebugString("Reading Game Settings\n");
 	Options.Load_Settings();
 	SaveManager.Autosave.Set_Interval(Options.AutoSaveInterval);
+
+	// The session speed starts at the player's own saved setting rather than at zero, which
+	// is the "fastest" end of the scale. The skirmish screen seeds its slider from it and so
+	// opened every match at that end, whatever the player had settled on.
+	Session.Options.GameSpeed = Options.GameSpeed;
 
 	/*
 	**	Initialize the animation system.
@@ -715,138 +721,6 @@ void Prepare_Side_Roster(void)
 }
 
 
-/// <summary>
-/// Can this campaign be played with the addons that are enabled?
-/// A base game campaign is offered only when no addon is running, and an addon's own
-/// campaign only when that particular addon is running.
-/// </summary>
-/// <param name="campaign">The campaign to be tested.</param>
-/// <returns>bool; Is the campaign available for the player to select?</returns>
-static bool Campaign_Available(CampaignClass * campaign)
-{
-	if (Addon_Enabled(ADDON_ANY) == true) {
-		if (campaign->RequiredAddon == ADDON_BASE_GAME) {
-			return(false);
-		}
-		if (Addon_Enabled((AddonType)campaign->RequiredAddon)) {
-			return(true);
-		}
-		return(false);
-	}
-
-	if (campaign->RequiredAddon == ADDON_BASE_GAME) {
-		return(true);
-	}
-
-	return(false);
-}
-
-
-/// <summary>
-/// Handles the messages for the campaign choice dialog.
-/// This routine lists the campaigns that the player is entitled to play, drives the
-/// difficulty slider, and leaves the choice where Choose_Campaign will collect it.
-/// </summary>
-static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	HWND item;
-	struct ChooseCampaignStruct * state;
-
-	INT_PTR rc;
-	rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc) {
-		return(rc);
-	}
-
-	switch (message) {
-
-		case WM_INITDIALOG:
-			item = GetDlgItem(window, IDC_LIST);
-
-			if (item != NULL) {
-				DebugString("Initializing Choose_Campaign() Dialog.\n");
-				for (int index = 0; index < Campaigns.Count(); index++) {
-					CampaignClass * campaign = Campaigns[index];
-
-					if (!Campaign_Available(campaign)) {
-						DebugString("\tSkipping Campaign [%d] - %s\n", index, campaign->Description);
-						continue;
-					}
-
-					DebugString("\tAdding Campaign [%d] - %s\n", index, campaign->Description);
-					int pos = ListBox_AddString(item, campaign->Description);
-					ListBox_SetItemData(item, pos, index);
-				}
-
-				ListBox_SetCurSel(item, 0);
-			}
-
-			item = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
-
-			if (item != NULL) {
-				SendMessage(item, OD_TRACKNUMBERS, 0, 0);
-				Slider_SetRange(item, 0,2);
-				Slider_SetPos(item, Options.Difficulty);
-			}
-			break;
-
-		case WM_COMMAND:
-			switch (LOWORD(wparam)) {
-				case IDOK:
-					if (HIWORD(wparam) == BN_CLICKED) {
-						state = (ChooseCampaignStruct *)GetWindowLongPtr(window, DWLP_USER);
-
-						if (state != NULL) {
-							item = GetDlgItem(window, IDC_LIST);
-
-							if (item != NULL) {
-								int pos = ListBox_GetCurSel(item);
-								state->ChosenCampaign = (CampaignType)ListBox_GetItemData(item, pos);
-								state->ChoiceMade = true;
-							}
-						}
-
-						item = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
-
-						if (item != NULL) {
-							Options.Difficulty = Slider_GetPos(item);
-						}
-					}
-					break;
-
-				case IDCANCEL:
-					if (HIWORD(wparam) == BN_CLICKED) {
-						state = (ChooseCampaignStruct *)GetWindowLongPtr(window, DWLP_USER);
-
-						if (state != NULL) {
-							state->ChosenCampaign = CAMPAIGN_NONE;
-							state->ChoiceMade = true;
-						}
-					}
-
-					break;
-			}
-			break;
-
-		case WM_HSCROLL: {
-			int diff = HIWORD(wparam);
-			int stringID = 0;
-
-			if ((HWND)lparam == GetDlgItem(window, IDC_DIFFICULTY_SLIDER)) {
-				stringID = GameDifficultyNames[diff];
-				item = GetDlgItem(window, IDC_DIFFICULTY_LABEL);
-				Static_SetText(item, Fetch_String(stringID));
-			}
-			break;
-		}
-
-		default:
-			break;
-	}
-
-	return(FALSE);
-}
 
 
 /// <summary>
@@ -857,12 +731,6 @@ static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, W
 /// <returns>Returns with the campaign chosen, or CAMPAIGN_NONE if the player backed out.</returns>
 static CampaignType Choose_Campaign(void)
 {
-	HWND dialog;
-	struct ChooseCampaignStruct state;
-
-	state.ChoiceMade = false;
-	state.ChosenCampaign = CAMPAIGN_NONE;
-
 	if (Campaigns.Count() == 0) {
 		Init_Campaigns();
 
@@ -871,25 +739,12 @@ static CampaignType Choose_Campaign(void)
 		}
 	}
 
-	dialog = OwnerDraw::Begin_Dialog(IDD_CAMPAIGN, Campaign_Choice_Dialog_Proc);
+	UICampaignPresenterClass screen;
+	screen.Refresh();
 
-	if (dialog != NULL) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR) &state);
+	UI_Campaign_Screen(screen);
 
-		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
-		OwnerDraw::Display_Dialog(dialog);
-
-		while (state.ChoiceMade == false) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				break;
-			}
-			Title_Screen_Restore();
-		}
-
-		OwnerDraw::End_Dialog(dialog);
-	}
-
-	return(state.ChosenCampaign);
+	return((CampaignType)screen.Chosen());
 }
 
 
@@ -1915,7 +1770,8 @@ void Init_Random(void)
 	*/
 	if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
 
-	#ifdef WIN32
+	// The alternative is the DOS build's timer, which no target this tree builds for has.
+	#ifndef __DOS__
 		/*
 		**	Gather some "random" bits from the system timer. Actually, only the
 		**	low order millisecond bits are secure. The other bits could be
@@ -1958,7 +1814,7 @@ void Init_Random(void)
 			Seed = CustomSeed;
 		} else {
 			CryptRandom.Get(&Seed, sizeof(Seed));
-			Seed = GetTickCount();
+			Seed = Host_Milliseconds();
 			//srand(time(NULL));
 			//Seed = rand();
 		}
@@ -2993,104 +2849,36 @@ bool Cheat_Key_Process(char chr)
 
 
 /// <summary>
-/// Handles the messages for the version information dialog.
-/// This routine fills the list box with the game's title, its version numbers, the build
-/// stamp, and a description of the processor it finds itself running upon. It is the
-/// first thing to ask for when a player reports a problem.
-/// </summary>
-INT_PTR CALLBACK Version_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	HWND handle;
-	int *res;
-	char buffer[256];
-
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc) {
-		return(rc);
-	}
-
-	res = (int *)GetWindowLongPtr(window, DWLP_USER);
-
-	switch (message) {
-		case WM_INITDIALOG:
-			handle = GetDlgItem(window, IDC_VERSION_INFO);
-
-			if (Addon_Installed(ADDON_FIRESTORM) == true) {
-				strcpy(buffer, Fetch_String(TXT_SHORT_TITLE));
-				strcat(buffer, ": ");
-				strcat(buffer, Get_Addon_Title(ADDON_FIRESTORM));
-				ListBox_AddString(handle, buffer);
-			} else {
-				ListBox_AddString(handle, Fetch_String(TXT_SHORT_TITLE));
-			}
-
-			sprintf(buffer, "Version %s", Version_Name());
-			ListBox_AddString(handle, buffer);
-
-			sprintf(buffer, "Internal Version %s", VerNum.Version_Name());
-			ListBox_AddString(handle, buffer);
-
-#ifdef _DEBUG
-			sprintf(buffer, "Debug Build: %s - %s", OPENTS_BUILD_DESCRIPTION, OPENTS_COMMIT_DATE);
-#else
-			sprintf(buffer, "Release Build: %s - %s", OPENTS_BUILD_DESCRIPTION, OPENTS_COMMIT_DATE);
-#endif
-			ListBox_AddString(handle, buffer);
-
-			// The braces keep the 'case' label from jumping over these initializations.
-			{
-				int cpu_type = 5;
-				char vendor[32];
-				vendor[0] = '\0';
-				Get_CPU_Type(cpu_type, vendor, sizeof(vendor) - 1);
-
-				sprintf(buffer, "CPU vendor: %s", vendor);
-			ListBox_AddString(handle, buffer);
-			}
-
-			Get_Language_Version(buffer);
-			ListBox_AddString(handle, buffer);
-			break;
-
-		case WM_COMMAND:
-			switch (LOWORD(wparam)) {
-				case IDCANCEL:
-				case IDOK:
-					*res = LOWORD(wparam);
-					break;
-			}
-			break;
-	}
-
-	return(FALSE);
-}
-
-
-/// <summary>
-/// Displays the version information dialog.
-/// This routine does not return until the player dismisses the dialog, and keeps the
+/// Displays the version information screen.
+/// This routine does not return until the player dismisses the screen, and keeps the
 /// title screen alive behind it while it waits.
 /// </summary>
 void Version_Dialog(void)
 {
-	HWND dialog;
-	int res = 0;
+	UI_Version_Screen();
+}
 
-	dialog = OwnerDraw::Begin_Dialog(IDD_VERSION, Version_Dialog_Proc);
 
-	if (dialog != NULL) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&res);
-		OwnerDraw::Display_Dialog(dialog);
+/// <summary>
+/// Puts the title screen behind the menu.
+/// </summary>
+static void Draw_Title_Screen(void)
+{
+	char * menu = Get_New_Menu()->Background;
+	Load_Title_Screen(menu, HiddenSurface, &CCPalette);
+	Draw_Version_Text(HiddenSurface);
+	Update_Visible_Surface();
+}
 
-		while (res == 0) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				break;
-			}
-			Title_Screen_Restore();
-		}
-		OwnerDraw::End_Dialog(dialog);
-	}
+
+/// <summary>
+/// Seeds the cryptographic random number generator from the clock.
+/// </summary>
+static void Seed_Crypto_Random(void)
+{
+	SYSTEMTIME t;
+	GetSystemTime(&t);
+	CryptRandom.Seed_Byte(t.wMilliseconds);
 }
 
 
@@ -3111,138 +2899,28 @@ void Version_Dialog(void)
  *=========================================================================*/
 int Main_Menu(unsigned int timeout)
 {
-	HWND dialog;
 	int retval = SEL_NONE;
 
 	timeout = 0;
 
-	dialog = OwnerDraw::Begin_Dialog(IDD_MAIN_MENU, Main_Menu_Dialog_Proc);
-	assert(dialog != NULL);
+	UIMainMenuPresenterClass screen;
+	screen.Refresh();
 
-	if (dialog != NULL) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&retval);
-		char *menu = Get_New_Menu()->Background;
-		Load_Title_Screen(menu, HiddenSurface, &CCPalette);
-		Draw_Version_Text(HiddenSurface);
-		Update_Visible_Surface();
-		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
-		OwnerDraw::Display_Dialog(dialog);
-		SetFocus(MainWindow);
+	Draw_Title_Screen();
 
-		do {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				retval = SEL_EXIT;
-			}
+	UIResult const result = UI_Main_Menu_Screen(screen);
 
-			Title_Screen_Restore();
-
-			if (Keyboard->Check()) {
-				KeyNumType input = Keyboard->Get();
-
-				switch ((unsigned int)input) {
-					case (KN_V | KN_CTRL_BIT):
-						ShowWindow(dialog, SW_HIDE);
-						UpdateWindow(MainWindow);
-						Version_Dialog();
-						ShowWindow(dialog, SW_SHOW);
-						UpdateWindow(dialog);
-						SetFocus(MainWindow);
-						break;
-
-					case VK_C | KN_CTRL_BIT | KN_ALT_BIT:
-						retval = SEL_VIEW_CREDITS;
-						break;
-
-					default:
-						if ((input & KN_RLSE_BIT) == 0) {
-							if (Cheat_Key_Process((char)input) == true) {
-								Sound_Effect(Rule->OptionsChanged);
-								Title_Screen_Restore(true);
-							}
-						}
-						break;
-				}
-			}
-		}
-		while (retval == SEL_NONE);
-
-		OwnerDraw::End_Dialog(dialog);
-
-		/*
-		 * Seed cryptographic random number generator.
-		 */
-		SYSTEMTIME t;
-		GetSystemTime(&t);
-		CryptRandom.Seed_Byte(t.wMilliseconds);
-	} else {
-		retval = SEL_EXIT;
+	// A session that ended underneath the screen leaves the menu, which is what the driver's
+	// own exit intent did for the same condition.
+	if (result.Outcome == UIResult::OUTCOME_SESSION_ENDED) {
+		screen.Choice = UIMainMenuPresenterClass::CHOICE_EXIT;
 	}
+
+	retval = screen.Selection();
+	Seed_Crypto_Random();
 
 	SetFocus(MainWindow);
 	return(retval);
-}
-
-
-/// <summary>
-/// Handles the messages for the main menu dialog.
-/// This routine records the button the player pressed into the result that Main_Menu is
-/// waiting upon, and greys out the load button when there is nothing to load.
-/// </summary>
-INT_PTR CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	int * res;
-
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-	if (rc) {
-		return(rc);
-	}
-
-	res = (int *) GetWindowLongPtr(window, DWLP_USER);
-
-	switch (message) {
-		case WM_INITDIALOG: {
-			HWND control = GetDlgItem(window, IDC_LOAD_MISSION);
-			if (control) {
-				if (LoadOptionsClass().Files_Present() == true) {
-					EnableWindow(control, TRUE);
-					return(FALSE);
-				}
-				EnableWindow(control, FALSE);
-			}
-		}
-		break;
-
-		case WM_COMMAND: {
-			switch (LOWORD(wparam)) {
-				case IDC_OPTIONS:
-					*res = SEL_OPTIONS;
-					break;
-
-				case IDC_EXIT_GAME:
-					*res = SEL_EXIT;
-					break;
-
-				case IDC_INTRO:
-					*res = SEL_INTRO;
-					break;
-
-				case IDC_NEWCAMPAIGN:
-					*res = SEL_CAMPAIGN_GAME;
-					break;
-
-				case IDC_MULTIPLAYER_GAME:
-					*res = SEL_MULTIPLAYER_GAME;
-					break;
-
-				case IDC_LOAD_MISSION:
-					*res = SEL_LOAD_GAME;
-					break;
-			}
-		}
-		break;
-	}
-
-	return(false);
 }
 
 
@@ -6054,7 +5732,7 @@ void Delete_All_Objects(void)
 	}
 	Process_Deferred_Deletion();
 	while (Bullets.Count()) {
-		Bullets[0]->Release();
+		delete Bullets[0];
 	}
 	Process_Deferred_Deletion();
 	while (Objects.Count()) {

@@ -1,0 +1,51 @@
+/* The network game list. Geometry from the IDD_MPLAYER_GAME_LIST template, converted from
+   dialog units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625
+   down, with a child's offset taken from the panel's content box and the panel's declared
+   size taken inside its own border. */
+
+/* 426 x 240 dialog units, so 639 x 390 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -319.5dp;
+	margin-top: -195dp;
+
+	width: 635dp;
+	height: 386dp;
+}
+
+/* "Your Name:" at 24, 9 and the EDITTEXT beside it, 68 x 12 dialog units at 89, 8. */
+#namelabel { left: 34dp;    top: 12.625dp; width: 93dp;  height: 16.25dp; line-height: 16.25dp; }
+#yourname  { left: 131.5dp; top: 11dp;     width: 102dp; height: 19.5dp;  line-height: 15.5dp; }
+
+/* "Games:" at 296, 14 and its 113 x 68 list at 294, 27. */
+#gameslabel { left: 442dp; top: 20.75dp;  width: 75dp; height: 16.25dp; line-height: 16.25dp; }
+#games      { left: 439dp; top: 41.875dp; width: 169.5dp; height: 110.5dp; }
+
+/* "Players:" at 296, 99 and its 113 x 100 list at 294, 111. */
+#playerslabel { left: 442dp; top: 158.875dp; width: 75dp; height: 16.25dp; line-height: 16.25dp; }
+#users        { left: 439dp; top: 178.375dp; width: 169.5dp; height: 162.5dp; }
+
+/* A row states its own width, because a scrolling container gives its children none to be
+   a proportion of. The lists are 113 dialog units wide, less the scrollbar. */
+#games .row,
+#users .row
+{
+	width: 157.5dp;
+	height: 16dp;
+	line-height: 16dp;
+}
+
+/* The message log, 266 x 166 dialog units at 19, 27, and the chat entry below it. */
+#messages { left: 26.5dp; top: 41.875dp; width: 399dp; height: 269.75dp; }
+#messages .line { width: 387dp; }
+
+#say { left: 26.5dp; top: 319.75dp; width: 399dp; height: 19.5dp; line-height: 15.5dp; }
+
+/* Cancel, Join and New, all 62 x 18 dialog units on the same row. */
+.button { height: 29.25dp; line-height: 29.25dp; width: 93dp; }
+
+#cancel { left: 269.5dp; top: 345.75dp; }
+#join   { left: 394dp;   top: 345.75dp; }
+#new    { left: 515.5dp; top: 345.75dp; }

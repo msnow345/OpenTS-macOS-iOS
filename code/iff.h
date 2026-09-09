@@ -31,6 +31,9 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 class Buffer;
 
 #define LZW_SUPPORTED			FALSE
@@ -76,10 +79,14 @@ enum CompressionType {
 struct CompHeaderType {
 	char	Method; // Compression method (CompressionType).
 	char	pad;    // Reserved pad byte (always 0).
-	int	Size;   // Size of the uncompressed data.
-	short	Skip;   // Number of bytes to skip before data.
+	std::int32_t	Size;   // Size of the uncompressed data.
+	std::int16_t	Skip;   // Number of bytes to skip before data.
 };
 #pragma pack(pop)
+
+static_assert(sizeof(CompHeaderType) == 8, "Compressed block header layout changed");
+static_assert(offsetof(CompHeaderType, Size) == 2, "Compressed block header layout changed");
+static_assert(offsetof(CompHeaderType, Skip) == 6, "Compressed block header layout changed");
 
 
 /*=========================================================================*/

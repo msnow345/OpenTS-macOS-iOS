@@ -26,11 +26,11 @@ set_target_properties(VQALib PROPERTIES
 # binary and have to agree on the runtime library and the floating-point model.
 target_compile_options(VQALib PRIVATE ${OPENTS_COMPILE_OPTIONS})
 
-target_compile_definitions(VQALib PRIVATE
-    WIN32
-    _WINDOWS
-    NOMINMAX
-)
+target_compile_definitions(VQALib PRIVATE NOMINMAX)
+
+if(WIN32)
+    target_compile_definitions(VQALib PRIVATE WIN32 _WINDOWS)
+endif()
 
 # Callers reach the vqaplay.h family through the library, while the player itself reaches
 # back into the engine for ahandle.h, which owns the sound handle it plays through.

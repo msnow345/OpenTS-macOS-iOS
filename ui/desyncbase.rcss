@@ -1,0 +1,152 @@
+/* What the two out-of-sync documents share. Only the look and the geometry both templates
+   agree on live here; each document's own stylesheet carries what its variant changes.
+
+   Geometry from the IDD_DESYNC_HOST and IDD_DESYNC_WAIT templates, converted from dialog
+   units at the 8 point MS Sans Serif they name: 1.5 pixels across and 1.625 down, with a
+   child's offset taken from the panel's content box and the panel's declared size taken
+   inside its own border. The two templates are both 360 x 264 dialog units, so 540 x 429
+   pixels, and every control they share stands in the same place. */
+
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -270dp;
+	margin-top: -214.5dp;
+
+	width: 536dp;
+	height: 425dp;
+}
+
+/* The heading, a CTEXT at 30, 10 across 280 units. */
+#header
+{
+	left: 45dp;
+	top: 16.25dp;
+	width: 420dp;
+	height: 16.25dp;
+	line-height: 16.25dp;
+	text-align: center;
+	color: #70ff00;
+}
+
+/* "Players:" at 30, 23 and the 120 x 105 seat list at 30, 35. */
+#playerslabel { left: 45dp; top: 37.375dp; width: 150dp; height: 16.25dp; line-height: 16.25dp; }
+#players      { left: 45dp; top: 56.875dp; width: 180dp; height: 170.625dp; }
+
+/* A scrolling container gives its children no width to be a proportion of, so the row
+   states its own, and the columns stand where OD_ADDCOLUMN put them: the marker at 2, the
+   name at 20, and the status against the list's right edge less 56. */
+#players .row
+{
+	position: relative;
+	width: 168dp;
+	height: 16dp;
+	line-height: 16dp;
+	padding: 0dp;
+}
+
+#players .mark
+{
+	display: block;
+	position: absolute;
+	left: 2dp;
+	top: 0dp;
+	width: 16dp;
+	text-align: center;
+	color: #70ff00;
+}
+
+#players .name
+{
+	display: block;
+	position: absolute;
+	left: 20dp;
+	top: 0dp;
+	width: 98dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+#players .status
+{
+	display: block;
+	position: absolute;
+	left: 124dp;
+	top: 0dp;
+	width: 44dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+/* The two blocks of prose beside the list, LTEXT at 160, 25 across 180 x 82 units and at
+   160, 127 across 180 x 22. Each template writes its own words. */
+.prose
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 240dp;
+	width: 270dp;
+	color: #70ff00;
+	line-height: 16dp;
+}
+
+#prose     { top: 40.625dp;  height: 133.25dp; }
+#footprose { top: 206.375dp; height: 35.75dp; }
+
+/* The chat list, 300 x 60 at 30, 145, and the chat entry, 299 x 12 at 30, 207. */
+#messages { left: 45dp; top: 235.625dp; width: 450dp; height: 97.5dp; }
+#messages .line { width: 438dp; }
+
+#say { left: 45dp; top: 336.375dp; width: 448.5dp; height: 19.5dp; line-height: 15.5dp; }
+
+/* The countdown, hidden until a load is scheduled: the text at 30, 223 and the bar's
+   placeholder group box at 180, 222. */
+#countdowntext
+{
+	left: 45dp;
+	top: 362.375dp;
+	width: 210dp;
+	height: 16.25dp;
+	line-height: 16.25dp;
+}
+
+#countdownframe
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 270dp;
+	top: 360.75dp;
+	width: 223.5dp;
+	height: 19.5dp;
+
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
+}
+
+/* The bar shrinks as the load nears, which is what Draw_Countdown_Bar drew straight into
+   the surface. Its color comes from the model, because the dialog changed it with the time
+   left rather than with a state a stylesheet can name. */
+#countdownbar
+{
+	display: block;
+	position: absolute;
+	left: 0dp;
+	top: 0dp;
+	height: 100%;
+	min-width: 6dp;
+}
+
+/* The three buttons, 70 x 12 dialog units at y 239. */
+.button { top: 388.375dp; width: 105dp; height: 19.5dp; line-height: 19.5dp; }
+
+/* The dialog's own heading, an LTEXT static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#header
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

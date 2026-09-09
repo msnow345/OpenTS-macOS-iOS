@@ -56,12 +56,11 @@
 #include "gscreen.h"
 #include "language/language.h"
 #include "misc.h"
-#include "ownrdraw.h"
+#include "drawhelp.h"
 #include "scheme.h"
 #include "theme.h"
 #include "utf8.h"
 #include "vector.h"
-#include "windlg.h"
 
 #include "color.hh"
 #include "dialog.hh"

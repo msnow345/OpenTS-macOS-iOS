@@ -1,0 +1,62 @@
+<rml>
+<head>
+	<title>Random map</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="mapgenbase.rcss"/>
+	<link type="text/rcss" href="mapgen.rcss"/>
+</head>
+<body data-model="mapgen" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="environmentlabel">Environment:</div>
+		<select id="biome" class="combo" data-class-locked="!biomeon" data-attr-value="biome" data-event-change="change('biome')">
+			<option data-for="entry : biomes" data-attr-value="entry.value">{{ entry.name }}</option>
+		</select>
+		<div class="caption" id="timelabel">Time of Day:</div>
+		<select id="time" class="combo" data-class-locked="!timeon" data-attr-value="time" data-event-change="change('time')">
+			<option data-for="entry : times" data-attr-value="entry.value">{{ entry.name }}</option>
+		</select>
+		<div class="caption" id="widthlabel">Map Width:</div>
+		<select id="width" class="combo" data-class-locked="!widthon" data-attr-value="width" data-event-change="change('width')">
+			<option data-for="entry : sizes" data-attr-value="entry.value">{{ entry.name }}</option>
+		</select>
+		<div class="caption" id="heightlabel">Map Height:</div>
+		<select id="height" class="combo" data-class-locked="!heighton" data-attr-value="height" data-event-change="change('height')">
+			<option data-for="entry : sizes" data-attr-value="entry.value">{{ entry.name }}</option>
+		</select>
+		<input type="text" id="seed" maxlength="5" data-class-locked="!seedon" data-attr-value="seed" data-event-change="typeseed()"/>
+
+		<div class="caption" id="playerslabel">Players:</div>
+		<input id="players" class="slider" type="range" orientation="horizontal" data-class-locked="!playerson" data-event-change="change('players')"/>
+		<div class="caption" id="cliffslabel">Cliffs:</div>
+		<input id="cliffs" class="slider" type="range" orientation="horizontal" data-class-locked="!cliffson" data-event-change="change('cliffs')"/>
+		<div class="caption" id="accessibilitylabel">Accessability:</div>
+		<input id="accessibility" class="slider" type="range" orientation="horizontal" data-class-locked="!accessibilityon" data-event-change="change('accessibility')"/>
+		<div class="caption" id="hillslabel">Hills:</div>
+		<input id="hills" class="slider" type="range" orientation="horizontal" data-class-locked="!hillson" data-event-change="change('hills')"/>
+		<div class="caption" id="tiberiumlabel">Tiberium Amount:</div>
+		<input id="tiberium" class="slider" type="range" orientation="horizontal" data-class-locked="!tiberiumon" data-event-change="change('tiberium')"/>
+		<div class="caption" id="tiberiumfieldslabel">Tiberium Fields:</div>
+		<input id="tiberiumfields" class="slider" type="range" orientation="horizontal" data-class-locked="!tiberiumfieldson" data-event-change="change('tiberiumfields')"/>
+		<div class="caption" id="waterlabel">Water:</div>
+		<input id="water" class="slider" type="range" orientation="horizontal" data-class-locked="!wateron" data-event-change="change('water')"/>
+		<div class="caption" id="vegetationlabel">Vegetation:</div>
+		<input id="vegetation" class="slider" type="range" orientation="horizontal" data-class-locked="!vegetationon" data-event-change="change('vegetation')"/>
+		<div class="caption" id="citieslabel">Cities:</div>
+		<input id="cities" class="slider" type="range" orientation="horizontal" data-class-locked="!citieson" data-event-change="change('cities')"/>
+
+		<div id="previewframe">
+			<div id="previewword">Preview</div>
+			<surface src="mapgenpreview"/>
+		</div>
+
+		<div class="button previewbutton" id="surprise" data-class-disabled="!cansurprise" data-event-click="press('surprise')">Surprise Me</div>
+		<div class="button previewbutton" id="previewmap" data-class-disabled="!canpreview" data-event-click="press('preview')">Preview Map</div>
+
+		<div class="button footbutton" id="save" data-event-click="press('save')">Save Map</div>
+		<div class="button footbutton" id="load" data-class-disabled="!canload" data-event-click="press('load')">Load Map</div>
+		<div class="button footbutton" id="delete" data-class-disabled="!candelete" data-event-click="press('delete')">Delete Map</div>
+		<div class="button footbutton" id="ok" data-event-click="press('ok')">[[TXT_OK]]</div>
+		<div class="button footbutton" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

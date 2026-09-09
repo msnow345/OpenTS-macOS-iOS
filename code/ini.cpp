@@ -957,30 +957,53 @@ int INIClass::Get_Int(char const * section, char const * entry, int defvalue) co
 }
 
 
-/// <summary>
-/// Fetches a class identifier from the specified section.
-/// This routine will fetch the printable form of a class identifier from the entry and
-/// section specified and convert it back into binary form. If the entry is missing or the
-/// text is not a legal identifier, then the default value is returned instead.
-/// </summary>
-/// <param name="section">The section name to search under.</param>
-/// <param name="entry">The entry name to search for.</param>
-/// <param name="defvalue">The default identifier to use if the entry could not be found.</param>
-/// <returns>Returns with the class identifier specified in the INI database or else returns
-/// the default value.</returns>
-CLSID const INIClass::Get_CLSID(char const * section, char const * entry, CLSID defvalue) const
+// A class identifier as the registry writes it, braces optional: eight, four, four, four
+// and twelve hexadecimal digits separated by hyphens.
+static bool Parse_ClassID(char const * text, ClassID & clsid)
 {
-	char buffer[128];
+	char digits[40];
+	unsigned int length = 0;
 
-	if (Get_String(section, entry, "", buffer, sizeof(buffer))) {
-		wchar_t olestr[128];
-		MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer, -1, olestr, ARRAY_SIZE(olestr));
-		CLSID clsid;
-		if (SUCCEEDED(CLSIDFromString(olestr, &clsid))) {
-			return(clsid);
+	for (char const * ptr = text; *ptr != '\0'; ptr++) {
+		if (*ptr == '{' || *ptr == '}') {
+			continue;
 		}
+		if (length >= sizeof(digits) - 1) {
+			return(false);
+		}
+		digits[length++] = *ptr;
 	}
-	return(defvalue);
+	digits[length] = '\0';
+
+	unsigned int data1 = 0;
+	unsigned int data2 = 0;
+	unsigned int data3 = 0;
+	unsigned int data4[8] = { 0 };
+	int const scanned = sscanf(digits, "%8x-%4x-%4x-%2x%2x-%2x%2x%2x%2x%2x%2x",
+		&data1, &data2, &data3,
+		&data4[0], &data4[1], &data4[2], &data4[3],
+		&data4[4], &data4[5], &data4[6], &data4[7]);
+	if (scanned != 11 || length != 36) {
+		return(false);
+	}
+
+	clsid.Data1 = data1;
+	clsid.Data2 = (unsigned short)data2;
+	clsid.Data3 = (unsigned short)data3;
+	for (int index = 0; index < 8; index++) {
+		clsid.Data4[index] = (unsigned char)data4[index];
+	}
+	return(true);
+}
+
+
+// The buffer holds the 38 characters of the braced form and its terminator.
+static void Format_ClassID(ClassID const & clsid, char * text)
+{
+	sprintf(text, "{%08lX-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
+		(unsigned long)clsid.Data1, (unsigned int)clsid.Data2, (unsigned int)clsid.Data3,
+		clsid.Data4[0], clsid.Data4[1], clsid.Data4[2], clsid.Data4[3],
+		clsid.Data4[4], clsid.Data4[5], clsid.Data4[6], clsid.Data4[7]);
 }
 
 
@@ -993,17 +1016,35 @@ CLSID const INIClass::Get_CLSID(char const * section, char const * entry, CLSID 
 /// <param name="entry">The entry identifier to tag to the class identifier specified.</param>
 /// <param name="value">The class identifier to store.</param>
 /// <returns>bool; Was the class identifier placed into the INI database?</returns>
-bool INIClass::Put_CLSID(char const * section, char const * entry, CLSID const & value)
+/// <summary>
+/// Fetches a class identifier from the specified section.
+/// This routine will fetch the printable form of a class identifier from the entry and
+/// section specified and convert it back into binary form. If the entry is missing or the
+/// text is not a legal identifier, then the default value is returned instead.
+/// </summary>
+/// <param name="section">The section name to search under.</param>
+/// <param name="entry">The entry name to search for.</param>
+/// <param name="defvalue">The default identifier to use if the entry could not be found.</param>
+/// <returns>Returns with the class identifier specified in the INI database or else returns
+/// the default value.</returns>
+ClassID const INIClass::Get_ClassID(char const * section, char const * entry, ClassID defvalue) const
 {
 	char buffer[128];
-	LPOLESTR olestr = NULL;
 
-	StringFromCLSID(value, &olestr);
-	if (WideCharToMultiByte(CP_ACP, 0, olestr, -1, buffer, sizeof(buffer), NULL, NULL) == 0) {
-		/// BUG, return not used
-		GetLastError();
+	if (Get_String(section, entry, "", buffer, sizeof(buffer))) {
+		ClassID clsid;
+		if (Parse_ClassID(buffer, clsid)) {
+			return(clsid);
+		}
 	}
-	SysFreeString(olestr);
+	return(defvalue);
+}
+
+
+bool INIClass::Put_ClassID(char const * section, char const * entry, ClassID const & value)
+{
+	char buffer[40];
+	Format_ClassID(value, buffer);
 	return(Put_String(section, entry, buffer));
 }
 

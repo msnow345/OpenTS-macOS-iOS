@@ -35,7 +35,11 @@
 
 #include "win.h"
 
+#ifdef _WIN32
 #include <sal.h>
+#else
+#define _Printf_format_string_
+#endif
 
 // Posted to the main window so that a requested test fault happens inside window procedure
 // dispatch, which the operating system unwinds differently from an ordinary call.
@@ -52,6 +56,10 @@
 #else
 
 #define _Printf_format_string_
+
+// The window procedure switches on this message whether or not the handler that posts it
+// was built, so the two branches have to agree on its value.
+#define WM_EXCEPTION_TEST (WM_APP + 0x54)
 
 #endif
 

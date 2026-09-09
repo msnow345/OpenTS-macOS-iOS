@@ -1,0 +1,173 @@
+/* The sound controls the game shows during play. The geometry is the
+   IDD_SOUND_OPTIONS_DIALOG template's, converted from dialog units at the 8 point MS Sans
+   Serif the template names: 1.5 pixels across and 1.625 down, with a child's offset taken
+   from the panel's content box and a bordered element's declared size taken inside its own
+   border.
+
+   The dialog look, including the panel artwork, comes from ui/optionsbase.rcss. */
+
+body
+{
+	font-family: LatoLatin;
+	font-size: 12dp;
+	color: #70ff00;
+
+	width: 100%;
+	height: 100%;
+}
+
+/* 294 x 215 dialog units. The panel is centred on the frame and re-centres itself when the
+   frame is resized, because the offsets are a proportion of the context. */
+#dialog
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin-left: -220.5dp;
+	margin-top: -174.7dp;
+
+	width: 437dp;
+	height: 345.4dp;
+}
+
+/* The three right-aligned captions, 70 x 15 dialog units at x 22. */
+.label
+{
+	display: block;
+	position: absolute;
+	left: 33dp;
+	width: 105dp;
+	height: 24.4dp;
+	line-height: 24.4dp;
+	text-align: right;
+}
+
+#musiclabel { top: 19.5dp; }
+#soundlabel { top: 55.3dp; }
+#voicelabel { top: 91dp; }
+
+/* The three track bars, 175 x 15 dialog units at x 97. TBS_NOTICKS, so the bar is a plain
+   groove with a thumb. */
+.slider
+{
+	display: block;
+	position: absolute;
+	left: 145.5dp;
+	width: 262.5dp;
+	height: 24.4dp;
+}
+
+#music { top: 19.5dp; }
+#sound { top: 55.3dp; }
+#voice { top: 91dp; }
+
+/* The track list, 175 x 99 dialog units at 97, 82. */
+#tracklist
+{
+	display: block;
+	position: absolute;
+	left: 145.5dp;
+	top: 133.3dp;
+	width: 262.5dp;
+	height: 160.9dp;
+
+	background-color: #000000b4;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+/* A row spans the list less the scrollbar. The width is stated rather than left at 100%,
+   because a scrolling container gives its children no width to be a proportion of. */
+.track
+{
+	display: block;
+	box-sizing: border-box;
+	width: 250.5dp;
+	padding: 1dp 4dp;
+	white-space: nowrap;
+	color: #70ff00;
+}
+
+#tracklist scrollbarvertical
+{
+	width: 18dp;
+	background-color: #000000b4;
+}
+
+#tracklist scrollbarvertical slidertrack
+{
+	width: 18dp;
+	margin-top: 0dp;
+	background-color: transparent;
+	border-width: 0dp;
+}
+
+#tracklist scrollbarvertical sliderbar
+{
+	width: 18dp;
+	min-height: 20dp;
+
+	decorator: tiled-vertical(sbgript.pcx, sbgripm.pcx, sbgripb.pcx);
+}
+
+#tracklist scrollbarvertical sliderarrowdec,
+#tracklist scrollbarvertical sliderarrowinc
+{
+	width: 18dp;
+	height: 22dp;
+}
+
+#tracklist scrollbarvertical sliderarrowdec { decorator: image(uparrowr.pcx); }
+#tracklist scrollbarvertical sliderarrowinc { decorator: image(dnarrowr.pcx); }
+#tracklist scrollbarvertical sliderarrowdec:active { decorator: image(uparrowp.pcx); }
+#tracklist scrollbarvertical sliderarrowinc:active { decorator: image(dnarrowp.pcx); }
+
+.track:hover { color: #70ff00; }
+
+.track.picked
+{
+	background-color: #225061;
+	color: #70ff00;
+}
+
+/* Play and Stop, 70 x 14 dialog units at x 22, and OK, 62 x 14 at 210, 189. */
+.button
+{
+	display: block;
+	position: absolute;
+	height: 22.8dp;
+	line-height: 22.8dp;
+	text-align: center;
+}
+
+#play { left: 33dp; top: 139.8dp; width: 101dp; }
+#stop { left: 33dp; top: 183.6dp; width: 101dp; }
+#ok { left: 315dp; top: 307.1dp; width: 89dp; }
+
+
+/* Shuffle and Repeat, 70 x 14 dialog units at x 22. */
+.check
+{
+	display: block;
+	position: absolute;
+	left: 33dp;
+	width: 101dp;
+	height: 22.8dp;
+	line-height: 22.8dp;
+}
+
+#shuffle { top: 227.5dp; }
+#repeat { top: 271.4dp; }
+
+
+/* With no audio device every control the dialog disabled is dimmed and inert. OK stays
+   live, because the dialog left it enabled. */
+.unavailable .slider,
+.unavailable #tracklist,
+.unavailable .check,
+.unavailable #play,
+.unavailable #stop
+{
+	pointer-events: none;
+}

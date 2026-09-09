@@ -1,0 +1,69 @@
+/* The version information screen. Its geometry is the IDD_VERSION template's, converted
+   from dialog units at the 8 point MS Sans Serif the template names: 1.5 pixels across and
+   1.625 down. One authored dp is one game logical unit, so the screen keeps the size the
+   dialog had while its text is rasterized at the window's own resolution.
+
+   The dialog look, including the panel artwork, comes from ui/optionsbase.rcss. */
+
+body
+{
+	font-family: LatoLatin;
+	font-size: 12dp;
+	color: #70ff00;
+
+	width: 100%;
+	height: 100%;
+}
+
+/* 272 x 106 dialog units. The panel is centred on the frame and re-centres itself when the
+   frame is resized, because the offsets are a proportion of the context. */
+#dialog
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin-left: -204dp;
+	margin-top: -86dp;
+
+	/* The bevel sits outside the declared size, so the content box is the template's
+	   408 by 172 pixels less the two device-independent pixels of border on each side. */
+	width: 404dp;
+	height: 168dp;
+}
+
+/* The list box: 22, 12, 228 x 55 dialog units. It clips rather than scrolls, as the
+   template's list box did, and the clip is what exercises the renderer's scissor. */
+#info
+{
+	display: block;
+	position: absolute;
+	left: 31dp;
+	top: 18dp;
+	width: 342dp;
+	height: 89dp;
+	overflow: hidden;
+}
+
+.line
+{
+	display: block;
+	height: 14dp;
+	line-height: 14dp;
+	white-space: nowrap;
+}
+
+/* The OK button: 111, 80, 50 x 14 dialog units, with the bevel inverted while it is held. */
+#ok
+{
+	display: block;
+	position: absolute;
+	left: 165dp;
+	top: 128dp;
+	width: 71dp;
+	height: 19dp;
+	line-height: 19dp;
+	text-align: center;
+}
+
+

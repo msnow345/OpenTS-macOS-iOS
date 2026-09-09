@@ -37,6 +37,7 @@
 #include "fog.h"
 #include "globals.h"
 #include "goptions.h"
+#include "hostclock.h"
 #include "ipxmgr.h"
 #include "language/language.h"
 #include "logic.h"
@@ -60,6 +61,7 @@
 #include "theme.h"
 #include "timer.h"
 #include "tracker.h"
+#include "ui/uishell.h"
 
 #include "bench.hh"
 #include "special.hh"
@@ -160,10 +162,10 @@ static void Check_For_Focus_Loss(void)
 {
 	while (!GameInFocus) {
 		if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
-			Sleep(500);
+			Host_Sleep(500);
 			Windows_Message_Handler();
 		} else {
-			Sleep(10);
+			Host_Sleep(10);
 			Windows_Message_Handler();
 			break;
 		}
@@ -208,10 +210,10 @@ bool Main_Loop(void)
 	#else
 	while (!GameInFocus) {
 		if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
-			Sleep(500);
+			Host_Sleep(500);
 			Windows_Message_Handler();
 		} else {
-			Sleep(10);
+			Host_Sleep(10);
 			Windows_Message_Handler();
 			break;
 		}
@@ -228,7 +230,7 @@ bool Main_Loop(void)
 	//
 	// Initialize our AI processing timer
 	//
-	Session.ProcessTimer = timeGetTime();/// TickCount;
+	Session.ProcessTimer = Host_Milliseconds();/// TickCount;
 
 	if (Session.TrapCheckHeap) {
 		Debug_Trap_Check_Heap = true;
@@ -292,7 +294,12 @@ bool Main_Loop(void)
 			}
 		}
 	} else {
-		FrameTimer = Options.GameSpeed;
+		/*
+		 * A game speed of zero is the "fastest" setting, which asks for no delay at all. The
+		 * period display paced the loop on its own; a modern one does not, so hold the same
+		 * 60 frames a second the network pacing in Queue_AI already reads that setting as.
+		 */
+		FrameTimer = std::max(1, Options.GameSpeed);
 	}
 
 	/*
@@ -300,6 +307,7 @@ bool Main_Loop(void)
 	*/
 	if (!Session.Play) {
 		if (SpecialDialog == SDLG_NONE && GameInFocus) {
+			UI_Tick();
 			Map.Input(input, x, y);
 			if (input) {
 				Keyboard_Process(input);
@@ -347,7 +355,7 @@ bool Main_Loop(void)
 	//
 	// Measure how long it took to process the AI
 	//
-	Session.ProcessTicks += std::min<int>(1000, (timeGetTime() - Session.ProcessTimer)); // (TickCount - Session.ProcessTimer)
+	Session.ProcessTicks += std::min<int>(1000, (Host_Milliseconds() - Session.ProcessTimer)); // (TickCount - Session.ProcessTimer)
 	Session.ProcessFrames++;
 
 	/*
@@ -598,13 +606,13 @@ void Sync_Delay(void)
 					TacticalMap->AI();
 					Map.Render();
 				} else {
-					Sleep(0);
+					Host_Sleep(0);
 				}
 				if (!NetFrameTimer()) {
 					break;
 				}
 			}
-			Sleep(0);
+			Host_Sleep(0);
 		}
 	} else {
 		while (FrameTimer) {
@@ -621,9 +629,9 @@ void Sync_Delay(void)
 				}
 			}
 			if (GameInFocus || (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH)) {
-				Sleep(0);
+				Host_Sleep(0);
 			} else {
-				Sleep(16 * FrameTimer);
+				Host_Sleep(16 * FrameTimer);
 			}
 		}
 	}

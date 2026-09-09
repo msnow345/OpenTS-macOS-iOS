@@ -39,6 +39,23 @@ The audio layer uses [miniaudio](https://github.com/mackron/miniaudio),
 vendored through `thirdparty/miniaudio` at a tested tag and compiled as one
 translation unit from `thirdparty/miniaudio-impl.c`.
 
+The UI shell uses [RmlUi](https://github.com/mikke89/RmlUi), vendored through
+`thirdparty/RmlUi` at a tested tag and built static with the FreeType font
+engine. Its samples carry their own window and renderer backends, which the
+shell replaces, so none of them are built.
+
+RmlUi's font engine uses [FreeType](https://freetype.org/), vendored through
+`thirdparty/freetype` at a tested tag with bzip2, PNG, HarfBuzz, and Brotli
+disabled. FreeType's bundled zlib supplies compressed font stream support.
+
+Developer tooling uses [Dear ImGui](https://github.com/ocornut/imgui), vendored
+through `thirdparty/imgui` at a tested tag. Only the core sources are compiled;
+the bundled platform and renderer backends are not, because the shell feeds
+ImGui through the engine's own message hook and draws it on bgfx.
+
+`bimg_decode`, which bgfx already carries, decodes the PNG and TGA images UI
+documents reference and is built and linked with everything else.
+
 For a fresh clone, use `git clone --recurse-submodules`. Configuration stops
 with instructions if a submodule is missing. Update a pinned tag in a
 separate change.
@@ -135,6 +152,35 @@ build's saves are not interchangeable with a supported build's. The packed
 version stamp that saves and network packets carry is the same for both, so
 nothing rejects a save or a peer on that basis. Configuring the build warns
 about it.
+## Experimental native build
+
+An unsupported native build for the host platform is available for portability
+work. It does not expand the supported build matrix or establish runtime
+behavior.
+
+```bash
+cmake -S . -B build/native -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DOPENTS_EXPERIMENTAL_NATIVE=ON
+cmake --build build/native
+```
+
+Run it the same way as a supported build, from `build/native/bin/`:
+
+```bash
+build/native/bin/Game -DATADIR=Run -USERDIR=build/native/user
+```
+
+This build is the one exception to the data directory being read only: the
+shipped UI documents resolve under it, so the build writes `ui/` there.
+
+Windows supplies the window, the message loop and the cursor itself. Every
+other target gets them from `platform/win32compat`, which keeps the Win32
+surface the engine is written against and supplies it from
+[SDL](https://github.com/libsdl-org/SDL), pinned as `thirdparty/SDL` and built
+with its audio, render and camera subsystems off. Audio stays on miniaudio.
+That library is added to the build only when the target is not Windows, so a
+Windows configure neither builds nor links it.
 
 ## Build from Visual Studio Code
 

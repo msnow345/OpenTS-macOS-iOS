@@ -1,0 +1,48 @@
+/* The load browser. Geometry from the IDD_MISSION_LOAD template, converted from dialog
+   units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625 down,
+   with a child's offset taken from the panel's content box and the panel's declared size
+   taken inside its own border. */
+
+/* 302 x 198 dialog units, so 453 x 321.75 pixels, centred on the frame: its driver does not
+   move it. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -226.5dp;
+	margin-top: -160.875dp;
+
+	width: 449dp;
+	height: 317.75dp;
+}
+
+/* The CTEXT title, 258 x 8 dialog units at 22, 12. */
+#title
+{
+	left: 31dp;
+	top: 17.5dp;
+	width: 387dp;
+	height: 13dp;
+	line-height: 13dp;
+	text-align: center;
+}
+
+/* The two visible column headings. The template's "Mission" heading carries NOT WS_VISIBLE,
+   so the dialog never drew it and neither does this. */
+#descriptionhead { left: 31dp;  top: 40.25dp; width: 181.5dp; height: 13dp; line-height: 13dp; }
+#timehead        { left: 292dp; top: 40.25dp; width: 108dp;   height: 13dp; line-height: 13dp; text-align: center; }
+
+/* The list, 258 x 124 dialog units at 22, 40. */
+#games
+{
+	left: 31dp;
+	top: 63dp;
+	width: 387dp;
+	height: 201.5dp;
+}
+
+/* Load and Cancel, both 50 x 14 dialog units. */
+.button { height: 22.75dp; line-height: 22.75dp; width: 75dp; }
+
+#accept { left: 254.5dp; top: 275.875dp; }
+#cancel { left: 343dp;   top: 275.875dp; }

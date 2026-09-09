@@ -25,7 +25,7 @@
 #include "mixfile.h"
 #include "movies.h"
 #include "msfont.h"
-#include "ownrdraw.h"
+#include "drawhelp.h"
 #include "pcx.h"
 #include "shapeset.h"
 #include "srfcache.h"

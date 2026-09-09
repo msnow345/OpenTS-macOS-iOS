@@ -233,7 +233,7 @@ fixed_controls:
     context: Classic main menu
     availability: *all
     sites:
-      - { file: code/init.cpp, function: Main_Menu, expression: KN_V+KN_CTRL_BIT }
+      - { file: code/ui/uimainmenu.cpp, function: BindEventCallback, expression: KI_V }
   - id: fixed:main-menu-credits
     title: Open credits
     description: Opens the credits from the classic main menu.
@@ -242,7 +242,7 @@ fixed_controls:
     context: Classic main menu
     availability: *all
     sites:
-      - { file: code/init.cpp, function: Main_Menu, expression: VK_C+KN_CTRL_BIT+KN_ALT_BIT }
+      - { file: code/ui/uimainmenu.cpp, function: BindEventCallback, expression: KI_C }
   - id: fixed:skip-credits
     title: Exit credits
     description: Stops the credits and returns to the menu.
@@ -349,8 +349,6 @@ fixed_exclusions:
     reason: Generic graphic-menu polling and activation, not a named application control.
   - site: { file: code/grphmsct.cpp, function: GM_Build_Key, expression: VK_NONE }
     reason: Sentinel used while translating a menu accelerator into a virtual key.
-  - site: { file: code/init.cpp, function: Main_Menu, expression: KN_RLSE_BIT }
-    reason: Filters release events before the classic main-menu cheat handler.
   - sites:
       - { file: code/init.cpp, function: Init_Commands, expression: KN_DELETE }
       - { file: code/init.cpp, function: Init_Commands, expression: KN_ESC }
@@ -389,16 +387,10 @@ fixed_exclusions:
       - { file: code/msglist.cpp, function: MessageListClass::Input, expression: KN_BACKSPACE }
       - { file: code/msglist.cpp, function: MessageListClass::Input, expression: KN_ESC }
     reason: Message editor polling, cursor placement, and text-edit termination.
-  - site: { file: code/ownrdraw.cpp, function: CtrlProc_Internal, expression: VK_TAB }
-    reason: Windows dialog focus traversal handled by the shared control procedure.
   - sites:
-      - { file: code/ownrdraw.cpp, function: EditBoxCtrlProc, expression: VK_TAB }
-      - { file: code/ownrdraw.cpp, function: EditBoxCtrlProc, expression: VK_RETURN }
-    reason: Windows edit-control navigation handled by the shared dialog procedure.
-  - sites:
-      - { file: code/ownrdraw.cpp, function: Build_Hotkey_String, expression: VK_MENU }
-      - { file: code/ownrdraw.cpp, function: Build_Hotkey_String, expression: VK_CONTROL }
-      - { file: code/ownrdraw.cpp, function: Build_Hotkey_String, expression: VK_SHIFT }
+      - { file: code/keyboard.cpp, function: Build_Hotkey_String, expression: VK_MENU }
+      - { file: code/keyboard.cpp, function: Build_Hotkey_String, expression: VK_CONTROL }
+      - { file: code/keyboard.cpp, function: Build_Hotkey_String, expression: VK_SHIFT }
     reason: Converts modifier virtual keys to display names; it does not consume input.
   - sites:
       - { file: code/restate.cpp, function: RestateMission::User_Input, expression: KN_NONE }
@@ -422,6 +414,113 @@ fixed_exclusions:
     reason: Encoded sidebar gadget IDs and input flags, not physical bindings.
   - site: { file: code/tab.cpp, function: TabClass::AI, expression: KN_LMOUSE }
     reason: Tactical-tab hit-testing handled as pointer input.
+  - sites:
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_F1 }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_F24 }
+    reason: >-
+      Bounds of the function-key run in the translation from a Windows virtual key to the
+      identifier the UI toolkit names it by. The shell hands the key to whichever document
+      has the input scope; the key's meaning is the document's, so no site here is a game
+      command.
+  - sites:
+      - { file: code/ui/uikeyboard.cpp, function: Is_Modifier_Key, expression: VK_SHIFT }
+      - { file: code/ui/uikeyboard.cpp, function: Is_Modifier_Key, expression: VK_CONTROL }
+      - { file: code/ui/uikeyboard.cpp, function: Is_Modifier_Key, expression: VK_MENU }
+    reason: >-
+      Recognizes a modifier held on its own so the hotkey capture control waits for the key
+      it qualifies. It classifies a keypress and dispatches nothing.
+  - sites:
+      - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_CONTROL }
+      - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_SHIFT }
+      - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_MENU }
+    reason: Reads the modifier keys held while a UI message is delivered. It reports state and dispatches nothing.
+  - sites:
+      - { file: code/ui/uishell.cpp, function: Handle_Developer_Key, expression: VK_CONTROL, guard: "!NDEBUG" }
+      - { file: code/ui/uishell.cpp, function: Handle_Developer_Key, expression: VK_SHIFT, guard: "!NDEBUG" }
+      - { file: code/ui/uishell.cpp, function: Handle_Developer_Key, expression: VK_CONTROL+VK_SHIFT, guard: "!NDEBUG" }
+    reason: >-
+      Reads the modifiers that qualify the shell's Debug-only developer keys. The keys those
+      modifiers qualify are the controls; this test is not one of them.
+  - sites:
+      - { file: code/ui/uiabort.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uicampaign.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uicampaign.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uicampaign.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uidisplayconfirm.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uidisplayconfirm.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uidisplayconfirm.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uidisplayoptions.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uidisplayoptions.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uidisplayoptions.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uigamecontrols.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uigamecontrols.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uigamecontrols.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uigameoptions.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uigameoptions.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uigameoptions.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uigametype.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uigametype.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uigametype.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uilobby.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimainoptions.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimainoptions.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uimainoptions.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uimapgen.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimessagebox.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimessagebox.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uimessagebox.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uimpselect.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimpselect.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uimpselect.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uireconnect.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uisavebrowser.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uisavebrowser.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uisavebrowser.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uiscenariopick.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uiscenariopick.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uiscenariopick.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uiskirmish.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uiskirmish.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uiskirmish.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uisound.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uisound.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uiversion.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uiversion.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uiversion.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+    reason: >-
+      A screen's own cancel and accept keys. Escape answers as the template's IDCANCEL did
+      and Enter as the arm Windows sent IDOK to, so each key presses a button the screen
+      already shows rather than dispatching a control of its own.
+  - sites:
+      - { file: code/ui/uidesync.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uidesync.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uilobby.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uilobby.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+    reason: Sends the line typed in a chat field, which the edit control's own return handling did.
+  - sites:
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_TAB }
+    reason: >-
+      Keys the hotkey capture control refuses so they still leave the screen or move the
+      focus, which is what the control it stands in for left to the dialog manager.
+  - sites:
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_A }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_Z }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_0 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_9 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_NUMPAD0 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_NUMPAD9 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_F1 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_F24 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_NUMPADENTER }
+    reason: >-
+      Bounds of the letter, digit, keypad and function-key runs, and the keypad Enter that
+      folds onto Return, in the translation from a toolkit identifier back to a virtual key.
+      It names a key for a screen to record; it dispatches nothing.
+  - site: { file: code/ui/uishell.cpp, function: UI_Handle_Window_Message, expression: KI_UNKNOWN }
+    reason: Sentinel for a key the toolkit does not name, which the shell drops before any document sees it.
   - sites:
       - { file: code/wdtsel.cpp, function: Selection::Pick_Territory, expression: KN_NONE }
       - { file: code/wdtsel.cpp, function: Selection::Pick_Territory, expression: KN_LMOUSE }

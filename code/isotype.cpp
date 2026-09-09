@@ -11,7 +11,6 @@
  * disclaimers apply; see LICENSE.md.
  ******************************************************************************/
 
-#define INCLUDE_COM
 #include "always.h"
 
 #include "isotype.h"
@@ -1597,6 +1596,10 @@ struct IsoBlitState {
 	unsigned short HalfbrightMask;
 };
 
+// Held only in memory, so the pointers may be any width, but the field count is fixed. The
+// members after the pointers measure 46 bytes and pad out to 48 at either width.
+static_assert(sizeof(IsoBlitState) == 15 * sizeof(void *) + 48, "Isometric blit state layout changed");
+
 
 IsoBlitState IsoDrawData;
 unsigned short _iso_row_offsets[ISO_DRAW_WIDTH*ISO_DRAW_HEIGHT];
@@ -2792,16 +2795,9 @@ void IsometricTileTypeClass::Serialize(SaveStreamClass & stream)
 }
 
 
-/// <summary>
-/// Fetches the class identifier that this tile type persists under.
-/// </summary>
-/// <param name="retval">Receives the class identifier.</param>
-/// <returns>Returns with S_OK, or E_POINTER if no destination was supplied.</returns>
-HRESULT STDMETHODCALLTYPE IsometricTileTypeClass::GetClassID(CLSID * retval)
+ClassID IsometricTileTypeClass::Class_ID(void) const
 {
-	if (retval == NULL) return(E_POINTER);
-	*retval = CLSID_IsometricTileTypeClass;
-	return(S_OK);
+	return(ClassID_IsometricTileTypeClass);
 }
 
 

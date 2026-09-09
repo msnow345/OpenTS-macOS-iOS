@@ -186,7 +186,9 @@ long VQA_LoadFrame(VQAHandleP *vqap, long flags)
 	int scan_frame;
 	int tocache;
 	VQA_H_FUNC handler;
-	unsigned int rc;
+	// VQAERR_NONE is -1, so a narrower or unsigned holder loses it: it comes back as
+	// 0xFFFFFFFF from a long return and matches no error code the caller knows.
+	long rc;
 	int val4;
 	int fsize;
 	VQA_H_FUNC oldhandler;
@@ -301,12 +303,15 @@ long VQA_LoadFrame(VQAHandleP *vqap, long flags)
  */
 #pragma pack(push,1)
 struct VQASN2J {
-	short index;
-	long  predicted;
-	short index2;
-	long  predicted2;
+	std::int16_t index;
+	std::int32_t predicted;
+	std::int16_t index2;
+	std::int32_t predicted2;
 };
 #pragma pack(pop)
+
+static_assert(sizeof(VQASN2J) == 12, "SN2J chunk layout changed");
+static_assert(offsetof(VQASN2J, predicted2) == 8, "SN2J chunk layout changed");
 
 
 long VQA_LoadFrame_Internal(VQAHandleP *vqap, long flags)
@@ -1267,7 +1272,7 @@ long VQA_SeekGroup(VQAHandleP *vqap, long framenum, long groupsize, VQABool prel
 	int bytes_per_frame;
 	int preload_frames;
 	int covered_bytes;
-	unsigned int rc;
+	long rc;
 	bool bool2;
 	int loadflags;
 	long group_end;
@@ -3531,6 +3536,8 @@ long Load_SN2J(VQAHandleP *vqap, unsigned long iffsize)
 		unsigned int dwPredicted2;
 	} data;
 	#pragma pack(pop)
+
+	static_assert(sizeof(data) == 12, "SN2J chunk layout changed");
 
 	#if(VQAVOC_ON && VQAAUDIO_ON)
 	if (((config->OptionFlags & VQAOPTF_AUDIO) == 0)

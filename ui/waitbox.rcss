@@ -1,0 +1,64 @@
+/* The wait box that stands over a long operation. Its geometry is the IDD_MSGBOX_1
+   template's, converted from dialog units the way ui/messagebox.rcss describes. The cancel
+   button is hidden unless the caller supplies a caption, which is the template's own
+   NOT WS_VISIBLE. */
+
+body
+{
+	font-family: LatoLatin;
+	font-size: 12dp;
+	color: #70ff00;
+
+	width: 100%;
+	height: 100%;
+}
+
+/* 218 x 64 dialog units. */
+#dialog
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin-left: -163.5dp;
+	margin-top: -52dp;
+
+	width: 323dp;
+	height: 100dp;
+}
+
+/* 22, 12, 174 x 23 dialog units. */
+#text
+{
+	display: block;
+	position: absolute;
+	left: 31dp;
+	top: 17.5dp;
+	width: 261dp;
+	height: 37.375dp;
+
+	text-align: center;
+	white-space: pre-line;
+	overflow: hidden;
+}
+
+/* 83, 38, 50 x 14 dialog units. */
+#cancel
+{
+	display: block;
+	position: absolute;
+	left: 122.5dp;
+	top: 59.75dp;
+	width: 71dp;
+	height: 18.75dp;
+	line-height: 18.75dp;
+	text-align: center;
+}
+
+/* The message, a static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#text
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

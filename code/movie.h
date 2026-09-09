@@ -20,6 +20,10 @@ template<class T> class DynamicVectorClass;
 
 extern DynamicVectorClass<char const *> Movies;
 
+// Room for the longest name the movie registry accepts, its ".VQA" and the terminator.
+// RulesClass::Do_Movies reads a name into a 32 byte buffer, so 31 characters can arrive.
+inline constexpr int MOVIE_FILENAME_SIZE = 36;
+
 void Play_Movie(char const * name, ThemeType theme=THEME_NONE, bool clrscrn_after=true, bool stretch=true, bool clrscrn_before=true);
 void Play_Movie(VQType vq, ThemeType theme=THEME_NONE, bool clrscrn=true, bool stretch=true);
 void Play_Ingame_Movie(VQType vq);

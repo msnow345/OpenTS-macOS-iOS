@@ -7,7 +7,6 @@
  * See LICENSE.md for applicable additional terms and warranty disclaimers.
  ******************************************************************************/
 
-#define INCLUDE_COM
 #include "always.h"
 
 #include "vein.h"
@@ -881,19 +880,21 @@ void VeinholeMonsterClass::Remove_Dead(void)
 /// growth records and handed to the swizzler and the target tracker.
 /// </summary>
 /// <returns>bool; Were all the monsters read successfully?</returns>
-bool VeinholeMonsterClass::Load_All(IStream * stream)
+bool VeinholeMonsterClass::Load_All(SaveStreamClass & stream)
 {
 	Reset();
 
 	int cell_count = Map_Cell_Count();
 
 	int monster_count;
-	if (FAILED(stream->Read(&monster_count, sizeof(monster_count), NULL))) {
+	stream.Serialize(monster_count);
+	if (stream.Was_Error()) {
 		return(false);
 	}
 
 	GlobalGrowthState = new bool[cell_count];
-	if (FAILED(stream->Read(GlobalGrowthState, cell_count, NULL))) {
+	stream.Serialize_Bytes(GlobalGrowthState, (int)(cell_count));
+	if (stream.Was_Error()) {
 		return(false);
 	}
 
@@ -905,30 +906,32 @@ bool VeinholeMonsterClass::Load_All(IStream * stream)
 		 */
 		VeinholeMonsterClass * monster = new VeinholeMonsterClass();
 
-		SwizzleIDType id;
-		if (FAILED(stream->Read(&id, sizeof(id), NULL))) {
+		SwizzleIDType id = 0;
+		stream.Serialize(id);
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
 		Swizzler.Here_I_Am(id, monster);
 
-		SaveStreamClass savestream(stream, SaveStreamClass::MODE_LOAD);
-		savestream.Set_Context(typeid(*monster).name(), id);
-		monster->Serialize(savestream);
-		if (FAILED(savestream.Result())) {
+		stream.Set_Context(typeid(*monster).name(), id);
+		monster->Serialize(stream);
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
-		if (FAILED(stream->Read(monster->GrowthState, cell_count, NULL))) {
+		stream.Serialize_Bytes(monster->GrowthState, (int)(cell_count));
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
-		if (FAILED(stream->Read(monster->GrowthNodes, sizeof(CellNode) * Rule->MaxVeinholeGrowth, NULL))) {
+		stream.Serialize_Bytes(monster->GrowthNodes, (int)(sizeof(CellNode) * Rule->MaxVeinholeGrowth));
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
-		monster->GrowthQueue->Serialize(savestream, monster->GrowthNodes);
-		if (FAILED(savestream.Result())) {
+		monster->GrowthQueue->Serialize(stream, monster->GrowthNodes);
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
@@ -972,40 +975,44 @@ void VeinholeMonsterClass::Serialize(SaveStreamClass & stream)
 /// with its vein growth records so that growth can pick up where it left off.
 /// </summary>
 /// <returns>bool; Were all the monsters written successfully?</returns>
-bool VeinholeMonsterClass::Save_All(IStream * stream)
+bool VeinholeMonsterClass::Save_All(SaveStreamClass & stream)
 {
 	int monster_count = VeinholeMonsters.Count();
-	if (FAILED(stream->Write(&monster_count, sizeof(monster_count), NULL))) {
+	stream.Serialize(monster_count);
+	if (stream.Was_Error()) {
 		return(false);
 	}
 
 	int cell_count = Map_Cell_Count();
-	if (FAILED(stream->Write(GlobalGrowthState, cell_count, NULL))) {
+	stream.Serialize_Bytes(GlobalGrowthState, (int)(cell_count));
+	if (stream.Was_Error()) {
 		return(false);
 	}
 
 	for (int i = 0; i < monster_count; i++) {
 		SwizzleIDType id = Swizzler.ID_Of(VeinholeMonsters[i]);
-		if (FAILED(stream->Write(&id, sizeof(id), NULL))) {
+		stream.Serialize(id);
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
-		SaveStreamClass savestream(stream, SaveStreamClass::MODE_SAVE);
-		VeinholeMonsters[i]->Serialize(savestream);
-		if (FAILED(savestream.Result())) {
+		VeinholeMonsters[i]->Serialize(stream);
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
-		if (FAILED(stream->Write(VeinholeMonsters[i]->GrowthState, cell_count, NULL))) {
+		stream.Serialize_Bytes(VeinholeMonsters[i]->GrowthState, (int)(cell_count));
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
-		if (FAILED(stream->Write(VeinholeMonsters[i]->GrowthNodes, sizeof(CellNode) * Rule->MaxVeinholeGrowth, NULL))) {
+		stream.Serialize_Bytes(VeinholeMonsters[i]->GrowthNodes, (int)(sizeof(CellNode) * Rule->MaxVeinholeGrowth));
+		if (stream.Was_Error()) {
 			return(false);
 		}
 
-		VeinholeMonsters[i]->GrowthQueue->Serialize(savestream, VeinholeMonsters[i]->GrowthNodes);
-		if (FAILED(savestream.Result())) {
+		VeinholeMonsters[i]->GrowthQueue->Serialize(stream, VeinholeMonsters[i]->GrowthNodes);
+		if (stream.Was_Error()) {
 			return(false);
 		}
 	}
@@ -1082,15 +1089,7 @@ void VeinholeMonsterClass::Reduce_Veins_At(CellClass * cellptr)
 }
 
 
-/// <summary>
-/// Fetches the class identifier used by the save game system.
-/// This routine is called by the persistence layer so that it knows which class to
-/// recreate when the saved game is read back in.
-/// </summary>
-/// <returns>Returns with S_OK, or E_POINTER if no destination was supplied.</returns>
-HRESULT STDMETHODCALLTYPE VeinholeMonsterClass::GetClassID(CLSID * retval)
+ClassID VeinholeMonsterClass::Class_ID(void) const
 {
-	if (retval == NULL) return(E_POINTER);
-	*retval = CLSID_VeinholeMonsterClass;
-	return(S_OK);
+	return(ClassID_VeinholeMonsterClass);
 }

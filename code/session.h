@@ -234,6 +234,13 @@ struct NodeNameType {
 			unsigned int LastTime;		// last time we heard from this guy
 			unsigned char LastChance;	// we're about to remove him from the list
 			int Color;					// chat player's color
+
+			/*
+			 * This is the sender's own UniqueID out of the announcement that created this
+			 * node. It identifies the machine whatever address its packets arrive from, and
+			 * it fits in the union's existing slack, so the node's size does not move.
+			 */
+			unsigned int ID;
 		} Chat;
 	};
 
@@ -385,6 +392,12 @@ struct GlobalPacketType {
 };
 #pragma pack()
 
+// These three travel on the network, so their sizes are fixed by the packet format.
+static_assert(sizeof(NodeNameType) == 132, "Lobby node layout changed");
+static_assert(sizeof(RemoteFileTransferType) == 487, "Scenario transfer packet layout changed");
+static_assert(sizeof(GlobalPacketType) == 1059, "Global packet layout changed");
+static_assert(offsetof(GlobalPacketType, Name) == 4, "Global packet layout changed");
+
 //...........................................................................
 // For finding sync bugs; filled in by the engine when certain conditions
 // are met; the pointers allow examination of objects in the debugger.
@@ -462,8 +475,8 @@ struct GameOptionsType {
 	bool		ScrapMetal;			// A wreck leaves the animations its type names in ScrapExplosion.
 	char		ScenarioDescription [DESCRIP_MAX];	//Used on client machines only
 
-	bool Save(IStream * stream);
-	bool Load(IStream * stream);
+	bool Save(SaveStreamClass & stream);
+	bool Load(SaveStreamClass & stream);
 
 	void Serialize(SaveStreamClass & stream);
 };

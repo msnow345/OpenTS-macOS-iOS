@@ -1,0 +1,17 @@
+<rml>
+<head>
+	<title>Main menu</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="mainmenu.rcss"/>
+</head>
+<body data-model="mainmenu" data-event-keydown="key()" data-event-textinput="typed()">
+	<div id="dialog" class="panel raised">
+		<div class="button" id="campaign" data-event-click="press('campaign')">New Campaign</div>
+		<div class="button" id="load" data-class-disabled="!canload" data-event-click="press('load')">Load Mission</div>
+		<div class="button" id="multiplayer" data-event-click="press('multiplayer')">Multiplayer Game</div>
+		<div class="button" id="intro" data-event-click="press('intro')">Intro / Sneak Peek</div>
+		<div class="button" id="options" data-event-click="press('options')">Options</div>
+		<div class="button" id="exit" data-event-click="press('exit')">Exit Game</div>
+	</div>
+</body>
+</rml>

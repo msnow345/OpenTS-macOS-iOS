@@ -15,9 +15,7 @@
 #include "data.h"
 #include "init.h"
 #include "language/language.h"
-#include "ownrdraw.h"
-
-INT_PTR CALLBACK Select_Game_Type_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+#include "ui/uigametype.h"
 
 int AvailableAddOns = 1 << ADDON_BASE_GAME;
 int ActiveAddOns = 1 << ADDON_BASE_GAME;
@@ -55,76 +53,24 @@ AddonType operator--(AddonType & val)
 /// <returns>bool; Should the game carry on? Returns false if the player backed out.</returns>
 bool Select_Game_Type_Dialog(AddonType &type)
 {
-	int retval;
-
 	type = ADDON_BASE_GAME;
 
 	if (Addon_Installed(ADDON_ANY)) {
-		HWND dialog = OwnerDraw::Begin_Dialog(IDD_SELECT_GAME_TYPE, Select_Game_Type_Dialog_Proc);
-		if (dialog != 0) {
+		UIGameTypePresenterClass screen;
+		screen.Refresh();
 
-			SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&retval);
-			OwnerDraw::Display_Dialog(dialog);
-
-			retval = -1;
-			while (retval == -1) {
-				if (OwnerDraw::Dialog_Message_Handler() == true) {
-					break;
-				}
-
-				Title_Screen_Restore(false);
-			}
-
-			ShowWindow(dialog, SW_HIDE);
-			UpdateWindow(MainWindow);
-			OwnerDraw::End_Dialog(dialog);
-			ActiveAddOns = 1 << ADDON_BASE_GAME;
-
-			switch (retval) {
-				default:
-					type = ADDON_BASE_GAME;
-					break;
-
-				case IDC_GAMETYPE_FIRESTORM:
-					Enable_Addon(ADDON_FIRESTORM);
-					type = ADDON_FIRESTORM;
-					break;
-
-				case IDCANCEL:
-					return(false);
-			}
+		if (UI_Game_Type_Screen(screen).Outcome == UIResult::OUTCOME_FAILED_TO_OPEN) {
+			Set_Required_Addon(type);
+			return(true);
 		}
 
-		Set_Required_Addon(type);
-		return(true);
+		int addon = ADDON_BASE_GAME;
+		bool const carry_on = screen.Apply(addon);
+		type = (AddonType)addon;
+		return(carry_on);
 	}
 
 	return(true);
-}
-
-
-/// <summary>
-/// Handles the messages for the game type selection dialog.
-/// This routine stashes the control that the player pressed into the caller's result
-/// variable, which is what lets the dialog loop know it can stop.
-/// </summary>
-INT_PTR CALLBACK Select_Game_Type_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	int * retval;
-
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc == 0) {
-		switch (message) {
-			case WM_COMMAND:
-				retval = (int *)GetWindowLongPtr(window, DWLP_USER);
-				*retval = LOWORD(wparam);
-				break;
-		}
-		rc = 0;
-	}
-
-	return(rc);
 }
 
 

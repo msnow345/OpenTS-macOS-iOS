@@ -42,6 +42,7 @@
 #include "mph.hh"
 #include "speed.hh"
 
+#include <cstdint>
 #include <cstring>
 
 /*
@@ -213,8 +214,9 @@ class EventClass
 			**	bloating the size of this union (and thus all other event types).
 			*/
 			struct {
+				std::uint32_t Slot;
+				std::uint32_t Size;
 				void * Pointer;
-				unsigned int Size;
 			} Variable;
 
 			//
@@ -267,3 +269,16 @@ class EventClass
 		static char const * EventNames[LAST_EVENT];
 };
 #pragma pack(pop)
+
+// A whole event travels in a network packet and a replay file, so its record size and the
+// position of every field the packet reader indexes are fixed by the format. The Variable arm
+// keeps the four-byte payload slot the record has always reserved and carries the live pointer
+// past the bytes ADDPLAYER puts on the wire, so Size stays at offset 4 at every pointer width.
+static_assert(sizeof(EventClass) == 46, "Event record layout changed");
+static_assert(offsetof(EventClass, Frame) == 1, "Event record layout changed");
+static_assert(offsetof(EventClass, IsExecuted) == 5, "Event record layout changed");
+static_assert(offsetof(EventClass, ID) == 6, "Event record layout changed");
+static_assert(offsetof(EventClass, Data) == 10, "Event record layout changed");
+static_assert(sizeof(EventClass::Data) == 36, "Event record layout changed");
+static_assert(offsetof(EventClass, Data.Variable.Size) == 14, "ADDPLAYER wire offset changed");
+static_assert(offsetof(EventClass, Data.Variable.Pointer) == 18, "ADDPLAYER wire offset changed");

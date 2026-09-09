@@ -1,0 +1,36 @@
+/* The main menu. Geometry from the IDD_MAIN_MENU template, converted from dialog units at
+   the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625 down, with a
+   child's offset taken from the panel's content box and the panel's declared size taken
+   inside its own border. */
+
+/* 204 x 147 dialog units, so 306 x 238.875 pixels.
+
+   The panel is not centred vertically. Its driver moved it with
+   Move_Dialog(handle, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147), which is half the
+   frame height less 53, so it sits 53 dp above the middle whatever the frame height is. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -153dp;
+	margin-top: -53dp;
+
+	width: 302dp;
+	height: 234.875dp;
+}
+
+/* Six buttons, all 130 x 18 dialog units at x 37. */
+.button
+{
+	left: 53.5dp;
+	width: 195dp;
+	height: 29.25dp;
+	line-height: 29.25dp;
+}
+
+#campaign    { top: 17.5dp; }
+#load        { top: 51.625dp; }
+#multiplayer { top: 85.75dp; }
+#intro       { top: 119.875dp; }
+#options     { top: 154dp; }
+#exit        { top: 188.125dp; }

@@ -2,7 +2,7 @@
 set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE STRING "" FORCE)
 
 # OpenTS supports 32-bit (x86) builds. A 64-bit build is an unsupported experiment.
-if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT OPENTS_EXPERIMENTAL_X64)
+if(WIN32 AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT OPENTS_EXPERIMENTAL_X64)
     message(FATAL_ERROR
         "OpenTS must be built as 32-bit x86. Reconfigure with -A Win32. "
         "For the unsupported 64-bit experiment, configure with "
@@ -95,42 +95,53 @@ set_target_properties(OpenTS PROPERTIES
 #
 message(STATUS "${PROJECT_NAME}: Applying compiler flags...")
 
-set(OPENTS_COMPILE_OPTIONS
+if(MSVC OR OPENTS_EXPERIMENTAL_CLANG_CL)
+    set(OPENTS_COMPILE_OPTIONS
 
-    # ================= DEBUG =================
-    $<$<CONFIG:Debug>:
+        # ================= DEBUG =================
+        $<$<CONFIG:Debug>:
 
-        # ---------- C++ ----------
-        # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
-        # /fp:precise -- no reassociation of the engine's accumulations.
-        # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
-        $<$<COMPILE_LANGUAGE:CXX>:
-            /Zi /Od /RTC1 /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /Oy- /MTd /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            # ---------- C++ ----------
+            # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
+            # /fp:precise -- no reassociation of the engine's accumulations.
+            # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
+            $<$<COMPILE_LANGUAGE:CXX>:
+                /Zi /Od /RTC1 /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /Oy- /MTd /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            >
+
+            # ---------- C ----------
+            $<$<COMPILE_LANGUAGE:C>:
+                /Zi /Od /RTC1 $<$<C_COMPILER_ID:MSVC>:/MP> /Oy- /arch:SSE2 /fp:precise /utf-8
+            >
         >
 
-        # ---------- C ----------
-        $<$<COMPILE_LANGUAGE:C>:
-            /Zi /Od /RTC1 $<$<C_COMPILER_ID:MSVC>:/MP> /Oy- /arch:SSE2 /fp:precise /utf-8
-        >
-    >
+        # ================= RELEASE =================
+        $<$<CONFIG:Release>:
 
-    # ================= RELEASE =================
-    $<$<CONFIG:Release>:
+            # ---------- C++ ----------
+            # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
+            # /fp:precise -- no reassociation of the engine's accumulations.
+            # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
+            $<$<COMPILE_LANGUAGE:CXX>:
+                /Zi /O2 /GF /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /MT /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            >
 
-        # ---------- C++ ----------
-        # /arch:SSE2 -- IEEE-754 single precision, no x87 excess precision.
-        # /fp:precise -- no reassociation of the engine's accumulations.
-        # /utf-8 -- sources and literals are UTF-8 whatever the build machine's code page.
-        $<$<COMPILE_LANGUAGE:CXX>:
-            /Zi /O2 /GF /GR $<$<CXX_COMPILER_ID:MSVC>:/MP> /EHsc /MT /Zc:__cplusplus /arch:SSE2 /fp:precise /utf-8
+            # ---------- C ----------
+            $<$<COMPILE_LANGUAGE:C>:
+                /Zi /O2 /GF $<$<C_COMPILER_ID:MSVC>:/MP> /arch:SSE2 /fp:precise /utf-8
+            >
         >
-
-        # ---------- C ----------
-        $<$<COMPILE_LANGUAGE:C>:
-            /Zi /O2 /GF $<$<C_COMPILER_ID:MSVC>:/MP> /arch:SSE2 /fp:precise /utf-8
-        >
-    >
-)
+    )
+else()
+    # The native host build carries no MSVC switch spellings. Only the floating-point
+    # contract matters for simulation determinism, so it is the one that is restated.
+    set(OPENTS_COMPILE_OPTIONS
+        -g
+        -ffp-contract=off
+        -fno-strict-aliasing
+        -Wno-everything
+    )
+endif()
 
 target_compile_options(OpenTS PRIVATE ${OPENTS_COMPILE_OPTIONS})
 
@@ -149,6 +160,12 @@ target_include_directories(OpenTS PRIVATE
     "${OPENTS_GENERATED_DIR}"
 )
 
+# Windows supplies the window, the message loop and the cursor itself. Every other target
+# gets them from the compatibility layer, which carries the headers as well as the code.
+if(NOT WIN32)
+    target_link_libraries(OpenTS PRIVATE win32compat)
+endif()
+
 # The generated build stamp has to exist before anything compiles.
 add_dependencies(OpenTS OpenTSBuildStamp)
 
@@ -160,7 +177,37 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/bgfxbackend.cpp" PROPER
         "${BGFX_ROOT}/include;${CMAKE_SOURCE_DIR}/thirdparty/bgfx.cmake/bx/include;${BGFX_ROOT}/examples/common/imgui"
     COMPILE_DEFINITIONS
         "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
-    COMPILE_OPTIONS "/Zc:preprocessor"
+    COMPILE_OPTIONS "$<$<BOOL:${MSVC}>:/Zc:preprocessor>"
+)
+
+# The UI shell is scoped the same way: only code/ui sees RmlUi and ImGui, and uirender.cpp
+# alone adds bgfx to that, so no other translation unit carries any of their headers or
+# build settings. uitexture.cpp reads images through bimg, which bgfx already carries.
+file(GLOB OPENTS_UI_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ui/*.cpp")
+set_source_files_properties(${OPENTS_UI_SOURCES} PROPERTIES
+    INCLUDE_DIRECTORIES
+        "${CMAKE_SOURCE_DIR}/thirdparty/RmlUi/Include;${CMAKE_SOURCE_DIR}/thirdparty/imgui"
+    COMPILE_OPTIONS "$<$<BOOL:${MSVC}>:/Zc:preprocessor>"
+)
+
+# The bitmap font engine derives from RmlUi's own engine, whose header sits in the library's
+# Source tree rather than its Include tree, so that one path goes on that one file.
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uifont.cpp" APPEND PROPERTY
+    INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/thirdparty/RmlUi/Source"
+)
+
+set_property(SOURCE
+    "${CMAKE_CURRENT_SOURCE_DIR}/ui/uirender.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ui/uitexture.cpp"
+    APPEND PROPERTY INCLUDE_DIRECTORIES
+        "${BGFX_ROOT}/include;${CMAKE_SOURCE_DIR}/thirdparty/bgfx.cmake/bx/include;${CMAKE_SOURCE_DIR}/thirdparty/bgfx.cmake/bimg/include;${BGFX_ROOT}/examples/common/imgui"
+)
+
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uirender.cpp" APPEND PROPERTY
+    COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
+)
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uitexture.cpp" APPEND PROPERTY
+    COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
 )
 
 # bx rewrites __stdcall while its headers are being parsed by clang-cl.  Force the
@@ -174,15 +221,15 @@ endif()
 
 message(STATUS "${PROJECT_NAME}: Adding compilier definitions...")
 target_compile_definitions(OpenTS PRIVATE
-    WIN32
-    _WINDOWS
     NOMINMAX
-
-    # Compiles Blowfish into the binary instead of reaching it through the COM object in
-    # blowfish.dll. It decides the layout of BlowfishEngine, so every translation unit has
-    # to agree on it and it belongs on the compile line rather than in a header.
-    NO_BLOWFISH_DLL
 )
+
+if(WIN32)
+    target_compile_definitions(OpenTS PRIVATE
+        WIN32
+        _WINDOWS
+    )
+endif()
 
 #
 # ---------------------------------------------------------
@@ -207,8 +254,15 @@ target_link_libraries(OpenTS PRIVATE
     bgfx
     bx
     bimg
+    bimg_decode
     miniaudio
     lzo
+    rmlui
+    imgui
+)
+
+if(WIN32)
+    target_link_libraries(OpenTS PRIVATE
     comctl32
     dbghelp
     iphlpapi
@@ -218,7 +272,8 @@ target_link_libraries(OpenTS PRIVATE
     ws2_32
     kernel32 user32 gdi32 winspool comdlg32 advapi32 shell32
     ole32 oleaut32 uuid odbc32 odbccp32
-)
+    )
+endif()
 
 if(MSVC)
     target_link_options(OpenTS PRIVATE
@@ -272,40 +327,33 @@ foreach(f ${OPENTS_SRC})
     endif()
 endforeach()
 
-# List of all interface filenames (headers + C stubs)
-set(INTERFACE_FILES
-    iblockci.h       iblockci_i.c
-    iblowfish.h      iblowfish_i.c
-    iflyctrl.h       iflyctrl_i.c
-    ilinkstm.h
-    iloco.h          iloco_i.c
-    ilocos.h         ilocos_i.c
-    ipiggy.h         ipiggy_i.c
-    isun.h           isun_i.c
+# The interface headers the locomotors are written against.
+source_group("Interface Files" FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/iflyctrl.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/iloco.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ipiggy.h"
 )
-
-# Convert to full paths relative to source dir
-set(FULL_INTERFACE_FILES "")
-foreach(f IN LISTS INTERFACE_FILES)
-    list(APPEND FULL_INTERFACE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
-endforeach()
-
-# Add them to the "Interface Files" group and exclude *_i.c from build
-foreach(f IN LISTS FULL_INTERFACE_FILES)
-
-    # Put into VS filter
-    source_group("Interface Files" FILES "${f}")
-
-    # Exclude *_i.c from build, but DO NOT mark headers as header-only
-    if(f MATCHES "_i\\.c$")
-        set_source_files_properties("${f}" PROPERTIES HEADER_FILE_ONLY TRUE)
-    endif()
-
-endforeach()
 
 # General source files
 source_group("Source Files" REGULAR_EXPRESSION ".*\\.(c|cpp)$")
 source_group("Header Files" REGULAR_EXPRESSION ".*\\.(h|hpp)$")
+
+#
+# ---------------------------------------------------------
+# Populate the game data directory
+# ---------------------------------------------------------
+#
+# The build no longer copies itself into the game directory, but the shipped UI documents
+# are game data the engine resolves under the data directory, so they are placed there.
+message(STATUS "${PROJECT_NAME}: Creating post-build commands...")
+
+# The shipped UI documents, styles and font travel with the game data. They are read
+# through the game's file system, so this directory is what the search path points at.
+add_custom_command(TARGET OpenTS POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/ui"
+        "${OPENTS_GAME_DIR}/ui"
+)
 
 #
 # ---------------------------------------------------------
@@ -320,4 +368,6 @@ set_property(GLOBAL PROPERTY VS_STARTUP_PROJECT OpenTS)
 set(NATVIS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/sun.natvis")
 source_group("Natvis Files" FILES ${NATVIS_FILE})
 target_sources(OpenTS PRIVATE ${NATVIS_FILE})
-target_link_options(OpenTS PRIVATE "/NATVIS:${NATVIS_FILE}")
+if(MSVC)
+    target_link_options(OpenTS PRIVATE "/NATVIS:${NATVIS_FILE}")
+endif()

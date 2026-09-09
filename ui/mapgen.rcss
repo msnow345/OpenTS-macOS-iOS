@@ -1,0 +1,60 @@
+/* The base game's map generator, IDD_MAPGEN: 424 x 242 dialog units, so 636 x 393.25 pixels.
+   It has no Firestorm settings, its two combos start further across than the other two
+   templates put theirs, and its seed field sits beside the map size lists. */
+
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -318dp;
+	margin-top: -196.625dp;
+
+	width: 632dp;
+	height: 389.25dp;
+}
+
+#environmentlabel { left: 33dp; top: 13dp; width: 99dp; height: 22.75dp; line-height: 22.75dp; }
+#timelabel { left: 33dp; top: 43.875dp; width: 99dp; height: 22.75dp; line-height: 22.75dp; }
+#playerslabel { left: 33dp; top: 76.375dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#cliffslabel { left: 33dp; top: 107.25dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#accessibilitylabel { left: 33dp; top: 138.125dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#hillslabel { left: 33dp; top: 169dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#tiberiumlabel { left: 33dp; top: 199.875dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#tiberiumfieldslabel { left: 33dp; top: 230.75dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#waterlabel { left: 33dp; top: 261.625dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#vegetationlabel { left: 33dp; top: 292.5dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#citieslabel { left: 33dp; top: 323.375dp; width: 111dp; height: 22.75dp; line-height: 22.75dp; }
+#widthlabel { left: 309dp; top: 13dp; width: 97.5dp; height: 19.5dp; line-height: 19.5dp; }
+#heightlabel { left: 307.5dp; top: 40.625dp; width: 97.5dp; height: 19.5dp; line-height: 19.5dp; }
+
+/* The nine track bars, all at 95 dialog units across. */
+#players { left: 142.5dp; top: 76.375dp; }
+#cliffs { left: 142.5dp; top: 107.25dp; }
+#accessibility { left: 142.5dp; top: 138.125dp; }
+#hills { left: 142.5dp; top: 169dp; }
+#tiberium { left: 142.5dp; top: 199.875dp; }
+#tiberiumfields { left: 142.5dp; top: 230.75dp; }
+#water { left: 142.5dp; top: 261.625dp; }
+#vegetation { left: 142.5dp; top: 292.5dp; }
+#cities { left: 142.5dp; top: 323.375dp; }
+
+/* The two sorted combos and the two size combos. */
+#biome { left: 142.5dp; top: 13dp; width: 150dp; }
+#time { left: 142.5dp; top: 40.625dp; width: 150dp; }
+#width { left: 415.5dp; top: 13dp; width: 94.5dp; }
+#height { left: 415.5dp; top: 40.625dp; width: 94.5dp; }
+
+#seed { left: 517.5dp; top: 40.625dp; width: 85.5dp; height: 19.5dp; line-height: 19.5dp; }
+
+#previewframe { left: 307.5dp; top: 76.375dp; }
+#previewword { top: 87.75dp; height: 26dp; line-height: 26dp; }
+
+#surprise { left: 307.5dp; top: 313.625dp; }
+#previewmap { left: 471dp; top: 313.625dp; }
+
+/* The bottom row: save, load, delete, then OK and cancel. */
+#save { left: 33dp; }
+#load { left: 150dp; }
+#delete { left: 267dp; }
+#ok { left: 397.5dp; }
+#cancel { left: 505.5dp; }

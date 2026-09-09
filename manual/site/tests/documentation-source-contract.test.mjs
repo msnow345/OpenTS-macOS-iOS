@@ -36,7 +36,7 @@ test('Drop pod approach selection keeps its ordered candidates and unconditional
 	const droppod = source('code/droppod.cpp');
 	const moveTo = functionBody(
 		droppod,
-		'void STDMETHODCALLTYPE DropPodLocomotionClass::Move_To(Coord to)',
+		'void DropPodLocomotionClass::Move_To(Coord to)',
 	);
 
 	assert.match(
@@ -74,7 +74,7 @@ test('Drop pod directions retain their hard-coded airborne and landing-art mappi
 
 	const drawingCode = functionBody(
 		droppod,
-		'int STDMETHODCALLTYPE DropPodLocomotionClass::Drawing_Code(void)',
+		'int DropPodLocomotionClass::Drawing_Code(void)',
 	);
 	assert.match(drawingCode, /Direction\s*%\s*2/);
 	assertOrdered(infantry, [
@@ -84,13 +84,13 @@ test('Drop pod directions retain their hard-coded airborne and landing-art mappi
 
 	const process = functionBody(
 		droppod,
-		'boolean STDMETHODCALLTYPE DropPodLocomotionClass::Process(void)',
+		'bool DropPodLocomotionClass::Process(void)',
 	);
 	assert.match(process, /Rule->DropPod\[Direction\s*%\s*Rule->DropPod\.Count\(\)\]/);
 
 	const moveTo = functionBody(
 		droppod,
-		'void STDMETHODCALLTYPE DropPodLocomotionClass::Move_To(Coord to)',
+		'void DropPodLocomotionClass::Move_To(Coord to)',
 	);
 	assertOrdered(moveTo, [
 		'dropcoord.Z += Rule->DropPodHeight;',
@@ -102,13 +102,13 @@ test('Drop pod directions retain their hard-coded airborne and landing-art mappi
 test('Blocked Drop pod touchdown retains its exact damage, animation, and deletion payload', () => {
 	const process = functionBody(
 		source('code/droppod.cpp'),
-		'boolean STDMETHODCALLTYPE DropPodLocomotionClass::Process(void)',
+		'bool DropPodLocomotionClass::Process(void)',
 	);
 	assertOrdered(process, [
 		'FootClass * linked = LinkedTo;',
 		'coord = linked->PositionCoord;',
 		'linked->Limbo();',
-		'End_Piggyback(&LinkedTo->Locomotion);',
+		'LinkedTo->Locomotion = End_Piggyback();',
 		'if (!linked->Unlimbo(coord, DIR_N)) {',
 		'Explosion_Damage(coord, 100, LinkedTo, Rule->C4Warhead);',
 		'Combat_Anim(100, Rule->C4Warhead, LAND_CLEAR, coord)',
@@ -414,15 +414,11 @@ test('A resume is judged before it is loaded, and the save answers for the rest'
 		'gameloaded = true;',
 	], 'a network resume seats the players and opens the network before the save is read');
 
-	for (const dialog of ['IDD_OPT_CTRL_WOL']) {
-		const template = source('code/language/language.rc');
-		const body = template.slice(template.indexOf(dialog + ' DIALOG'));
-		assert.match(
-			body.slice(0, body.indexOf('END')),
-			/IDC_SAVE_GAME/,
-			`${dialog} offers the synchronized save the options handler has always known`,
-		);
-	}
+	assert.match(
+		source('ui/gameoptionswol.rml'),
+		/id="save" data-class-disabled="!cansave" data-event-click="press\('save'\)"/,
+		'the internet options offer the synchronized save the options screen has always known',
+	);
 
 	assertOrdered(functionBody(source('code/saveload.cpp'), 'bool Reconcile_Players(void)'), [
 		'stricmp(Session.Players[i]->Name, Houses[house]->IniName) == 0',
@@ -456,14 +452,14 @@ test('Saved games are named in one folder rather than searched for', () => {
 
 	assertOrdered(functionBody(gamedirs, 'std::string Saved_Game_Name(char const * filename)'), [
 		'UserDirectory + SavedGamesFolder',
-		'CreateDirectory(folder.c_str(), NULL);',
+		'Make_Directory(folder);',
 	], 'a saved game is named inside the user directory, and the folder is made on the way');
 
 	for (const [file, signature] of [
 		['code/saveload.cpp', 'bool Save_Game(const char *file_name, char const * descr)'],
 		['code/saveload.cpp', 'bool Load_Game(const char *file_name)'],
 		['code/saveload.cpp', 'bool Get_Savefile_Info(char const * name, SaveVersionInfo * info)'],
-		['code/loaddlg.cpp', 'void LoadOptionsClass::Fill_List(HWND window)'],
+		['code/loaddlg.cpp', 'void LoadOptionsClass::Build_List(void)'],
 		['code/loaddlg.cpp', 'bool LoadOptionsClass::Files_Present(void)'],
 		['code/loaddlg.cpp', 'bool LoadOptionsClass::Delete_File(const char * file_name)'],
 	]) {
@@ -475,7 +471,7 @@ test('Saved games are named in one folder rather than searched for', () => {
 	}
 
 	assert.doesNotMatch(
-		functionBody(source('code/loaddlg.cpp'), 'void LoadOptionsClass::Fill_List(HWND window)') +
+		functionBody(source('code/loaddlg.cpp'), 'void LoadOptionsClass::Build_List(void)') +
 			functionBody(source('code/loaddlg.cpp'), 'bool LoadOptionsClass::Files_Present(void)'),
 		/Search_Files\(/,
 		'the listing no longer scans the folders the game reads from',
@@ -527,20 +523,24 @@ test('A multiplayer load replaces the match around the seats it keeps', () => {
 		'Reset_Multiplayer_Save_State();',
 	], 'the old traffic is discarded, the save read, the seats matched, and the connections rebuilt in that order');
 
-	const template = source('code/language/language.rc');
-	const body = template.slice(template.indexOf('IDD_OPT_CTRL_WOL DIALOG'));
 	assert.match(
-		body.slice(0, body.indexOf('END')),
-		/IDC_LOAD_GAME/,
+		source('ui/gameoptionswol.rml'),
+		/id="load" data-class-disabled="!canload" data-event-click="press\('load'\)"/,
 		'the internet options offer the load the master starts for every machine',
 	);
 
-	assertOrdered(definitionFrom(source('code/goptions.cpp'), 'INT_PTR CALLBACK Game_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)'), [
-		'case IDC_LOAD_GAME:',
-		'LoadOptionsClass().Load()',
-		'Multiplayer_Load_Is_Allowed()',
+	const gameoptions = source('code/ui/uigameoptions.cpp');
+	assertOrdered(functionBody(gameoptions, 'void UIGameOptionsPresenterClass::Execute(UIIntent const & intent)'), [
+		'intent.Action == UI_GAMEOPT_LOAD',
+		'Is_Solo_Session()',
+		'Pending = SUB_LOAD;',
+		'SaveManager.Multiplayer_Load_Is_Allowed()',
 		'SpecialDialog = SDLG_LOAD;',
-	], 'a network game defers the list to the menu loop rather than nesting it in the options dialog');
+	], 'a network game defers the list to the menu loop rather than opening it from the options screen');
+	assertOrdered(functionBody(gameoptions, 'void UIGameOptionsPresenterClass::Run_Pending(void)'), [
+		'case SUB_LOAD:',
+		'LoadOptionsClass().Load()',
+	], 'a solo game opens the list itself');
 
 	assertOrdered(definitionFrom(source('code/conquer.cpp'), 'void Ingame_Menu_Dialog(void)'), [
 		'case SDLG_OPTIONS:',
@@ -817,12 +817,28 @@ test('A computer player draws a country from the lobby roster', () => {
 });
 
 test('A lobby side entry carries its country', () => {
-	const netdlg = source('code/netdlg2.cpp');
+	const lobby = source('code/ui/uilobby.cpp');
+	const skirmish = source('code/ui/uiskirmish.cpp');
 
-	assertOrdered(functionBody(netdlg, 'void Fill_Country_Box(HWND combo)'), ['CB_INSERTSTRING', 'CB_SETITEMDATA'], 'each entry carries its country');
-	assert.match(functionBody(netdlg, 'int Country_From_Box(HWND combo)'), /CB_GETITEMDATA/, 'the selection is read back through its country');
-	assert.doesNotMatch(netdlg, /CB_SETCURSEL, Session\.House/, 'no box is positioned by a country index');
-	assert.doesNotMatch(source('code/skirmish.cpp'), /Session\.House = ComboBox_GetCurSel/, 'the skirmish box stores a country, not a position');
+	for (const [screen, text, signature] of [
+		['the network lobby', lobby, 'void UILobbyPresenterClass::Build_Identity_Lists(void)'],
+		['the skirmish setup', skirmish, 'void UISkirmishPresenterClass::Refresh(void)'],
+	]) {
+		assertOrdered(functionBody(text, signature), [
+			'if (!house->IsMultiplay) continue;',
+			'if (index == Session.House) {',
+			'SelectedSide = (int)Sides.size();',
+			'Sides.push_back(SideType{(char const *)house->GivenName, index});',
+		], `${screen} lists the countries that may be played, and each entry carries its country`);
+	}
+
+	assert.match(functionBody(lobby, 'void UILobbyPresenterClass::Host_Side(int row)'), /House = Sides\[row\]\.Country;/, 'the selection is read back through its country');
+	assert.match(functionBody(skirmish, 'void UISkirmishPresenterClass::Read_Identity(void)'), /Session\.House = \(HousesType\)Sides\[SelectedSide\]\.Country;/, 'the skirmish entry stores a country, not a position');
+
+	for (const text of [lobby, skirmish]) {
+		assert.doesNotMatch(text, /SelectedSide = (\(int\))?Session\.House/, 'no list is positioned by a country index');
+		assert.doesNotMatch(text, /Session\.House = \(HousesType\)SelectedSide/, 'no position is stored as a country');
+	}
 });
 
 test('A side is declared in the side list alone', () => {

@@ -40,7 +40,7 @@
  *   ActionChoiceClass::Draw_It -- Display the action choice as part of a list box.            *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#define INCLUDE_COM
+#include "hostclock.h"
 #include "always.h"
 
 #include "taction.h"
@@ -2053,7 +2053,7 @@ bool TActionClass::TAction_ZOOM_IN(HouseClass * , ObjectClass * , TriggerClass *
 	Map.Flag_To_Redraw();
 	Map.Render();
 
-	Sleep(1000);
+	Host_Sleep(1000);
 	return(true);
 }
 
@@ -2961,18 +2961,9 @@ NeedType Action_Needs(TActionType action)
 }
 
 
-/// <summary>
-/// Fetches the class identifier of this object.
-/// This routine is used by the persistence machinery to recognize what kind of object it
-/// is about to load back.
-/// </summary>
-/// <param name="retval">Pointer to the identifier to fill in.</param>
-/// <returns>Returns with S_OK, or E_POINTER if no destination was supplied.</returns>
-HRESULT STDMETHODCALLTYPE TActionClass::GetClassID(CLSID * retval)
+ClassID TActionClass::Class_ID(void) const
 {
-	if (retval == NULL) return(E_POINTER);
-	*retval = CLSID_ActionClass;
-	return(S_OK);
+	return(ClassID_ActionClass);
 }
 
 

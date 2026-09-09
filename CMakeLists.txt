@@ -13,6 +13,7 @@ option(OPENTS_OFFICIAL_BUILD "Build as an official release of the declared versi
 
 option(OPENTS_EXPERIMENTAL_CLANG_CL "Build with clang-cl using the MSVC ABI" OFF)
 option(OPENTS_EXPERIMENTAL_X64 "Configure an unsupported 64-bit Windows build" OFF)
+option(OPENTS_EXPERIMENTAL_NATIVE "Configure a native build for the host platform" OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
    AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
@@ -34,14 +35,24 @@ elseif(MSVC)
             "writes are not interchangeable with a supported 32-bit build's, and nothing in "
             "the version stamp distinguishes them.")
     endif()
+elseif(OPENTS_EXPERIMENTAL_NATIVE)
+    message(STATUS "OpenTS: configuring an unsupported native build for the host platform.")
+
+    # The tree declares imports and exports with __declspec throughout, which clang only
+    # accepts with the Microsoft extensions enabled.
+    add_compile_options(-fms-extensions)
 else()
     message(FATAL_ERROR
         "OpenTS requires the Visual Studio 2022 MSVC toolchain. "
         "For the unsupported clang-cl experiment, configure with "
-        "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/clang-cl-msvc.cmake.")
+        "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/clang-cl-msvc.cmake. "
+        "For the unsupported native build, configure with "
+        "-DOPENTS_EXPERIMENTAL_NATIVE=ON.")
 endif()
 
-enable_language(RC)
+if(WIN32)
+    enable_language(RC)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -83,6 +94,11 @@ add_custom_target(OpenTSBuildStamp ALL
 )
 
 add_subdirectory(thirdparty)
+
+if(NOT WIN32)
+    add_subdirectory(platform)
+endif()
+
 add_subdirectory(code)
 add_subdirectory(code/language)
 

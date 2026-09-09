@@ -20,7 +20,7 @@ static char const * const ConfigName = "OPENTS.INI";
 /*
  * The folders the file itself is looked for in, relative to the data directory.
  */
-static char const * const ConfigProbes[] = {"", "INI\\", "MIX\\"};
+static char const * const ConfigProbes[] = {"", "INI/", "MIX/"};
 
 
 void DeploymentConfigClass::Read_INI(INIClass const & ini)

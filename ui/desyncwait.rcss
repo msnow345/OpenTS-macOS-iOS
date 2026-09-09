@@ -1,0 +1,4 @@
+/* The waiting player's out-of-sync screen, IDD_DESYNC_WAIT. The template gives it the quit
+   button alone, in the middle position at 145 dialog units, and disables it: the quit comes
+   back once the stall has lasted long enough to be worth abandoning. */
+#quit { left: 217.5dp; }

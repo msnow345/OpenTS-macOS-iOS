@@ -68,10 +68,10 @@
 #include "resource.h"
 #include "session.h"
 #include "theme.h"
+#include "ui/uishell.h"
 #include "video.h"
 #include "win.h"
 #include "wincursor.h"
-#include "windlg.h"
 #include "winfix.h"
 #include "wwmouse.h"
 #include "mainopt.h"
@@ -151,14 +151,9 @@ void Focus_Restore(void)
 	if (MouseCursor && _MouseCaptured == true && !Debug_Map) {
 		MouseCursor->Capture_Mouse();
 	}
-	Heal_Dialog_Controls();
 	Map.Flag_To_Redraw(GS_REDRAW_ALL);
 	InvalidateRect(MainWindow, 0, 0);
 	Pause_Ingame_Movie(false);
-	if (WS_Top_Window()) {
-		SetActiveWindow(WS_Top_Window());
-		SetFocus(WS_Top_Window());
-	}
 }
 
 
@@ -179,12 +174,24 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 	 * The frame may be drawn scaled, so a click has to be matched against where the
 	 * player sees the controls rather than where Windows finds them.
 	 */
+	LPARAM const window_lparam = lParam;
 	{
 		LPARAM translated_lparam;
 		if (Route_Mouse_Message(hwnd, message, wParam, lParam, &translated_lparam)) {
 			return(0);
 		}
 		lParam = translated_lparam;
+	}
+
+	/*
+	 * The shell sees mouse, wheel, key and text messages after the routing, which keeps
+	 * legacy child windows working under video scaling, and before the keyboard handler,
+	 * which keeps whatever a toolkit consumed out of the KN_ queue. It reads the position
+	 * Windows delivered rather than the routed one, because the overlays are laid out in
+	 * the window's own pixels.
+	 */
+	if (UI_Handle_Window_Message(hwnd, message, wParam, window_lparam)) {
+		return(0);
 	}
 
 	int	low_param = LOWORD(wParam);
@@ -254,6 +261,15 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 			break;
 
 		case WM_CLOSE:
+#ifndef _WIN32
+			/*
+			**	Windows answers a close request by destroying the window and leaving the
+			**	program to notice. There is no front end here to notice it and no dialog
+			**	layer to confirm through, so the request ends the program itself.
+			*/
+			Emergency_Exit();
+			exit(EXIT_SUCCESS);
+#endif
 			break;
 
 		case WM_CREATE:
@@ -355,9 +371,22 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 }
 
 
+#ifndef _WIN32
+// The host toolkit owns the surface the renderer presents into, and hands over the layer
+// it created for it. Windows presents into the window handle itself.
+extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
+extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
+extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
+#endif
+
+
 NativeWindow Win_Native_Window(HWND window)
 {
+#ifdef _WIN32
 	return(NativeWindow{ NATIVE_WINDOW_DEFAULT, nullptr, window });
+#else
+	return(NativeWindow{ NATIVE_WINDOW_DEFAULT, nullptr, Win32Compat_Native_Window_Handle(window) });
+#endif
 }
 
 
@@ -375,8 +404,26 @@ bool Win_Window_Drawable_Size(HWND window, int & width, int & height)
 }
 
 
+// A borderless window covering the desktop is all a full screen presentation is on
+// Windows, so there is nothing further to ask for there. A host that keeps its own
+// furniture above an ordinary window has to be told, or it draws over the game.
+bool Win_Set_Window_Fullscreen(HWND window, bool fullscreen)
+{
+#ifdef _WIN32
+	(void)window;
+	(void)fullscreen;
+	return(true);
+#else
+	return(Win32Compat_Set_Window_Fullscreen(window, fullscreen ? TRUE : FALSE) != FALSE);
+#endif
+}
+
+
 int Win_Window_Refresh_Rate(HWND window)
 {
+#ifndef _WIN32
+	return(Win32Compat_Window_Refresh_Rate(window));
+#else
 	int refreshrate = 0;
 	HDC dc = GetDC(window);
 
@@ -386,6 +433,7 @@ int Win_Window_Refresh_Rate(HWND window)
 	}
 
 	return(refreshrate);
+#endif
 }
 
 
@@ -504,6 +552,8 @@ void Create_Main_Window ( HINSTANCE instance , int command_show , int width , in
 								NULL,
 								instance,
 								NULL );
+
+		Win_Set_Window_Fullscreen(MainWindow, true);
 	}
 
 	ShowWindow (MainWindow, SW_NORMAL);
@@ -518,6 +568,43 @@ void Create_Main_Window ( HINSTANCE instance , int command_show , int width , in
 	//Misc_Focus_Loss_Function = &Focus_Loss;
 	//Misc_Focus_Restore_Function = &Focus_Restore;
 	//Gbuffer_Focus_Loss_Function = &Focus_Loss;
+}
+
+
+/// <summary>
+/// Moves the main window between a full screen presentation and a window.
+/// The frame is not resized: it keeps the resolution the display options settled on and is
+/// scaled into whichever the window now is, which is what the two creation paths already do.
+/// </summary>
+/// <param name="fullscreen">Should the window cover the screen?</param>
+/// <remarks>The resize the host reports rebuilds the presentation, so nothing else needs telling.</remarks>
+void Set_Window_Fullscreen(bool fullscreen)
+{
+	if (MainWindow == NULL) {
+		return;
+	}
+
+	WindowedMode = !fullscreen;
+	SetWindowLong(MainWindow, GWL_STYLE, fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW);
+	Win_Set_Window_Fullscreen(MainWindow, fullscreen);
+
+	if (fullscreen) {
+		return;
+	}
+
+	int clientwidth = (Options.WindowWidth > 0) ? Options.WindowWidth : Options.ScreenWidth;
+	int clientheight = (Options.WindowHeight > 0) ? Options.WindowHeight : Options.ScreenHeight;
+
+	RECT rect;
+	SetRect(&rect, 0, 0, clientwidth, clientheight);
+	AdjustWindowRectEx(&rect, GetWindowLong(MainWindow, GWL_STYLE), FALSE, GetWindowLong(MainWindow, GWL_EXSTYLE));
+
+	int windowwidth = rect.right - rect.left;
+	int windowheight = rect.bottom - rect.top;
+	int x = (GetSystemMetrics(SM_CXSCREEN) - windowwidth) / 2;
+	int y = (GetSystemMetrics(SM_CYSCREEN) - windowheight) / 2;
+
+	MoveWindow(MainWindow, std::max(x, 0), std::max(y, 0), windowwidth, windowheight, 1);
 }
 
 

@@ -15,13 +15,31 @@
 
 #include "win.h"
 
+#include "netdlg.h"
+
 struct GlobalPacketType;
 class IPXAddressClass;
 
+/*
+**	The lobby's own state, shared by the game list, host and guest screens.
+*/
+extern int CurGame;
+extern JoinStateType JoinState;
+extern bool Net2IsGameListActive;
+
+void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init = 0);
+void Net2ServiceGameList(void);
+
+// One pass of the lobby's own maintenance: service the transport, answer the join protocol,
+// broadcast the host's options and age out what has gone quiet. Both of the lobby's drivers
+// run this once per pass, through the presenter's Service.
+void Net2ServiceLobby(void);
+
+// Which of the lobby's three screens is up, as its dialog identifier, or 0 when none is.
+// A document has no window, so this answers for both presentations.
+int Net2LobbyScreenID(void);
+
 int Net2FirstFreeColor(int reqcolor, int index);
-void Fill_Country_Box(HWND combo);
-int Country_From_Box(HWND combo);
-void Select_Country_In_Box(HWND combo, int country);
 bool Net2Callback(void);
 void Net2DisplayUsers(void);
 bool Net2Init_Network(void);

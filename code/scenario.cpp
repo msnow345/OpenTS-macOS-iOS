@@ -127,7 +127,6 @@
 #include "newmenu.h"
 #include "overlay.h"
 #include "overtype.h"
-#include "ownrdraw.h"
 #include "partsys.h"
 #include "pcx.h"
 #include "preview.h"
@@ -396,10 +395,6 @@ bool Start_Scenario(char const * name, bool briefing, CampaignType campaign)
 	bool transit_playing = false;
 
 	if (briefing && Session.Type == GAME_NORMAL && !has_briefing_movie) {
-
-		// No dialog has been put up in a game a client launched, so the artwork it draws with
-		// is not built yet.
-		OwnerDraw::Prepare_Resources(MainWindow);
 
 		if (Scen->TransitTheme != THEME_NONE) {
 			Theme.Play_Song(Scen->TransitTheme);
@@ -715,6 +710,7 @@ bool Read_Scenario(char const * fname)
 		}
 
 		Progress.Set_Graphic_Data((players > 1) ? "PROGBARM.SHP" : "PROGBAR.SHP", background, prog_msg, prog_bar_pos);
+		Progress.Announce_Milestones();
 		Progress.Display_Progress();
 
 		if (PacketTransport != NULL && Ipx.Transport_Mode() == IPXManagerClass::TRANSPORT_DIRECT && Session.Players.Count() > 1) {
@@ -732,7 +728,7 @@ bool Read_Scenario(char const * fname)
 
 	if (Scen->IsRandom) {
 		if (RandomMapGen.SeedData.Load(name)) {
-			RandomMapGen.Generate_Random_Map(false, NULL);
+			RandomMapGen.Generate_Random_Map(false);
 			Multiplayer_Last_Minute_Fixups();
 		} else {
 			state = ScenarioState::NotRead;
@@ -1075,11 +1071,7 @@ void Clear_Scenario(void)
 
 	LightSourceClass::Recalc = false;
 	while (Objects.Count()) {
-		if (Objects[0]->RTTI == RTTI_BULLET) {
-			Objects[0]->Release();
-		} else {
-			delete Objects[0];
-		}
+		delete Objects[0];
 	}
 
 	LightSourceClass::Recalc = true;
@@ -3334,18 +3326,17 @@ static Cell const Clip_Move(Cell const & cell, FacingType facing, int dist)
 /// The elapsed mission clock is halted across the write so that the time recorded is the
 /// one the player will be given back when the game is resumed.
 /// </summary>
-void ScenarioClass::Save(IStream * stream) const
+void ScenarioClass::Save(SaveStreamClass & stream) const
 {
 	DebugString("Scenario Save: ElapsedTimer = %d\n", (int)ElapsedTimer);
 	ElapsedTimer.Stop();
 
-	SaveStreamClass savestream(stream, SaveStreamClass::MODE_SAVE);
 
 	/*
 	 * One member list serves both directions, so it cannot be declared const even though
 	 * writing changes nothing.
 	 */
-	const_cast<ScenarioClass *>(this)->Serialize(savestream);
+	const_cast<ScenarioClass *>(this)->Serialize(stream);
 
 	ElapsedTimer.Start();
 }
@@ -3356,13 +3347,12 @@ void ScenarioClass::Save(IStream * stream) const
 /// The elapsed mission clock is halted across the read for the same reason it is halted
 /// across the write, so that it does not advance over the value coming back in.
 /// </summary>
-void ScenarioClass::Load(IStream * stream)
+void ScenarioClass::Load(SaveStreamClass & stream)
 {
 	ElapsedTimer.Stop();
 
-	SaveStreamClass savestream(stream, SaveStreamClass::MODE_LOAD);
-	savestream.Set_Context("ScenarioClass");
-	Serialize(savestream);
+	stream.Set_Context("ScenarioClass");
+	Serialize(stream);
 
 	ElapsedTimer.Start();
 	DebugString("Scenario Load: ElapsedTimer = %d\n", (int)ElapsedTimer);

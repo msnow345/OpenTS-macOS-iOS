@@ -1,0 +1,15 @@
+<rml>
+<head>
+	<title>Abort mission</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="abort.rcss"/>
+</head>
+<body data-model="abort" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="question">Do you want to abort the mission?</div>
+		<div class="button" id="quit" data-event-click="press('quit')">Abort</div>
+		<div class="button" id="restart" data-class-disabled="!canrestart" data-event-click="press('restart')">{{ restartcaption }}</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

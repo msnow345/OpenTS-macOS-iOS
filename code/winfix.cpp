@@ -33,11 +33,12 @@
 
 #include "always.h"
 
+#include "_xmouse.h"
+
 #include "winfix.h"
 
 #include "ini.h"
 #include "misc.h"
-#include "ownrdraw.h"
 #include "trim.h"
 
 #include <algorithm>

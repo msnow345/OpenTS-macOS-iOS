@@ -1,0 +1,24 @@
+<rml>
+<head>
+	<title>Select multiplayer map</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="selectmap.rcss"/>
+</head>
+<body data-model="selectmap" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="title">Select Multiplayer Map</div>
+
+		<div id="maps" class="list">
+			<div class="row" data-for="name : scenarios" data-class-picked="it_index == selected" data-event-click="pick(it_index)">{{ name }}</div>
+		</div>
+
+		<div id="previewframe">
+			<surface data-attr-src="preview"/>
+		</div>
+
+		<div class="button" id="accept" data-event-click="press('accept')">[[TXT_OK]]</div>
+		<div class="button" id="random" data-event-click="press('random')">Create Random Map</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

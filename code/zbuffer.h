@@ -11,6 +11,8 @@
 
 #include "rect.h"
 
+#include <cstdint>
+
 class Surface;
 
 #define ZBUFFER_MAX    0x8000

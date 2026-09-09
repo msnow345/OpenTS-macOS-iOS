@@ -1,0 +1,34 @@
+<rml>
+<head>
+	<title>Network games</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="lobbybase.rcss"/>
+	<link type="text/rcss" href="gamelist.rcss"/>
+</head>
+<body data-model="gamelist" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="namelabel">Your Name:</div>
+		<input type="text" id="yourname" class="field" maxlength="11" data-attr-value="handle" data-event-change="rename()"/>
+
+		<div class="caption" id="gameslabel">Games:</div>
+		<div id="games" class="list">
+			<div class="row" data-for="entry : games" data-class-picked="it_index == selectedgame" data-event-click="pickgame(it_index)">{{ entry.label }}</div>
+		</div>
+
+		<div class="caption" id="playerslabel">Players:</div>
+		<div id="users" class="list">
+			<div class="row" data-for="entry : users">{{ entry.name }}</div>
+		</div>
+
+		<div id="messages" class="log">
+			<div class="line" data-for="entry : messages" data-style-color="entry.hex">{{ entry.text }}</div>
+		</div>
+
+		<input type="text" id="say" class="field" maxlength="255" data-event-keydown="submit()"/>
+
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+		<div class="button" id="join" data-event-click="press('join')">Join</div>
+		<div class="button" id="new" data-event-click="press('new')">New</div>
+	</div>
+</body>
+</rml>

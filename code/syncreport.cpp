@@ -93,6 +93,52 @@
 #include <cstdio>
 #include <float.h>
 
+#ifndef _WIN32
+#include <errno.h>
+#include <time.h>
+#endif
+
+/// The report stamps its filename with the local wall clock.
+static void Fetch_Local_Time(SYSTEMTIME* result)
+{
+#ifdef _WIN32
+	GetLocalTime(result);
+#else
+	time_t const seconds = time(NULL);
+	struct tm local;
+	localtime_r(&seconds, &local);
+	result->wYear = (WORD)(local.tm_year + 1900);
+	result->wMonth = (WORD)(local.tm_mon + 1);
+	result->wDayOfWeek = (WORD)local.tm_wday;
+	result->wDay = (WORD)local.tm_mday;
+	result->wHour = (WORD)local.tm_hour;
+	result->wMinute = (WORD)local.tm_min;
+	result->wSecond = (WORD)local.tm_sec;
+	result->wMilliseconds = 0;
+#endif
+}
+
+/// The report records the x87 control word so two machines can be compared. Nothing outside
+/// x86 has one, so the report says zero rather than inventing a reading.
+static unsigned Fetch_FPU_Control_Word(void)
+{
+#ifdef _WIN32
+	return((unsigned)_controlfp(0, 0));
+#else
+	return(0);
+#endif
+}
+
+static DWORD Fetch_Last_Error(void)
+{
+#ifdef _WIN32
+	return(GetLastError());
+#else
+	return((DWORD)errno);
+#endif
+}
+
+
 
 namespace {
 	int LastReportFrame = -1;
@@ -197,7 +243,7 @@ void Print_CRCs(EventClass const * events, int count, unsigned const * crc_ring,
 	char const * debug_dir = Debug_Directory();
 	if (debug_dir != NULL && debug_dir[0] != '\0') {
 		SYSTEMTIME now;
-		GetLocalTime(&now);
+		Fetch_Local_Time(&now);
 		Delete_Files_Older_Than(debug_dir, "SYNC_*.LOG", SYNC_REPORT_MAX_AGE_DAYS);
 		snprintf(filename, sizeof(filename), "%s\\SYNC_H%d_%02u-%02u-%04u_%02u-%02u-%02u_F%d.LOG",
 			debug_dir, PlayerPtr->HeapID,
@@ -211,7 +257,7 @@ void Print_CRCs(EventClass const * events, int count, unsigned const * crc_ring,
 
 	fp = fopen(filename,"wt");
 	if (fp==NULL) {
-		DWORD const error = GetLastError();
+		DWORD const error = Fetch_Last_Error();
 		DebugString("Failed to open the out-of-sync report %s. Error %d - %s\n", filename, error, Last_Error_Text(error));
 		return;
 	}
@@ -234,7 +280,7 @@ void Print_CRCs(EventClass const * events, int count, unsigned const * crc_ring,
 	}
 	fprintf(fp, "Seed: %08x\n", Seed);
 	fprintf(fp, "Session type: %d\n", Session.Type);
-	fprintf(fp, "FPU control word: %x\n", _controlfp(0, 0));
+	fprintf(fp, "FPU control word: %x\n", Fetch_FPU_Control_Word());
 
 	int cpu_type = PROC_PENTIUM_PRO;
 	char vendor[32];

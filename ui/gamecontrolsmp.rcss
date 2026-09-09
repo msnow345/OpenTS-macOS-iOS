@@ -1,0 +1,78 @@
+/* The game controls shown during a local game. Geometry from the IDD_OPT_CTRL_GAME_MP
+   template, converted at 1.5 pixels across and 1.625 down. */
+
+/* 292 x 175 dialog units, so 438 x 284.375 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -219dp;
+	margin-top: -142.1875dp;
+
+	width: 434dp;
+	height: 280.375dp;
+}
+
+/* Three track bars, 128 x 15 dialog units at x 90. */
+.slider
+{
+	left: 133dp;
+	width: 192dp;
+	height: 24.375dp;
+}
+
+
+#speed  { top: 17.5dp; }
+#scroll { top: 67.875dp; }
+#detail { top: 118.25dp; }
+
+/* The left captions are RTEXT, 63 x 15 at x 22; the value captions are LTEXT, 50 x 15 at
+   x 224. Both carry SS_CENTERIMAGE. */
+.caption
+{
+	height: 24.375dp;
+	line-height: 24.375dp;
+}
+
+#speedlabel, #scrolllabel, #detaillabel
+{
+	left: 31dp;
+	width: 94.5dp;
+	text-align: right;
+}
+
+.value
+{
+	left: 334dp;
+	width: 75dp;
+}
+
+#speedlabel, #speedvalue   { top: 17.5dp; }
+#scrolllabel, #scrollvalue { top: 67.875dp; }
+#detaillabel, #detailvalue { top: 118.25dp; }
+
+/* Five BS_FLAT check boxes in two columns. */
+.check
+{
+	height: 16.25dp;
+	line-height: 16.25dp;
+}
+
+#cameotext   { left: 31dp; top: 150.75dp; width: 178.5dp; }
+#actionlines { left: 31dp; top: 180dp; width: 178.5dp; }
+#edgescroll  { left: 31dp; top: 209.25dp; width: 178.5dp; }
+#tooltips    { left: 218.5dp; top: 150.75dp; width: 190.5dp; }
+#coasting    { left: 218.5dp; top: 180dp; width: 190.5dp; }
+
+/* Three buttons, all 77 x 14 dialog units on the same row. */
+.button
+{
+	top: 240.125dp;
+	width: 115.5dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}
+
+#sound    { left: 31dp; }
+#keyboard { left: 161.5dp; }
+#accept   { left: 292dp; }

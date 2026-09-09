@@ -1,0 +1,189 @@
+/* What the three network lobby documents share. Only the look lives here; each document's
+   own stylesheet carries its geometry, converted from its dialog template's units.
+
+   The palette and the raised and sunken borders are the ones ui/optionsbase.rcss
+   established for this family of dialogs. The three templates are all 426 x 240 dialog
+   units, the same as IDD_SKIRMISH, so the conversion is the same 1.5 pixels across and
+   1.625 down.
+
+   The lobby is list heavy: the game list, the player list and the message log are all
+   scrolling containers, and a scrolling container gives its children no width to be a
+   proportion of, so every row here states its own. */
+
+/* The chat and system message log, which the templates give a LBS_NOSEL list box. A line
+   is kept whole in the model and wrapped here, which is what _DrawMessage did to the width
+   of the list box it was handed. */
+.log
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+
+	background-color: #000000b4;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.log .line
+{
+	display: block;
+	box-sizing: border-box;
+	padding: 0dp 2dp;
+	line-height: 14dp;
+	color: #70ff00;
+}
+
+/* The player list's own columns. The two setup dialogs register them with OD_ADDCOLUMN at
+   widths 45, 25 and 5, and the item's own string is column zero. */
+.users .row
+{
+	position: relative;
+	height: 16dp;
+	line-height: 16dp;
+	padding: 0dp;
+}
+
+.users .name
+{
+	display: block;
+	position: absolute;
+	left: 2dp;
+	top: 0dp;
+	width: 108dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.users .side
+{
+	display: block;
+	position: absolute;
+	left: 112dp;
+	top: 0dp;
+	width: 37dp;
+	white-space: nowrap;
+	overflow: hidden;
+	color: #70ff00;
+}
+
+/* The host and accepted markers, which the list drew as the wolhost.pcx and wolacpt.pcx
+   surfaces. PCX decoding is not here yet, so the marker is a character in the same column
+   the surface stood in. */
+.users .mark
+{
+	display: block;
+	position: absolute;
+	left: 152dp;
+	top: 0dp;
+	width: 20dp;
+	text-align: center;
+	color: #70ff00;
+}
+
+/* The chat entry, where the templates put an EDITTEXT. It states a width, because a field
+   with none formats no line and RmlUi's End key then moves the caret to the start of an
+   empty line rather than to the end of the value. */
+.field
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	white-space: nowrap;
+	overflow: hidden;
+	padding: 0dp 4dp;
+
+	font-family: LatoLatin;
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
+}
+
+.field:focus { background-color: #000000b4; }
+
+/* A CBS_DROPDOWNLIST combo, sized the way ownrdraw.cpp sizes one: the item height, which is
+   the 14 pixel dialog font plus two, inside a two pixel border. The template's own height is
+   how far the list drops. */
+.combo
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	height: 20dp;
+
+	color: #70ff00;
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
+}
+
+.combo selectvalue
+{
+	width: auto;
+	margin-right: 16dp;
+	height: 16dp;
+	line-height: 16dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.combo selectarrow
+{
+	width: 16dp;
+	height: 16dp;
+
+	decorator: image(dnarrowr.pcx);
+}
+
+.combo selectbox
+{
+	width: 114dp;
+	overflow-y: auto;
+
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
+}
+
+.combo selectbox option
+{
+	width: auto;
+	height: 18dp;
+	line-height: 18dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	color: #70ff00;
+}
+
+.combo selectbox option:hover { color: #70ff00; }
+.combo selectbox option:checked { background-color: #225061; }
+
+/* The preview frame, a GROUPBOX 126 x 73 dialog units at 281, 138 on both setup templates.
+   The picture inside it is drawn by the screen and reaches the document through the
+   <surface> element, which takes its size from the provider. */
+.previewframe
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 419.5dp;
+	top: 222.25dp;
+	width: 189dp;
+	height: 118.625dp;
+
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
+}
+
+.previewframe surface
+{
+	display: block;
+	position: absolute;
+	left: 0dp;
+	top: 0dp;
+}
+
+/* A caption the template writes right aligned, which every track bar label is. */
+.rcaption { text-align: right; }

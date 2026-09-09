@@ -36,6 +36,7 @@
 #include "wwfile.h"
 
 #include <cstring>
+#include <cstddef>
 
 #pragma pack(push,1)
 struct RGB {
@@ -66,6 +67,13 @@ struct PCX_HEADER
 	char	filler[54];
 };
 #pragma pack(pop)
+
+static_assert(sizeof(RGB) == 3, "PCX palette entry layout changed");
+static_assert(sizeof(PCX_HEADER) == 128, "PCX file header layout changed");
+static_assert(offsetof(PCX_HEADER, x) == 4, "PCX file header layout changed");
+static_assert(offsetof(PCX_HEADER, ega_palette) == 16, "PCX file header layout changed");
+static_assert(offsetof(PCX_HEADER, byte_per_line) == 66, "PCX file header layout changed");
+static_assert(offsetof(PCX_HEADER, filler) == 74, "PCX file header layout changed");
 
 bool Read_PCX_Size(FileClass & file, int & width, int & height);
 Surface * Read_PCX_File(FileClass & file_handle, PaletteClass * palette=NULL, void * buff=NULL, int size=0);

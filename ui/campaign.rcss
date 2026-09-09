@@ -1,0 +1,78 @@
+/* The campaign choice. Geometry from the IDD_CAMPAIGN template, converted from dialog units
+   at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625 down, with a
+   child's offset taken from the panel's content box and the panel's declared size taken
+   inside its own border. */
+
+/* 246 x 149 dialog units, so 369 x 242.125 pixels.
+
+   The panel is not centred vertically. Its driver moved it with
+   Move_Dialog(handle, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147), which is half the
+   frame height less 53, so it sits 53 dp above the middle whatever the frame height is. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -184.5dp;
+	margin-top: -53dp;
+
+	width: 365dp;
+	height: 238.125dp;
+}
+
+/* CTEXT with SS_CENTERIMAGE, 206 x 10 dialog units at 22, 12. */
+#question
+{
+	left: 31dp;
+	top: 17.5dp;
+	width: 309dp;
+	height: 16.25dp;
+	line-height: 16.25dp;
+	text-align: center;
+}
+
+/* The campaign list, 206 x 51 dialog units at 22, 28. The template draws it with NOT
+   WS_BORDER, so it has none. */
+#campaignlist
+{
+	left: 31dp;
+	top: 43.5dp;
+	width: 309dp;
+	height: 82.875dp;
+}
+
+/* A row spans the list less its scrollbar. */
+#campaignlist .row { width: 297dp; }
+
+/* The left caption is a static with SS_LEFTNOWORDWRAP and SS_CENTERIMAGE, 136 x 15 dialog
+   units at 22, 84; the value beside it is RTEXT, 66 x 15 at 162, 84. */
+.caption
+{
+	height: 24.375dp;
+	line-height: 24.375dp;
+}
+
+#difficultylabel { left: 31dp; top: 134.5dp; width: 204dp; }
+#difficultyvalue { left: 241dp; top: 134.5dp; width: 99dp; text-align: right; }
+
+/* The difficulty track bar, 206 x 15 dialog units at 22, 98. TBS_NOTICKS, so the bar is a
+   plain groove with a thumb. */
+#difficulty
+{
+	left: 31dp;
+	top: 157.25dp;
+	width: 309dp;
+	height: 24.375dp;
+}
+
+
+/* OK and Cancel, both 50 x 16 dialog units at y 121. */
+.button
+{
+	top: 194.625dp;
+	width: 75dp;
+	height: 26dp;
+	line-height: 26dp;
+}
+
+#ok     { left: 179.5dp; }
+#cancel { left: 265dp; }

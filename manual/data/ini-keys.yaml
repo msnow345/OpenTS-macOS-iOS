@@ -13123,10 +13123,10 @@ Locomotor:
     section:
       kind: identifier
       source: object-type
-    value_type: Locomotor CLSID
+    value_type: classid
     status: generated
     _provenance:
-      default_candidate: the Teleport locomotor
+      default_candidate: null
       declared_in: TechnoTypeClass
       member: Locomotor
       source: code/techtype.cpp

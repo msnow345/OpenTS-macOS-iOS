@@ -671,3 +671,7 @@ struct KeyboardClass : public WWKeyboardClass
 	int Mouse_X(void) {return(Get_Mouse_X());};
 	int Mouse_Y(void) {return(Get_Mouse_Y());};
 };
+
+
+// Spells a key, with its modifiers, into a human readable name.
+int Build_Hotkey_String(KeyNumType key, char * buffer);

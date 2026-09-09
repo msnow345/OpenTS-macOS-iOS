@@ -116,6 +116,17 @@
 // Single precision pi, for the float paths that would otherwise round M_PI at every use.
 #define M_FPI 3.141592654f
 
+#endif
+
+// Spellings no C library supplies, so they are needed whatever the compiler.
+#ifndef M_SQRT_2
+#define M_SQRT_2    0.707106781186547524401
+#endif
+#ifndef M_FPI
+#define M_FPI 3.141592654f
+#endif
+
+
 /*
 **	Macros to convert between degrees and radians
 */
@@ -133,7 +144,4 @@
 
 #ifndef DEG_TO_RADF
 #define DEG_TO_RADF(x)	(((float)x)*M_PI/180.0f)
-#endif
-
-
 #endif

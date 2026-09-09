@@ -16,39 +16,34 @@
 
 class HouseClass;
 
-int ODMessageBox(const char *text, int type, bool (*callback)(void), bool large = false);
-INT_PTR CALLBACK ODMessageBox_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+int ODMessageBox(const char *text, int type, bool (*callback)(void));
 
 bool Set_Scenario_Info_From_Index(int index);
 void Commit_Session_Specials(void);
 void PregameSetup(void);
-void Update_Network_Dialog_Preview(HWND win);
+void Rebuild_Network_Map_Preview(void);
+
+// Runs the map selection screen and reports whether the player settled on a map. This is
+// the entry a screen uses, because a presenter names no window.
+bool Pick_Scenario_Screen(void);
 void Receive_Random_Map_Preview(void);
 void Send_Preview_To_Guests(void);
 int CountAliveTeams(HouseClass * house);
 
 int RandomMapWaypointCount(int index);
-int Scenario_Dialog(HWND hWndParent);
 
 unsigned int Wstring_Hash(Wstring & string);
 
 
 void __cdecl PMessagePrintf(int color, const char * fmt, ...);
-void __cdecl SMessagePrintf(int color, const char * fmt, ...);
 
-void _DrawMessage(int color, const char * msg, HWND window);
-void _SetMessageString(HWND window,  const char * msg, int len, int color);
 
-HWND GameoptWindow(void);
 
 void PumpGameopts(bool, bool = false);
 bool DecodePubGameopt(char * options, char * name);
 void SendPublicGameopts(char const * options);
 void SendPrivateGameopts(char const * player, char const * options);
-void DisplayGameopts(HWND window, BOOL initialize);
 
-void LBSaveSelections(HWND win, Dictionary<Wstring,bool> & lbdict);
-void LBRestoreSelections(HWND win, Dictionary<Wstring,bool> & lbdict);
 
 char * CalcRandomMapDigest(void);
 int CreateRandomMap(void);

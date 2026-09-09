@@ -38,6 +38,8 @@
 #include "rect.h"
 #include "rgb.h"
 
+#include <cstddef>
+
 
 /*
 **	This is the header that appears at the beginning of the ShapeSet file. The header
@@ -168,6 +170,13 @@ class ShapeSet
 				void Set_Size(short size) {Size = size;}
 		};
 
+		// A shape file is cast straight onto this class, so the frame records that follow the
+		// header keep their file widths and offsets.
+		static_assert(sizeof(ShapeRecord) == 24, "Shape frame record layout changed");
+		static_assert(offsetof(ShapeRecord, Width) == 4, "Shape frame record layout changed");
+		static_assert(offsetof(ShapeRecord, Color) == 12, "Shape frame record layout changed");
+		static_assert(offsetof(ShapeRecord, Data) == 20, "Shape frame record layout changed");
+
 		bool Is_Shape_Index_Valid(int index) const {return(unsigned(index) < unsigned(Count));}
 
 		ShapeRecord const * Fetch_Record_Pointer(int shape) const
@@ -186,6 +195,9 @@ class ShapeSet
 		ShapeSet const & operator = (ShapeSet const & rvalue);
 };
 #pragma pack(pop)
+
+// A shape file is cast straight onto this header, so its four fields keep their file widths.
+static_assert(sizeof(ShapeSet) == 8, "Shape file header layout changed");
 
 
 /***********************************************************************************************

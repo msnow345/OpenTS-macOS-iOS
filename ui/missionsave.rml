@@ -1,0 +1,29 @@
+<rml>
+<head>
+	<title>Save mission</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="savebrowser.rcss"/>
+	<link type="text/rcss" href="missionsave.rcss"/>
+</head>
+<body data-model="missionsave" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="title">SAVE</div>
+
+		<div class="caption" id="descriptionhead">Description</div>
+		<div class="caption" id="timehead">Time Stamp</div>
+
+		<div id="games" class="list">
+			<div class="row" data-for="entry : entries" data-class-picked="it_index == selected" data-event-click="pick(it_index)">
+				<div class="description">{{ entry.description }}</div>
+				<div class="date">{{ entry.date }}</div>
+				<div class="time">{{ entry.time }}</div>
+			</div>
+		</div>
+
+		<input type="text" class="field" id="description" maxlength="79" data-attr-value="description" data-event-change="describe()"/>
+
+		<div class="button" id="accept" data-class-disabled="!canact" data-event-click="press('accept')">Save</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

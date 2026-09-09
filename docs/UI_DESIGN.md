@@ -1,30 +1,111 @@
 # UI system design
 
-Status: proposal. Nothing here is implemented, built, or measured. Source
-inspection and upstream documentation inform it. This page owns the proposed
-UI architecture and migration; [Building OpenTS](BUILDING.md) owns build
-support and [Project direction](DIRECTION.md) the wider architecture.
+Status: in progress. Steps 1 to 13 of the migration plan have landed. OwnerDraw
+is gone; step 14, the sidebar, is the only step left.
+Everything outside the migration plan remains a proposal informed by source
+inspection and upstream documentation.
+This page owns the UI architecture and migration; [Building
+OpenTS](BUILDING.md) owns build support and [Project
+direction](DIRECTION.md) the wider architecture.
+
+What step 2 left for later, inside its own files: the renderer keeps compiled
+geometry's indices in a static buffer but streams its vertices through a
+transient one, because the program the overlays share is bgfx's embedded imgui
+shader, whose vertex stage multiplies by `u_viewProj` alone and so ignores the
+per-draw model transform; a program with a model transform restores the static
+vertex buffer the renderer table describes. `uitexture.cpp` read PNG and TGA
+only until the dialog artwork needed PCX and SHP, and the cursor and clipboard
+requests are recorded rather than acted on. Step 6
+brought the `<surface>` element, which is the other route to game art: pixels
+the engine draws rather than a file a document names.
+
+Step 3 exercised the rest. `UI_Run_Modal` now runs a screen, and the input hook
+gained the modal scope its rules always described: while an exclusive document
+is shown it takes every mouse and key message, as `IgnoreInput` does around a
+legacy dialog, and the keyboard queue is cleared as the scope opens and closes.
+The version screen needed no name table, because it composes its own text and
+takes its one string-table entry through `Fetch_String`, which already yields
+UTF-8 on a build whose active code page is 65001; a document that writes
+`[[TXT_OK]]` waited for the name table step 4 brought. The screen drew its
+panel rather than blitting `dbak6440.pcx` until PCX decoding arrived with the rest of the
+game art; it blits it now.
+
+Step 4 put the runner under load. `UI_Run_Modal` runs the game as well as a
+screen: in a network session it steps `Main_Loop` between passes and reports a
+session that ended underneath the box, which is what `WWMessageBox::Process`
+has always had through `OwnerDraw::Dialog_Message_Handler`. A presenter gained
+`Service`, the maintenance a dialog driver ran on every pass of its own loop,
+and the shell drops the tick that `Main_Loop` and `Call_Back` make from inside
+a runner, so a pass updates the context once. The `[[NAME]]` table arrived with
+it, generated from `language.rc` by the script that already builds the portable
+string table.
+
+Step 5 split a screen in two. `UISoundPresenterClass` holds the sound screen's
+whole behavior and both views drive it: the dialog procedure now reads the
+view-model and queues intents that its driver executes after the pump, and the
+RmlUi documents queue the same intents from their own events. Two facts the
+extraction fixed in place: the screen picks its template from `GameActive`
+rather than from the menu that opened it, and it has no cancel, because the
+templates name no cancel button and the dialog procedure ignored the `IDCANCEL`
+that Escape produces. A form control's value is bound one way, with the view
+dropping a change that matches the value it already holds, so setting a slider
+from the model cannot preview a volume the player did not move; that is what
+`DialogInitialized` did for `WM_HSCROLL`. Two live documents may not share a
+data-model name, which `Context::CreateDataModel` refuses; a second screen of
+the same kind therefore fails preparation rather than opening.
+
+Step 6 put engine-drawn pixels in a document. The `<surface>` element resolves
+a provider by name at render time, takes its intrinsic size from that provider
+scaled by the document's density-independent pixel ratio, and uploads only
+when the provider's generation moves, so a document holding a surface costs a
+quad per present while nothing changes. Two boxes without a loop of their own
+gained the paint the dialogs got from `SendMessage(WM_PAINT)`: the wait box and
+the progress box are presented as they open, unpaced, because the operation
+they stand over may never pump again. Screens of different kinds do coexist,
+which the progress box opening over the wait box shows; only a second screen of
+the same kind is refused, and the coexistence rule still forbids a legacy
+dialog underneath either.
+
+Step 8 made a suspended runner possible. `UI_Run_Modal` returns when the screen
+asks to be stepped aside as well as when it has a result, because a screen that
+opens another one of a different kind has no result yet and its owner has to
+hide it, run the other, and show it again. Without that the in-game options
+screen's save and load browsers, and the main menu's version screen, could
+never be reached through an RmlUi view.
+
+Step 7 gave a view the ability to step aside. `UIRmlViewClass` gained `Hide`
+and `Show`, which take a document off the screen and put it back with the modal
+scope it had, because the in-game options screen opens the save and load
+browsers where it is drawn and the legacy dialog got out of their way with
+`ShowWindow`. A screen family whose members are opened one after another
+resets `IsClosing` and the held result before each pass, since a close marks
+the presenter closing and a marked presenter drains nothing.
 
 ## Where the UI stands today
 
-OpenTS has four UI systems plus a few bespoke screens. They share the software
-frame and the keyboard queue but nothing else.
+OpenTS has three UI systems plus a few bespoke screens. They share the software
+frame and the keyboard queue but nothing else. OwnerDraw was the fourth and step
+13 deleted it. What follows describes what it was, because the screens that
+replaced it were converted from its templates and inherit its geometry.
 
 | System | Files | Used by | Draws into |
 | --- | --- | --- | --- |
-| OwnerDraw | `ownrdraw.cpp` (7,009 lines), `windlg.cpp`, `msgloop.cpp`, 53 templates in `language.rc` | main menu, options, skirmish, load and save, lobbies, desync, map generator, WDT, message boxes, progress wait | `AlternateSurface`, then `VisibleSurface` |
 | GadgetClass | `gadget.cpp`, `control.cpp`, `toggle.cpp`, `list.cpp`, `edit.cpp`, `slider.cpp`, ... | sidebar, radar, tactical buttons, message list, checklist, mission restate | `LogicalSurface` (`SidebarSurface`, `HiddenSurface`) |
 | MSEngine | `msengine.cpp`, `msanim.cpp`, `grphmenu.cpp` | graphic menu, map select, score screens, WDT screens, credits | `AlternateSurface`, `HiddenSurface` |
 | Bespoke | `progress.cpp`, `score.cpp`, `movies.cpp` | loading screen, score, movies | `HiddenSurface` |
 
-OwnerDraw is the largest and the least portable. Each dialog is a real Win32
+OwnerDraw was the largest and the least portable. Each dialog was a real Win32
 child window of `MainWindow`, created from a resource template by
 `CreateDialogIndirectParam`. Every control is subclassed; its window procedure
 paints into `AlternateSurface` and blits the result into `VisibleSurface`
-itself. `Draw_Dialog_Back` composes `dbak6440.pcx`, the side bars, and sixteen
-glow passes into a cached surface and assumes 640x400 art centered on the
-screen. Text is GDI "MS Sans Serif" at 14 and 12 pixels through `WS_Get_Font`,
-plus the `dlgsys` remap sheets for list text. Tooltips save and restore the
+itself. `Draw_Dialog_Back` composes `dbak6440.pcx`, the two side bars, the four
+`bar_` corner pieces and sixteen glow passes into a cached surface and assumes
+640x400 art centered on the screen. Buttons, check boxes, static captions, tabs
+and combo boxes draw their text from the `dlgsys` remap sheets; list boxes,
+tooltips and the hotkey control use GDI "MS Sans Serif" at 14 and 12 pixels
+through `WS_Get_Font`. Text is `RGB(112,255,0)` and `RGB(144,144,144)` when
+disabled; a control that stands over the wallpaper shows it blended 180/255
+toward black. Tooltips save and restore the
 pixels under them. `Heal_Dialog_Controls` forces every child window to repaint
 after each `Update_Visible_Surface`, so a dialog repaints once per game frame.
 The templates hold 322 `CONTROL` entries: 103 owner-draw buttons, 40 track
@@ -90,8 +171,10 @@ Facts elsewhere in the tree that bind the design:
   `Slid`, and `LastSlid` beside `TopIndex` and `Buildables`.
 - `SidebarClass::Reposition_Sidebar` registers the cameo tooltips itself,
   independent of gadget registration; `CCToolTip` paints into game surfaces.
-- `ProgressScreenClass::Set_Progress_Percent` sends `WM_PAINT` synchronously,
-  and `Display_Progress` plays the milestone sound from the draw path.
+- `ProgressScreenClass::Set_Progress_Percent` sends `WM_PAINT` synchronously.
+  `Display_Progress` used to print the loading message, play its sound and
+  clamp the gauge from inside the draw path; step 6 moved all three onto the
+  progress-changed path.
 
 Three consequences shape the design. A new UI must fit the blocking-loop
 shape, or every driver has to be rewritten in the same change; the loop shape
@@ -182,6 +265,7 @@ today.
 | `uirender.cpp` | RmlUi render interface and the ImGui renderer on bgfx; the only UI file that includes bgfx |
 | `uisystem.cpp` | RmlUi system interface: time, logging to `DebugString`, cursor, clipboard, string translation |
 | `uifile.cpp` | RmlUi file interface over `CCFileClass` |
+| `uifont.cpp` | RmlUi font engine: the `dlgsys` bitmap sheets, delegating every other family to RmlUi's own engine |
 | `uitexture.cpp` | image decoding, SHP and PCX conversion, surface-backed textures |
 | `uiscreen.h`, `uirmlview.h` | presenter, intent, and result contracts; the RmlUi view base |
 | `uidev.cpp` | ImGui context and developer overlays |
@@ -213,6 +297,11 @@ destination size, so UI coordinates are physical pixels relative to the
 frame's top-left corner. Draw order is the software frame and its scaling
 passes, RmlUi documents in the context's document order, ImGui, then the
 hardware cursor.
+
+Every overlay texture is point sampled. The documents draw the game's own
+640x400-era artwork and its bitmap font magnified by the frame scale, which at
+a 640x400 frame in a 3456x2160 window is 5.4x; linear filtering softens both.
+The art and the text share one sampler state so they cannot disagree.
 
 One RmlUi context holds every document. A second context is justified only by
 an independent coordinate space or lifetime. Data-model names are unique
@@ -508,26 +597,75 @@ required document, style, or font fails preparation with the name reported.
 
 Images resolve by extension. PNG and TGA decode through `bimg_decode`, which
 is already vendored and needs only linking. PCX goes through `Read_PCX_File`
-with the palette named in the source string. SHP frames use a
-`name.shp#frame` form with an optional palette, decoded to RGBA with index
-zero transparent. Surfaces the engine draws at runtime (the map preview, the
+and uses the palette the file carries, or the one a `name.pcx#palette.pal`
+source names instead. SHP frames use a `name.shp#frame` form, with
+`name.shp#frame#palette.pal` naming a palette and `GamePalette` standing in
+when none is named, decoded to RGBA with index zero transparent. A `.pal` file
+holds six-bit guns, so its values are scaled the way `init.cpp` scales the
+palettes it loads. A source whose file cannot be read leaves the element with
+whatever its background and border draw, which is why the dialog panel and
+button in `ui/optionsbase.rcss` keep a flat colour under their artwork. Surfaces the engine draws at runtime (the map preview, the
 desync host icons, a progress bar) reach a document through a `<surface>`
 custom element bound to a named provider; the shell re-uploads the texture
-when the provider marks it dirty. Original game art stays local runtime data
+when the provider marks it dirty. A document writes `<surface src="name"/>`
+and the name is resolved at render time, so a document may be shown before the
+screen that owns its pixels registers them and an element whose provider went
+away draws nothing rather than failing to lay out. An element with no width or
+height of its own takes the provider's extents, scaled by the document's
+density-independent pixel ratio, because a provider's pixels are game logical
+units. `UISurfaceBufferClass` is the provider a screen wants when the engine
+already knows how to draw the thing: it owns a 16-bit surface the screen draws
+into with the engine's ordinary calls, and converts it to premultiplied RGBA
+with a color key for the mask. Original game art stays local runtime data
 outside version control; documents receive artwork identities, never engine
-pointers.
+pointers, and a presenter never holds a provider.
 
 ### Fonts
 
-Fonts use RmlUi's FreeType engine with an OFL sans-serif shipped in `ui/`.
-The legacy dialogs already draw with a system TrueType face, so this changes
-nothing about their look. RmlUi uses one font engine per process, installed
-with `SetFontEngineInterface` before `Rml::Initialise`, and the built-in
-engine is not reachable from a custom one. In-game text that must match the
-bitmap fonts, needed only by the post-migration sidebar view, has two routes:
-convert the game's `.fnt` faces to TrueType at build time, or write a bitmap
-engine over `WWFontClass` data as RmlUi's `bitmap_font` sample does and
-commit every document to bitmap faces. That choice waits for that view.
+Documents use RmlUi's FreeType engine with an OFL sans-serif shipped in
+`ui/`. RmlUi installs one font engine per process, with
+`SetFontEngineInterface` before `Rml::Initialise`, so `uifont.cpp` derives
+from `FontEngineInterfaceDefault` rather than replacing it: it answers for
+one family and hands every other one to the FreeType engine untouched. That
+header lives in RmlUi's `Source` tree rather than its `Include` tree, so the
+build puts that one path on that one file.
+
+The family it answers for is `dlgsys`, the remap sheets the dialogs drew
+their buttons, statics, tabs, check boxes, combo boxes and track bar values
+from. `drawhelp.cpp` owns the sheets: `OD_Font_Metrics` probes the cell size
+and every character's inked width out of the artwork, and `OD_Font_Sheet`
+composes the coverage sheet and the palette-shifted index sheet into
+premultiplied RGBA for one text colour. `uifont.cpp` uploads that as one
+texture per colour and emits a quad per glyph. A document states the height
+of a glyph cell as its `font-size`, so `font-size: 18dp` against the 14 by
+18 cells of `dlgsys` draws one sheet pixel per authored pixel. The sheets
+give inked extents rather than typographic ones, so the face reports the
+whole glyph as ascent and nothing as descent, which makes RmlUi's half
+leading centre the ink on the line box the way
+`OD_DRAW_CHAR_FLAG_VERTICAL_CENTER` centred it on a control.
+
+`ui/optionsbase.rcss` names which controls draw from it, and every shipped
+document links that sheet, so the split is stated once: a push button, a check
+box, a static caption, a tab, a combo box and a track bar's value take
+`dlgsys`; a list box and its rows, an edit field, a message log and the hotkey
+capture control keep the shipped face, which is what the dialogs did. Eight
+documents add a rule of their own for a static the templates left without a
+class. A static caption does not clip, because a glyph cell is 18dp and the
+templates give a static as little as 13dp, while `StaticCtrlProc` had no such
+limit; the two captions whose text comes from the game rather than from a
+template ask for the clip back.
+
+A font engine gives its render resources back in `FontEngineInterface::Shutdown`,
+which `Rml::Shutdown` calls while the render managers are still alive, and not
+in `ReleaseFontResources`. That second method is the entry point behind
+`Rml::ReleaseFontResources`, which an application calls to collect memory; no
+part of shutdown reaches it. Holding a `CallbackTexture` past
+`FontEngineInterface::Shutdown` releases it against a destroyed texture
+database.
+
+In-game text that must match the `WWFontClass` faces, needed only by the
+post-migration sidebar view, is a separate problem: those are a different
+format and this engine does not read them.
 
 ### Strings
 
@@ -544,21 +682,20 @@ byte, which bounds in-game text to the range the transition supports.
 
 Documents reference strings by name: `[[TXT_OK]]`. RmlUi passes every text
 node through `SystemInterface::TranslateString`, where the shell maps the
-name to its identifier. The names are `#define`s in `language.h`, so a CMake
-script generates the name table into the build's generated directory; no
-hand-maintained list. Dynamic text, including player and map names and error
+name to its identifier. `cmake/StringTable.cmake` writes that table into the
+build's generated directory from the same `language.rc` it reads for the
+portable string table, so the resource script stays the only place a name and a
+number are paired and no list is hand-maintained. A name the table does not
+carry is left in the text rather than replaced with nothing. Dynamic text, including player and map names and error
 strings, is inserted as text, never as markup.
 
 ## Configuration
 
-One transitional key in `SUN.INI`, named by the change that introduces it,
-returns every migrated screen to its legacy view while that view exists.
-Defaults are decided per screen family in code, so a family switches to RmlUi
-by default when its evidence is in without a key per family. The key is
-deleted with OwnerDraw. There is no build option: RmlUi and ImGui are always
-compiled and linked, so one configuration matrix carries the evidence.
-`Options` reads and writes the key where it handles `[Video]` today, and the
-key gets a manual page. A sidebar view key follows the sidebar view.
+`LegacyDialogs` under `[Options]` in `SUN.INI` returned every migrated screen to
+its legacy view while both existed. Step 3 named it; step 13 deleted it with
+OwnerDraw, along with `UI_Use_Rml` and its manual page. There is no build
+option: RmlUi and ImGui are always compiled and linked, so one configuration
+matrix carries the evidence. A sidebar view key follows the sidebar view.
 
 ## Dear ImGui
 
@@ -626,7 +763,11 @@ Invariants the split preserves:
 Progress tracking, clamping, milestone text and sound, and the readiness
 queries that `scenario.cpp` consumes move out of the draw path into shared
 behavior, so a repaint cannot repeat a milestone sound and a hidden
-presentation cannot lose one. The screen exposes phase, progress, status, and
+presentation cannot lose one. Step 6 did the move:
+`ProgressScreenClass::Progress_Changed` runs the clamp and
+`Announce_Milestones` where the gauge moves, `Display_Progress` draws and
+nothing else, and the loading screen announces its first message itself rather
+than getting it from a repaint. The screen exposes phase, progress, status, and
 the operations the loader supports; no cancellation is added to a loader that
 cannot cancel. Loading stays on its thread with explicit cooperative service
 points that drain nothing unrelated while scenario objects are being
@@ -694,34 +835,280 @@ text beyond an ASCII test document.
    close; repeated open and close leaks nothing.
 3. **Version dialog** (S, leaf). The integration pilot: fonts, clipping,
    mapping, dismissal by mouse and keyboard, focus return, UI-only redraw,
-   resize, preparation failure. The main menu keeps hiding around it.
+   resize, preparation failure. The main menu keeps hiding around it. Landed:
+   `code/ui/uiversion.cpp` with `ui/version.rml` and `ui/version.rcss`, the
+   geometry converted from the `IDD_VERSION` template's dialog units.
 4. **Modal runner and message boxes** (M, leaf). `WWMessageBox::Process` and
    `OwnerDraw::Custom_Message_Box` behind the kill switch, preserving button
    order, default button, Escape, the no-button case, return mappings, and
    session-end interruption. Evidence includes the multiplayer cases where
-   `Main_Loop` runs under the box.
+   `Main_Loop` runs under the box. Landed: `code/ui/uimessagebox.cpp` with
+   `ui/messagebox.rml` and `ui/waitbox.rml`, the geometry converted from the
+   `IDD_MSGBOX_3` and `IDD_MSGBOX_1` templates. The wait box is not modal and
+   answers to a handle no window can have, because its callers hold one and
+   hand it back to `Display_Dialog`, `Set_Custom_Message_Box_Text` and
+   `End_Dialog`; the handle goes with OwnerDraw.
 5. **Sound** (M, two changes). The behavior pilot: volumes, eligible themes,
    selection, availability, shuffle and repeat, immediate previews, play and
-   stop, both templates, frontend and in-game service paths.
+   stop, both templates, frontend and in-game service paths. Landed:
+   `code/ui/uisound.{h,cpp}` with `ui/sound.rml` and `ui/soundlite.rml`, the
+   geometry converted from the `IDD_SOUND_OPTIONS_DIALOG` and
+   `IDD_SOUND_OPTIONS_DIALOG_LITE` templates. A list row states its width
+   rather than taking it from the list, because a scrolling container gives its
+   children no width to be a proportion of.
 6. **Progress and wait** (S, leaf). `IDD_PROGRESS_WAIT`, the saving and
    loading boxes in `savemgr.cpp`, the `<surface>` element, milestone effects
-   moved out of drawing.
+   moved out of drawing. Landed: `code/ui/uiprogress.{h,cpp}` with
+   `ui/progresswait.rml` and `ui/progresswait.rcss`, the geometry converted
+   from the `IDD_PROGRESS_WAIT` template; `code/ui/uisurface.{h,cpp}` with the
+   element and the provider contract; and the milestone move in
+   `code/progress.cpp`. The saving and loading boxes reach the wait box step 4
+   built, through `OwnerDraw::Custom_Message_Box`, and needed the paint at open
+   rather than a screen of their own.
 7. **Options family** (L, two changes each). Main options, display with its
    timed rollback, game controls (three variants), keyboard with the hotkey
    capture control, the display-mode confirmation, abort and surrender.
-   Evidence: settings round-trip through `SUN.INI` unchanged.
+   Evidence: settings round-trip through `SUN.INI` unchanged. Every screen in
+   the family is extracted: `code/ui/uigameoptions.{h,cpp}`,
+   `code/ui/uiabort.{h,cpp}`, `code/ui/uigamecontrols.{h,cpp}`,
+   `code/ui/uimainoptions.{h,cpp}`, `code/ui/uidisplayoptions.{h,cpp}`,
+   `code/ui/uidisplayconfirm.{h,cpp}` and `code/ui/uikeyboard.{h,cpp}`, and each
+   has its RmlUi view: `ui/options.rml`, `ui/gameoptions.rml` with
+   its `mp` and `wol` variants, `ui/abort.rml`, `ui/gamecontrols.rml` with its
+   `mp` and `wol` variants, `ui/display.rml`, `ui/modeconfirm.rml` and
+   `ui/keyboard.rml`, sharing
+   the family's look through `ui/optionsbase.rcss` and each carrying its own
+   geometry.
+
+   The keyboard screen brought the family's two new controls. The category
+   combo is RmlUi's `select`, sized the way an owner-draw `CBS_DROPDOWNLIST` is
+   sized, from the item height `ownrdraw.cpp` sets rather than from the
+   template's dropped extent. The capture control stands where
+   `msctls_hotkey32` stood: it takes a keypress while it holds the focus and
+   builds the game's own encoding from it, and it leaves alone the keys
+   `IsDialogMessage` took from that control, so Escape and Enter still leave
+   the screen and Tab still moves the focus. Turning a keypress back into that
+   encoding needs the inverse of the shell's key table, which was a short list
+   in one direction only; it is now complete and paired, because a key nothing
+   maps is never delivered to a document at all. Step 9's save-name field wants
+   the same table.
+
+   The display screen needed the host's mode list. `EnumDisplaySettings`
+   answered nothing on this platform, so the resolution list was empty and the
+   trial and its rollback could not be reached through the screen that owns
+   them; the shim answers from the host's own enumeration now.
+
+   The mode trial's timeout is the presenter's, not a view's: the driver
+   expressed it as a posted `WM_COMMAND` carrying `WM_DESTROY`, which is two,
+   which its procedure recorded because `IDCANCEL` is also two, so the timeout
+   was a cancel spelled awkwardly. `UIDisplayConfirmPresenterClass::Service`
+   counts a `CDTimerClass<SystemTimerClass>` down from ten seconds and produces
+   the cancel itself, which is what takes an unreadable mode back.
+
+   The templates carry the button captions and the string table does not, so a
+   document repeats the template's caption where no `TXT_` name exists. That
+   leaves those captions untranslated until names are added to `language.rc`,
+   which is where the strings are owned.
 8. **Main menu family** (M). `IDD_MAIN_MENU`, campaign choice, game type,
    multiplayer game selection. The `NewMenuClass` drivers keep their loops.
-9. **Load, save, delete** (M, two changes).
+   Landed: `code/ui/uimainmenu.{h,cpp}`, `uicampaign.{h,cpp}`,
+   `uigametype.{h,cpp}` and `uimpselect.{h,cpp}` with `ui/mainmenu.rml`,
+   `ui/campaign.rml`, `ui/gametype.rml`, `ui/mpselect.rml` and
+   `ui/mpselectfs.rml`, sharing `ui/optionsbase.rcss` and each carrying its own
+   geometry. `NewMenuClass` is untouched: it is the MSEngine graphic menu.
+
+   The main menu document carries the keys its driver watched for beside the
+   buttons, because those keys belong to the screen rather than to the window it
+   was drawn in: Ctrl+V and Ctrl+Alt+C on `keydown`, and the cheat words on
+   `textinput`, since the shell's modal scope takes every key message before the
+   `KN_` queue sees it and `Keyboard->Check()` never fires again while a
+   document is shown. A character that followed a modified key is dropped, the
+   way the driver's own switch answered those combinations before its default
+   arm saw them.
+
+   A campaign row carries the campaign it stands for rather than its position,
+   because the list skips a campaign the player cannot reach. The difficulty
+   track bar needs no read-back at accept: the dialog read its slider back
+   because a keyboard or page move raised no thumb notification, and RmlUi
+   raises a change for every move. The game type screen's default arm is the
+   behavior, so anything but backing out carries on.
+
+   A view names its data model after its own document, so a variant document
+   must name its own model rather than the one the base document names; a
+   document that names another's gets no bindings and no events at all. The
+   step 7 variants had that fault and it went unseen until a click was driven
+   through one.
+9. **Load, save, delete** (M, two changes). Landed: `code/ui/uisavebrowser.{h,cpp}`
+    holds all three templates as one screen, because they differ by which controls
+    exist and by what the action button does rather than by how the list is built,
+    with `ui/missionload.rml`, `ui/missionsave.rml` and `ui/missiondelete.rml`
+    sharing `ui/savebrowser.rcss` beside `ui/optionsbase.rcss` and each carrying its
+    own geometry, converted from the `IDD_MISSION_LOAD`, `IDD_MISSION_SAVE` and
+    `IDD_MISSION_DELETE` templates.
+
+    A row's cells stand where the owner-draw list put its columns, which the three
+    dialog procedures register with `OD_ADDCOLUMN` at x 2, 255 and 315. The
+    multiplayer star is absent from the documents because it was absent from the
+    dialog: `Fill_List` sends `OD_SETCELL` at x 200, no column is registered there,
+    and `OD_SETCELL` answers -1 for a column it cannot find.
+
+    The description field states a width. RmlUi moves the caret for the End key by
+    the length of the formatted line, and a field that formats no line, because it
+    has no usable width or no font face, reports that length as zero and sends the
+    caret to the start instead. Home is unaffected, because it asks for index zero
+    outright, and so is Ctrl+End, which takes the value's own length. Step 12's map
+    generator screens want the same field.
 10. **Skirmish and map selection** (M, two changes). Includes the scenario
-    picker templates and the preview surface.
+    picker templates and the preview surface. Landed: both screens are
+    extracted, `code/ui/uiskirmish.{h,cpp}` and `code/ui/uiscenariopick.{h,cpp}`,
+    with `skirmish.cpp` and `netshare.cpp` rewired, and both have their RmlUi
+    view: `ui/skirmish.rml` and `ui/selectmap.rml` with their stylesheets beside
+    `ui/optionsbase.rcss`, converted from the `IDD_SKIRMISH` and
+    `IDD_MPLAYER_SELECT_MAP` templates. This is the step that makes a skirmish
+    reachable from the menu.
+
+    `Update_Network_Dialog_Preview` is split the way `Fill_List` was: a new
+    `Rebuild_Network_Map_Preview` owns the preview and the old name owns telling
+    a window to repaint, so a presentation that is not a window can ask for one.
+    `Pick_Scenario_Screen` is the entry a screen uses, because a presenter names
+    no window.
+
+    The preview reaches the document through the `<surface>` element step 6
+    built, with no change to the element. The view owns a `UISurfaceBufferClass`
+    the size of the template's preview frame, scales the picture into it the way
+    `MapPreviewClass::Blit_Preview` scales it into the group box, and fills the
+    letterbox with the buffer's color key; the element takes its size from that
+    provider and uploads when the provider's generation moves. The presenter
+    carries only the artwork's name.
+
+    The two screens hold previews of different sizes and the picker opens over
+    the skirmish screen, so the provider lives in `code/ui/uimappreview.{h,cpp}`
+    with its extents as constructor arguments and each screen registers under
+    its own name. A provider name is unique among live providers, so sharing one
+    would have taken the picture away when the picker closed.
+
+    A track bar's range is set before its value. A range control clamps a value
+    into the range it is holding, and the default range stops well short of what
+    the rules allow, so a value written by the data binding before the range was
+    known opened the credits bar at its minimum instead of at the rules' figure.
+    The same rule the text field learned at step 9, one control further on.
 11. **Network lobbies** (L, two changes). Host, guest, game list, the `WS_`
     stack, and `netshare.cpp` as one family; then disconnect, desync, and
-    reconnect. Packets unchanged.
-12. **Map generator and WDT** (L).
-13. **Retire OwnerDraw** (M). Delete `ownrdraw.cpp`, `windlg.cpp`, the
-    modeless dialog list, the dialog templates, the kill switch, and the
-    coexistence assertions. String tables stay.
+    reconnect. Packets unchanged. All three screens are extracted behind one
+    presenter, `code/ui/uilobby.{h,cpp}`, because they share the session's game,
+    player and chat rosters and hand the driver one answer between them, and all
+    three have their RmlUi view: `ui/gamelist.rml`, `ui/mphost.rml` and
+    `ui/mpguest.rml`, sharing `ui/lobbybase.rcss` beside `ui/optionsbase.rcss`
+    and each carrying its own geometry. The out-of-sync screen follows in
+    `code/ui/uidesync.{h,cpp}` with `ui/desynchost.rml` and `ui/desyncwait.rml`
+    sharing `ui/desyncbase.rcss`, converted from the `IDD_DESYNC_HOST` and
+    `IDD_DESYNC_WAIT` templates. The reconnect and kick-vote dialog follows in
+    `code/ui/uireconnect.{h,cpp}` with `ui/reconnect.rml`, converted from
+    `IDD_MPLAYER_DISCONNECT`. That screen has no loop of its own:
+    `Wait_For_Players` keeps servicing the network while the game is stalled, so
+    it opens the screen, services it once a pass and closes it, the way it created
+    and destroyed a modeless dialog.
+
+    A list row states its own positioning context as well as its width. The
+    out-of-sync seat list gives each row three absolutely positioned cells, and
+    without `position: relative` on the row those cells resolved against the list
+    instead, so every seat painted over the first and a two-player game listed one
+    seat. A `std::vector<std::string>` bound to a data model needs its array type
+    registered like any other; without that the binding is refused and the list
+    stays empty.
+
+    A screen answered by the network rather than by a button has to be told to
+    step aside too. `Get_Join_Responses` writes the driver's answer straight
+    into `_netresponse` for a confirmed start, a rejected join and a host
+    signing off, and none of those changes the screen the family is on, so the
+    runner held the guest's document open and the guest never entered the match
+    the host had started. The lobby records that it has been answered and
+    suspends on it, which is the same hook one cause further on.
+
+    A lobby screen changes without a result, so the runner has to be told. The
+    join protocol moves the family from the game list to the guest screen from
+    inside the presenter's service, and `UI_Run_Modal` returns only on a result
+    or a suspension, so the runner held the game list open and the guest
+    document was never reached. The family suspends when the screen it is
+    running moves, which is the hook step 8 added for a screen that steps aside.
+
+    A peer is recognised by what it says it is, not by where its packet came
+    from. Both lobby rosters keyed on the source address, so a machine whose
+    packets arrive from more than one address was admitted twice, and the second
+    entry held the color the player had asked for, so the host gave him another
+    one. A chat announcement carries its sender's identifier and the node keeps
+    it; a player is matched on the name the join path already refuses to
+    duplicate.
+
+    `Net2DisplayGameList` and `_Net2DisplayUsers` are split the way `Fill_List`
+    was: the presenter reads the rosters into the model and the old names put
+    the model on the controls. The host's accepted status is recorded with the
+    roster rather than while painting the row, because it is a fact about the
+    player rather than about the row. That split belongs above the window
+    check, not below it: a rebuild that happens only when there is a window to
+    draw into leaves a presentation that is not a window holding a stale model.
+    `PMessagePrintf` and the game-option decoder take the same split.
+
+    A document has no window, so the driver asks the presenter which of the
+    three screens it is on rather than asking for the top window. Five places
+    in the lobby's protocol asked for a window's identifier where they meant
+    the screen, the load-bearing one being the query a host must stop sending.
+
+    A screen answers its driver with a result as well as a response, because
+    the runner returns on a result; a family whose members are opened one after
+    another clears both before it shows the next screen.
+12. **Map generator and WDT** (L). Landed: `code/ui/uimapgen.{h,cpp}` holds all
+    three templates as one screen, with `ui/mapgen.rml`, `ui/mapgenfs.rml` and
+    `ui/mapgenwdt.rml` sharing `ui/mapgenbase.rcss` beside `ui/optionsbase.rcss`
+    and each carrying its own geometry, converted from `IDD_MAPGEN`,
+    `IDD_MAPGEN_FS` and `IDD_MAPGEN_WDT`. The variant is chosen by whether
+    Firestorm is enabled and whether the session names a tournament territory,
+    not by the caller, which is step 5's shape. `IDD_WDT_PICK_CLAN` is a template
+    no code opens, so the WDT half has no OwnerDraw dialog of its own and the rest
+    of WDT stays with MSEngine.
+
+    The load, save and delete browsers step 9 built draw where this screen is, so
+    the screen steps aside for them on the hook step 8 added. The seed field keeps
+    its place and its width but is hidden, because all three templates declare it
+    `NOT WS_VISIBLE` and nothing ever shows it: it is where the number lives
+    between `Set_Settings` and `Get_Settings` rather than something a player types
+    in. The environment and time of day lists are sorted by name and the two size
+    lists are not, because only the first two combo boxes carry `CBS_SORT`.
+
+    The preview is resampled rather than blitted. `Bit_Blit` copies the smaller of
+    the two rectangles row for row, so an engine surface blit between rectangles
+    of different sizes crops the picture instead of scaling it; only `DSurface`'s
+    own blitter stretches, and a `UISurfaceBufferClass` is not one.
+    `MapPreviewSurfaceClass` had relied on that blit since step 10, where the two
+    sizes were close enough to hide it.
+13. **Retire OwnerDraw** (M). Landed. `ownrdraw.cpp`, `ownrdraw.h`,
+    `windlg.cpp` and `windlg.h` are gone, with the legacy view behind every
+    migrated screen, the modeless dialog list in `msgloop.cpp`, the 53 dialog
+    templates in `language.rc`, the `LegacyDialogs` key and `UI_Use_Rml`.
+    `Language.dat` is byte-identical across the template deletion, as it was
+    across step 4's name table. `UI_Document_Is_Visible` went with the kill
+    switch: it was the coexistence check and it never had a caller, because a
+    legacy dialog cannot open on this fork at all.
+
+    Six things in those files had nothing to do with dialogs and are still
+    wanted by unmigrated MSEngine and bespoke screens, so they moved to
+    `code/drawhelp.{h,cpp}`: the remapped bitmap text drawing
+    (`OD_Draw_Text_Remap` and the font metrics behind it), `OD_Draw_Text`,
+    `OD_Blend_Color` with its component masks, `WS_Get_Font` and its font cache,
+    `Get_Display_Rect`, and the counted pointer-capture pair. The `OD_` and `WS_`
+    names are kept because their callers spell them, and the header says why.
+    `Build_Hotkey_String` went to `keyboard.cpp` instead: it spells a key, not a
+    control.
+
+    The pointer-capture pair is load-bearing and there is now exactly one
+    counter. `OwnerDraw::Capture_Mouse` released the game's mouse to the host so
+    that `WM_SETCURSOR` would fall through and the window class arrow would be
+    drawn, and the shell had grown a second counter of its own for documents.
+    Both now call the pair in `drawhelp.cpp`, so a graphic menu and a document
+    cannot disagree about who holds the pointer.
+
+    `_dialog_count` became dead and took `Heal_Dialog_Controls` and
+    `SidebarClass::Scroll`'s guard against scrolling under a dialog with it.
 14. **Sidebar** (M, then L). The model and view split with the gadget view;
     later the RmlUi view over the whole column and its selection key.
 
@@ -773,7 +1160,6 @@ geometry memory are recorded on an agreed baseline before defaults change.
 ## Open decisions
 
 - The shipped font.
-- The kill-switch key name, fixed by the change that introduces it.
 - The in-game text route for the sidebar view: TrueType conversions of the
   game fonts or a bitmap font engine for every document.
 - The document and binding versioning rules for mods, fixed with the first

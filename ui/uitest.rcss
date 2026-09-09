@@ -1,0 +1,86 @@
+/* The shell's test document. Debug builds only; it exists to be looked at. It stays
+   within the styling profile docs/UI_DESIGN.md declares: text, ordinary layout, borders
+   and basic decorators, with no filter, layer, shader or transform. */
+
+body
+{
+	font-family: LatoLatin;
+	font-size: 14dp;
+	color: #e8f0e8;
+
+	/* The body covers the frame so the panel can be placed in it, and passes every
+	   pointer through so that only the panel itself claims a click. */
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+#panel
+{
+	display: block;
+	pointer-events: auto;
+
+	position: absolute;
+	left: 40dp;
+	top: 40dp;
+	width: 320dp;
+
+	padding: 12dp;
+	background-color: #0c1c10e0;
+	border: 2dp #57d06a;
+}
+
+#title
+{
+	display: block;
+	font-size: 20dp;
+	color: #8bff9c;
+	margin-bottom: 8dp;
+}
+
+.row
+{
+	display: block;
+	margin-bottom: 4dp;
+}
+
+#swatches
+{
+	display: block;
+	margin-top: 10dp;
+	margin-bottom: 10dp;
+}
+
+.swatch
+{
+	display: inline-block;
+	width: 48dp;
+	height: 24dp;
+	margin-right: 6dp;
+	border: 1dp #ffffff;
+}
+
+.red { background-color: #d03a3a; }
+.green { background-color: #3ad04a; }
+.blue { background-color: #3a6ad0; }
+.fade { background-color: #ffffff60; }
+
+#hit
+{
+	display: block;
+	padding: 6dp;
+	background-color: #1d3a24;
+	border: 1dp #57d06a;
+	text-align: center;
+}
+
+#hit:hover
+{
+	background-color: #2d5f38;
+}
+
+#hit:active
+{
+	background-color: #57d06a;
+	color: #0c1c10;
+}

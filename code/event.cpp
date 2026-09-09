@@ -639,6 +639,7 @@ EventClass::EventClass(int index, unsigned char type, void * ptr, unsigned int s
 	if (index >= 0) {
 		ID = index;
 		Type = type;
+		Data.Variable.Slot = 0;
 		Data.Variable.Pointer = ptr;
 		Data.Variable.Size = size;
 		Frame = ::Frame;

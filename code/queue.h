@@ -56,5 +56,10 @@ NetGlobal::DecodeError Kick_Packet_Received(int kicker, int kickee);
 
 void Forget_Kick_Player(int player);
 
+// Is a vote to kick worth putting to the other players? False when either side is no longer
+// in the session or the voter has already cast this vote, which is what stopped a repeated
+// press from sending the proposal again.
+bool Kick_Vote_Is_Possible(int kicker, int kickee);
+
 extern BasicTimerClass<SystemTimerClass> SentFrameSyncTimer;
 extern int SentFrameSyncCount;

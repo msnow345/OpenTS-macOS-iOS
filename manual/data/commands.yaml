@@ -2128,7 +2128,7 @@ fixed_controls:
   - Ctrl+V
   context: Classic main menu
   _provenance:
-    source: code/init.cpp
+    source: code/ui/uimainmenu.cpp
     guard: null
 - id: fixed:main-menu-credits
   route_id: fixed-main-menu-credits
@@ -2141,7 +2141,7 @@ fixed_controls:
   - Ctrl+Alt+C
   context: Classic main menu
   _provenance:
-    source: code/init.cpp
+    source: code/ui/uimainmenu.cpp
     guard: null
 - id: fixed:skip-credits
   route_id: fixed-skip-credits

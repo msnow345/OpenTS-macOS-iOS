@@ -58,6 +58,7 @@
 #include "dbgprint.h"
 #include "gamedirs.h"		// for Search_Files.
 #include "globals.h"
+#include "hostclock.h"
 #include "ipxmgr.h"
 #include "language/language.h"
 #include "msgloop.h"
@@ -76,6 +77,7 @@
 #include <algorithm>
 #include <ctime> // for station ID computation
 #include <dos.h> // for station ID computation
+#include <winsock.h> // for ntohl
 
 
 /***************************** Globals *************************************/
@@ -1001,7 +1003,7 @@ unsigned int SessionClass::Compute_Unique_ID(void)
 	//------------------------------------------------------------------------
 //	time(&tm);
 //	id = (unsigned long)tm;
-	id = timeGetTime();
+	id = Host_Milliseconds();
 
 	//------------------------------------------------------------------------
 	// Now add in the free space on the hard drive
@@ -1224,7 +1226,7 @@ void SessionClass::Update_Progress(int percent)
 				Call_Back();
 
 				while (Ipx.Global_Num_Send() > 5 && timer > 0) {
-					Sleep(20);
+					Host_Sleep(20);
 					Windows_Message_Handler();
 					Call_Back();
 				}
@@ -1331,15 +1333,11 @@ void SessionClass::Init_Fixed_Alliances(void)
 /// Saves the game options to a save game.
 /// </summary>
 /// <returns>bool; Were the options written successfully?</returns>
-bool GameOptionsType::Save(IStream * stream)
+bool GameOptionsType::Save(SaveStreamClass & stream)
 {
-	if (stream == NULL) {
-		return(false);
-	}
 
-	SaveStreamClass savestream(stream, SaveStreamClass::MODE_SAVE);
-	Serialize(savestream);
-	return(SUCCEEDED(savestream.Result()));
+	Serialize(stream);
+	return(!stream.Was_Error());
 }
 
 
@@ -1349,17 +1347,13 @@ bool GameOptionsType::Save(IStream * stream)
 /// scenario with it.
 /// </summary>
 /// <returns>bool; Were the options read back successfully?</returns>
-bool GameOptionsType::Load(IStream * stream)
+bool GameOptionsType::Load(SaveStreamClass & stream)
 {
-	if (stream == NULL) {
-		return(false);
-	}
 
-	SaveStreamClass savestream(stream, SaveStreamClass::MODE_LOAD);
-	savestream.Set_Context("GameOptionsType");
-	Serialize(savestream);
+	stream.Set_Context("GameOptionsType");
+	Serialize(stream);
 	ScenarioIndex = -1;
-	return(SUCCEEDED(savestream.Result()));
+	return(!stream.Was_Error());
 }
 
 

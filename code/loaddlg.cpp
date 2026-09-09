@@ -38,6 +38,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "always.h"
+#include "_keyboar.h"
+#include "keyboard.h"
+#include "ui/uimessagebox.h"
 
 #include "autosave.h"
 
@@ -52,12 +55,12 @@
 #include "init.h"
 #include "language/language.h"
 #include "msgbox.h"
-#include "ownrdraw.h"
 #include "saveload.h"
 #include "savemgr.h"
 #include "savever.h"
 #include "scenario.h"
 #include "session.h"
+#include "ui/uisavebrowser.h"
 #include "win.h"
 
 #include <algorithm>
@@ -164,208 +167,6 @@ bool LoadOptionsClass::Delete(void)
 
 
 /// <summary>
-/// Handles a control notification from the load game dialog.
-/// This routine records how the player left the dialog, so that the processing loop
-/// knows whether a game was chosen or the player backed out.
-/// </summary>
-/// <param name="wparam">The identifier of the control that was activated.</param>
-/// <param name="lparam">Window handle of the control that was activated.</param>
-/// <param name="id">The notification code that accompanied the control.</param>
-void LoadOptionsClass::Load_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
-{
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
-	switch ((int)wparam) {
-		case IDC_MISSION_LOAD_LIST:
-			if (id == 2 && ListBox_GetCount((HWND)lparam) > 0) {
-				_this->State = STATE_OK;
-			}
-			break;
-
-		case IDOK:
-		case IDCANCEL:
-			if (id == 0) {
-				_this->State = (LoadDialogState)wparam;
-			}
-			break;
-	}
-}
-
-
-/// <summary>
-/// Handles a control notification from the save game dialog.
-/// Picking a game in the list copies its description into the edit field, so that the
-/// player can save over an existing game without typing the name out again. The buttons
-/// record how the player left the dialog.
-/// </summary>
-/// <param name="wparam">The identifier of the control that was activated.</param>
-/// <param name="lparam">Window handle of the control that was activated.</param>
-/// <param name="id">The notification code that accompanied the control.</param>
-void LoadOptionsClass::Save_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
-{
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
-	switch ((int)wparam) {
-		case IDC_MISSION_SAVE_LIST:
-
-			/*
-			**	If the user clicks on the list, see if the there is a new current
-			**	item; if so, and if we're in SAVE mode, copy the list item into
-			**	the save-game description field.
-			*/
-			if (id == 1 && ListBox_GetCount((HWND)lparam) > 0) {
-				int row = ListBox_GetCurSel((HWND)lparam);
-				if (row != LB_ERR) {
-
-					/*
-					**	Copy the game's description, UNLESS it's the empty slot; if
-					**	it is, set the edit buffer to empty.
-					*/
-					FileEntryClass * fdata = (FileEntryClass *)ListBox_GetItemData((HWND)lparam, row);
-					if (fdata->Valid) {
-						SetWindowText(GetDlgItem(window, IDC_MISSION_SAVE_DESC), fdata->Descr);
-					} else if (_this->Description != NULL) {
-						SetWindowText(GetDlgItem(window, IDC_MISSION_SAVE_DESC), _this->Description);
-					}
-					SetFocus(GetDlgItem(window, IDC_MISSION_SAVE_DESC));
-					Edit_SetSel(GetDlgItem(window, IDC_MISSION_SAVE_DESC), 0, -1);
-				}
-			}
-			break;
-
-		case IDOK:
-		case IDCANCEL:
-			if (id == 0) {
-				_this->State = (LoadDialogState)wparam;
-			}
-			break;
-	}
-}
-
-
-/// <summary>
-/// Handles a control notification from the delete game dialog.
-/// This routine records how the player left the dialog, so that the processing loop
-/// knows whether to go ahead with the deletion.
-/// </summary>
-/// <param name="wparam">The identifier of the control that was activated.</param>
-/// <param name="id">The notification code that accompanied the control.</param>
-void LoadOptionsClass::Delete_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
-{
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
-	switch ((int)wparam) {
-		case IDOK:
-		case IDCANCEL:
-			if (id == 0) {
-				_this->State = (LoadDialogState)wparam;
-			}
-			break;
-	}
-}
-
-
-/// <summary>
-/// Handles messages for the load game dialog.
-/// The owner draw system is given first refusal on every message. What is left over is
-/// used to set up the file list columns and to pass control activity along to the
-/// command handler.
-/// </summary>
-/// <returns>Returns with the message result, or FALSE if nothing here dealt with it.</returns>
-INT_PTR CALLBACK LoadOptionsClass::Load_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc == 0) {
-
-		switch (message) {
-			case WM_MOVING:
-				return(On_WM_MOVING(window, wparam, lparam));
-
-			case WM_COMMAND:
-				Load_Dialog_On_WM_COMMAND(window, LOWORD(wparam), lparam, HIWORD(wparam));
-				break;
-
-			case OD_SUBCLASSED:
-				SendDlgItemMessage(window, IDC_MISSION_LOAD_LIST, OD_ADDCOLUMN, 0xF9, 2);
-				SendDlgItemMessage(window, IDC_MISSION_LOAD_LIST, OD_ADDCOLUMN, 0x38, 255);
-				SendDlgItemMessage(window, IDC_MISSION_LOAD_LIST, OD_ADDCOLUMN, 0, 315);
-				break;
-		}
-		return(FALSE);
-	}
-	return(rc);
-}
-
-
-/// <summary>
-/// Handles messages for the save game dialog.
-/// The owner draw system is given first refusal on every message. What is left over is
-/// used to set up the file list columns, cap the length of the description the player
-/// may type, and pass control activity along to the command handler.
-/// </summary>
-/// <returns>Returns with the message result, or FALSE if nothing here dealt with it.</returns>
-INT_PTR CALLBACK LoadOptionsClass::Save_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc == 0) {
-
-		switch (message) {
-			case WM_MOVING:
-				return(On_WM_MOVING(window, wparam, lparam));
-
-			case WM_COMMAND:
-				Save_Dialog_On_WM_COMMAND(window, LOWORD(wparam), lparam, HIWORD(wparam));
-				break;
-
-			case WM_INITDIALOG:
-				SendMessage(GetDlgItem(window, IDC_MISSION_SAVE_DESC), EM_SETLIMITTEXT, 79, 0);
-				break;
-
-			case OD_SUBCLASSED:
-				SendDlgItemMessage(window, IDC_MISSION_SAVE_LIST, OD_ADDCOLUMN, 0xF9, 2);
-				SendDlgItemMessage(window, IDC_MISSION_SAVE_LIST, OD_ADDCOLUMN, 0x38, 255);
-				SendDlgItemMessage(window, IDC_MISSION_SAVE_LIST, OD_ADDCOLUMN, 0, 315);
-				break;
-		}
-		return(FALSE);
-	}
-	return(rc);
-}
-
-
-/// <summary>
-/// Handles messages for the delete game dialog.
-/// The owner draw system is given first refusal on every message. What is left over is
-/// used to set up the file list columns and to pass control activity along to the
-/// command handler.
-/// </summary>
-/// <returns>Returns with the message result, or FALSE if nothing here dealt with it.</returns>
-INT_PTR CALLBACK LoadOptionsClass::Delete_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc == 0) {
-
-		switch (message) {
-			case WM_COMMAND:
-				Delete_Dialog_On_WM_COMMAND(window, LOWORD(wparam), lparam, HIWORD(wparam));
-				break;
-
-			case WM_MOVING:
-				return(On_WM_MOVING(window, wparam, lparam));
-
-			case OD_SUBCLASSED:
-				SendDlgItemMessage(window, IDC_MISSION_DELETE_LIST, OD_ADDCOLUMN, 0xF9, 2);
-				SendDlgItemMessage(window, IDC_MISSION_DELETE_LIST, OD_ADDCOLUMN, 0x38, 255);
-				SendDlgItemMessage(window, IDC_MISSION_DELETE_LIST, OD_ADDCOLUMN, 0, 315);
-				break;
-		}
-		return(FALSE);
-	}
-	return(rc);
-}
-
-
-/// <summary>
 /// Is a saved game of this name already there? Asked before one is written, since a name the
 /// folder holds is written over rather than added to.
 /// </summary>
@@ -390,185 +191,47 @@ static bool Saved_Game_Exists(char const * name)
  * HISTORY:                                                                                    *
  *   02/14/1995 BR : Created.                                                                  *
  *=============================================================================================*/
+/***********************************************************************************************
+ * LoadOptionsClass::Process -- main processing routine                                        *
+ *                                                                                             *
+ * INPUT:                                                                                      *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *      false = User cancelled, true = operation completed                                     *
+ *                                                                                             *
+ * WARNINGS:                                                                                   *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   02/14/1995 BR : Created.                                                                  *
+ *=============================================================================================*/
 bool LoadOptionsClass::Dialog(void)
 {
-	/*
-	**	Dialog variables
-	*/
-	HWND dialog = 0;
-	HWND list = 0;
-
-	char buffer[256];
-
-	switch (Style) {
-		case LOAD:
-			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_LOAD, Load_Dialog_Proc);
-			list = GetDlgItem(dialog, IDC_MISSION_LOAD_LIST);
-			break;
-
-		case SAVE:
-			if (Disk_Space_Available() < MinSpaceRequired) {
-				WWMessageBox().Process(TXT_DISKFULL, TXT_OK, TXT_NONE, TXT_NONE);
-				return(false);
-			}
-			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_SAVE, Save_Dialog_Proc);
-			list = GetDlgItem(dialog, IDC_MISSION_SAVE_LIST);
-			break;
-
-		case WWDELETE:
-			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_DELETE, Delete_Dialog_Proc);
-			list = GetDlgItem(dialog, IDC_MISSION_DELETE_LIST);
-			break;
+	UISaveBrowserPresenterClass::StyleType style = UISaveBrowserPresenterClass::STYLE_LOAD;
+	if (Style == SAVE) {
+		style = UISaveBrowserPresenterClass::STYLE_SAVE;
+	} else if (Style == WWDELETE) {
+		style = UISaveBrowserPresenterClass::STYLE_DELETE;
 	}
+
+	UISaveBrowserPresenterClass screen(*this, style);
+
+	if (!screen.Can_Open()) {
+		return(false);
+	}
+
+	screen.Refresh();
 
 	State = STATE_PENDING;
 
-	if (dialog) {
-
-		/*
-		**	Initialize.
-		*/
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)this);
-
-		if (list != 0) {
-			Fill_List(list);
-			EnableWindow(GetDlgItem(dialog, 1), bool(ListBox_GetCount(list) > 0));
-		}
-
-		OwnerDraw::Display_Dialog(dialog);
-
-		/*
-		**	Main Processing Loop.
-		*/
-		do {
-			while (State == STATE_PENDING) {
-				if (OwnerDraw::Dialog_Message_Handler() == true) {
-					State = STATE_CLOSE;
-				}
-
-				/*
-				**	Invoke game callback.
-				*/
-				if (Callback) {
-					Callback();
-				}
-
-				/*
-				**	If we have just received input focus again after running in the background then
-				**	we need to redraw.
-				*/
-				if (!GameActive) {
-					Title_Screen_Restore(0);
-				}
-			}
-
-			if (State == STATE_OK) {
-				LRESULT row = ListBox_GetCurSel(list);
-
-				if (row != LB_ERR) {
-					FileEntryClass * entry = (FileEntryClass *)ListBox_GetItemData(list, row);
-
-					/*
-					**	Process input.
-					*/
-					switch (Style) {
-						/*
-						**	Load: if load fails, present a message, and stay in the dialog
-						**	to allow the user to try another game
-						*/
-						case LOAD: {
-							if (entry->Num != -1) {
-								Init_Campaigns();
-							}
-
-							ShowWindow(dialog, SW_HIDE);
-							UpdateWindow(MainWindow);
-
-							if (!Load_File(entry->Filename)) {
-								WWMessageBox().Process(TXT_ERROR_LOADING_GAME, TXT_OK, TXT_NONE, TXT_NONE);
-								ShowWindow(dialog, SW_SHOW);
-								State = STATE_PENDING;
-							}
-							break;
-						}
-
-						/*
-						**	Save: Save the game & exit the dialog
-						*/
-						case SAVE: {
-							GetWindowText(GetDlgItem(dialog, IDC_MISSION_SAVE_DESC), buffer, DESCRIP_MAX+36);
-
-							if (strlen(buffer) == 0) {
-								WWMessageBox().Process(TXT_MUSTENTER_DESCRIPTION, TXT_OK, TXT_NONE, TXT_NONE);
-								SetFocus(GetDlgItem(dialog, IDC_MISSION_SAVE_DESC));
-								Edit_SetSel(GetDlgItem(dialog, IDC_MISSION_SAVE_DESC), -1, -1);
-								State = STATE_PENDING;
-								break;
-							}
-
-							const char * filename = NULL;
-							char test_filename[256];
-
-							if (entry && entry->Valid) {
-								filename = entry->Filename;
-							} else {
-								Pick_Filename(test_filename);
-								filename = test_filename;
-							}
-
-							if (filename != NULL) {
-								bool exists = Saved_Game_Exists(filename);
-								if (exists && WWMessageBox()._Process(TXT_CONFIRM_SAVE, 1, TXT_YES, TXT_NO, TXT_NONE))
-									State = STATE_PENDING;
-								else {
-									if (!Save_File(filename, buffer)) {
-										WWMessageBox().Process(TXT_ERROR_SAVING_GAME, TXT_OK, TXT_NONE, TXT_NONE);
-										State = STATE_PENDING;
-									} else {
-										int confirmation = Save_Confirmation();
-										if (confirmation != TXT_NONE) {
-											WWMessageBox().Process(confirmation, TXT_OK, TXT_NONE, TXT_NONE);
-										}
-										if (Description) {
-											strcpy(Description, buffer);
-										}
-									}
-								}
-							}
-							break;
-						}
-
-						/*
-						**	Delete: delete the file & stay in the dialog, to allow the user
-						**	to delete multiple files.
-						*/
-						case WWDELETE: {
-							sprintf(buffer, "%s\n%s", Fetch_String(TXT_DELETE_FILE_QUERY), entry->Descr);
-
-							if (!WWMessageBox()._Process(buffer, 1, TXT_YES, TXT_NO, TXT_NONE)) {
-								Delete_File(entry->Filename);
-								ListBox_DeleteString(list, row);
-								ListBox_SetCurSel(list, 0);
-								if (ListBox_GetCount(list) > 0) {
-									State = STATE_PENDING;
-									break;
-								}
-							} else {
-								State = STATE_PENDING;
-							}
-							break;
-						}
-					}
-				}
-			}
-		} while (State == STATE_PENDING);
-
+	if (UI_Save_Browser_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
 		Clear_List();
-
-		OwnerDraw::End_Dialog(dialog);
 	}
 
-	return(State == STATE_OK ? true : false);
+	State = screen.Accepted() ? STATE_OK : STATE_CLOSE;
+
+	return(screen.Accepted());
 }
 
 
@@ -617,7 +280,7 @@ void LoadOptionsClass::Clear_List(void)
 
 
 /***********************************************************************************************
- * LoadOptionsClass::Fill_List -- fills the list box & GameNum arrays                          *
+ * LoadOptionsClass::Build_List -- reads the folder into the file list                         *
  *                                                                                             *
  * INPUT:                                                                                      *
  *      none.                                                                                  *
@@ -632,9 +295,8 @@ void LoadOptionsClass::Clear_List(void)
  *   02/14/1995 BR : Created.                                                                  *
  *   06/25/1995 JLB : Shows which saved games are "(old)".                                     *
  *=============================================================================================*/
-void LoadOptionsClass::Fill_List(HWND window)
+void LoadOptionsClass::Build_List(void)
 {
-	OwnerDraw::CellData thecell;
 	FileEntryClass * fdata = NULL;  // for adding entries to 'Files'
 	WIN32_FIND_DATAA ff;            // for FindFirstFile
 
@@ -722,60 +384,6 @@ void LoadOptionsClass::Fill_List(HWND window)
 		**	Now sort the list in order of Date/Time (newest first, oldest last)
 		*/
 		qsort((void *)(&Files[0]), Files.Count(), sizeof(class FileEntryClass *), LoadOptionsClass::Compare);
-
-		ListBox_ResetContent(window);
-
-		/*
-		**	Now add every file's name to the list box
-		*/
-		for (int i = 0; i < Files.Count(); i++) {
-			fdata = Files[i];
-
-			int row = ListBox_AddString(window, fdata);
-
-			if (fdata->Type != GAME_NORMAL) {
-				thecell.type = OwnerDraw::CellData::TEXT;
-				thecell.string.set("*");
-				SendMessage(window, OD_SETCELL, MAKEWPARAM(200, row), (LPARAM)&thecell);
-			}
-
-			if (fdata->DateTime.dwHighDateTime != -1 && fdata->DateTime.dwLowDateTime != -1) {
-				FILETIME ft;
-				SYSTEMTIME time;
-				FileTimeToLocalFileTime(&fdata->DateTime, &ft);
-				FileTimeToSystemTime(&ft, &time);
-				GetDateFormat(LANG_USER_DEFAULT, TIME_NOMINUTESORSECONDS, &time, NULL, buffer, sizeof(buffer));
-				thecell.type = OwnerDraw::CellData::TEXT;
-				thecell.string.set(buffer);
-				SendMessage(window, OD_SETCELL, MAKEWPARAM(255, row), (LPARAM)&thecell);
-				GetTimeFormat(LANG_USER_DEFAULT, TIME_NOSECONDS, &time, NULL, buffer, sizeof(buffer));
-				thecell.type = OwnerDraw::CellData::TEXT;
-				thecell.string.set(buffer);
-				SendMessage(window, OD_SETCELL, MAKEWPARAM(315, row), (LPARAM)&thecell);
-			}
-
-			ListBox_SetItemData(window, row, (LPARAM)fdata);
-		}
-
-		switch (Style) {
-			case LOAD: {
-					for (int i = 0; i < Files.Count(); i++) {
-						if (Files[i]->Valid) {
-							ListBox_SetCurSel(window, i);
-							ListBox_SetTopIndex(window, i);
-							break;
-						}
-					}
-				}
-				break;
-
-			case SAVE:
-			case WWDELETE:
-				ListBox_SetCurSel(window, 0);
-				ListBox_SetTopIndex(window, 0);
-				break;
-		}
-
 	}
 }
 
@@ -846,21 +454,20 @@ int __cdecl LoadOptionsClass::Compare(const void * p1, const void * p2)
 
 /// <summary>
 /// Restores the game held in the file specified.
-/// A message box is displayed while the load runs, and the scenario is taken out of
+/// A wait box is displayed while the load runs, and the scenario is taken out of
 /// play first so that nothing tries to tick while the game state is being replaced.
 /// </summary>
 /// <returns>bool; Was the game loaded?</returns>
 bool LoadOptionsClass::Load_File(const char * file_name)
 {
-	HWND dialog = OwnerDraw::Custom_Message_Box(Fetch_String(TXT_LOADING), NULL, NULL);
-	if (dialog != 0) {
-		OwnerDraw::Display_Dialog(dialog);
-	}
+	bool const box = UI_Wait_Box_Open(Fetch_String(TXT_LOADING), NULL, NULL);
+	Keyboard->Clear();
 	ScenarioActive = false;
 	TacticalActive = false;
 	bool loaded = Load_Game(file_name);
-	if (dialog != 0) {
-		OwnerDraw::End_Dialog(dialog);
+	if (box) {
+		Keyboard->Clear();
+		UI_Wait_Box_Close();
 	}
 	return(loaded);
 }
@@ -868,21 +475,20 @@ bool LoadOptionsClass::Load_File(const char * file_name)
 
 /// <summary>
 /// Saves the current game to the file specified.
-/// A message box is displayed while the save runs, since writing a save game takes long
+/// A wait box is displayed while the save runs, since writing a save game takes long
 /// enough that the player would otherwise think the game had locked up.
 /// </summary>
 /// <param name="descr">The description to record alongside the saved game.</param>
 /// <returns>bool; Was the game saved?</returns>
 bool LoadOptionsClass::Save_File(const char * file_name, const char * descr)
 {
-	HWND dialog = OwnerDraw::Custom_Message_Box(Fetch_String(TXT_SAVING_GAME), NULL, NULL);
-	if (dialog != 0) {
-		OwnerDraw::Display_Dialog(dialog);
-	}
+	bool const box = UI_Wait_Box_Open(Fetch_String(TXT_SAVING_GAME), NULL, NULL);
+	Keyboard->Clear();
 	bool saved = SaveManager.Request_Save_Game(file_name, descr, false,
 		SaveManagerClass::NoticeType::Requested);
-	if (dialog != 0) {
-		OwnerDraw::End_Dialog(dialog);
+	if (box) {
+		Keyboard->Clear();
+		UI_Wait_Box_Close();
 	}
 	return(saved);
 }

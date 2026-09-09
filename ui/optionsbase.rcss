@@ -1,0 +1,275 @@
+/* What every options family document looks like. Only the look lives here; each document's
+   own stylesheet carries its geometry, converted from its dialog template's units.
+
+   The artwork is the game's own. A dialog backdrop is the slice of dbak6440.pcx that lies
+   under the dialog, with leftbar.pcx and rightbar.pcx tiled down its edges and the four
+   bar_ corner pieces over them, which is what Draw_Dialog_Back composed. A push button is
+   bue_li24, bue_mi24 and bue_ri24 in a row, and bde_ the same while it is held down. A
+   check box is cue_i.pcx, or cce_i.pcx when it is ticked, beside its caption. The colours
+   are the ones OwnerDraw::Initialize set: text is RGB(112,255,0), disabled text is
+   RGB(144,144,144), a track bar's frame is RGB(78,182,220) and a picked list row is
+   RGB(34,80,97). A control that stood over the wallpaper -- a list, a field, a combo box,
+   a track bar -- showed it blended 180/255 toward black.
+
+   Two things the original did that are not reproduced. The sixteen inward glow passes
+   around a dialog edge need a fade over sixteen pixels, which no decorator in the profile
+   docs/UI_DESIGN.md declares can express. A disabled button is the enabled artwork under
+   image-color rather than under a half-black rectangle; the result is the same product.
+
+   Everything here stays inside that profile: text, images, ordinary layout, borders and
+   basic decorators, with no filter, layer, shader or transform. */
+
+body
+{
+	font-family: LatoLatin;
+	font-size: 12dp;
+	color: #70ff00;
+
+	width: 100%;
+	height: 100%;
+}
+
+/* A dialog panel. A document states its own size and where it sits. The border keeps the
+   width the templates were converted against; the artwork is painted over all of it. */
+.panel
+{
+	display: block;
+	position: absolute;
+
+	border-width: 2dp;
+	border-color: transparent;
+
+	/* The colour is what the panel is left with if the artwork cannot be read, which is what
+	   a document shown before the mix files are mounted would see. A background paints under
+	   the decorators, so it is invisible whenever they load. */
+	background-color: #23261fF2;
+
+	decorator:
+		image(bar_ul.pcx scale-none left top) border-box,
+		image(bar_ur.pcx scale-none right top) border-box,
+		image(bar_ll.pcx scale-none left bottom) border-box,
+		image(bar_lr.pcx scale-none right bottom) border-box,
+		image(leftbar.pcx repeat-y left top) border-box,
+		image(rightbar.pcx repeat-y right top) border-box,
+		image(dbak6440.pcx scale-none 50% 50%) border-box;
+}
+
+/* A panel the main menu family raises above the middle of the frame. Its wallpaper slice
+   is taken 147dp above its own top edge, which is where the frame's centred artwork sits
+   under a panel whose top is 53dp above the middle. */
+.panel.raised
+{
+	decorator:
+		image(bar_ul.pcx scale-none left top) border-box,
+		image(bar_ur.pcx scale-none right top) border-box,
+		image(bar_ll.pcx scale-none left bottom) border-box,
+		image(bar_lr.pcx scale-none right bottom) border-box,
+		image(leftbar.pcx repeat-y left top) border-box,
+		image(rightbar.pcx repeat-y right top) border-box,
+		image(dbak6440.pcx scale-none 50% 91%) border-box;
+}
+
+/* An owner-draw push button. */
+.button
+{
+	display: block;
+	position: absolute;
+
+	/* A control's declared size is the template's, borders included, because a dialog
+	   control's rectangle includes the frame drawn around it. */
+	box-sizing: border-box;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+
+	color: #70ff00;
+	background-color: #33372c;
+	decorator: tiled-horizontal(bue_li24.pcx, bue_mi24.pcx, bue_ri24.pcx);
+}
+
+.button:active
+{
+	decorator: tiled-horizontal(bde_li24.pcx, bde_mi24.pcx, bde_ri24.pcx);
+}
+
+.button.disabled,
+.disabled .button
+{
+	color: #909090;
+	image-color: #808080;
+	pointer-events: none;
+}
+
+/* A BS_AUTOCHECKBOX with BS_FLAT: an eighteen pixel box at the left edge of the control
+   with the caption beside it, which is what CheckBoxCtrlProc drew. */
+.check
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	text-align: left;
+	padding-left: 26dp;
+	white-space: nowrap;
+	overflow: hidden;
+
+	color: #70ff00;
+	decorator: image(cue_i.pcx contain left center);
+}
+
+.check.ticked
+{
+	decorator: image(cce_i.pcx contain left center);
+}
+
+.check.disabled,
+.disabled .check
+{
+	color: #909090;
+	image-color: #808080;
+	pointer-events: none;
+}
+
+/* A static caption. A document says where it sits and how it is aligned.
+
+   It does not clip. A dlgsys glyph cell is 18dp and the templates give a static as little
+   as 13dp, so a clipping caption would cut the shadow row off a capital and the tail off a
+   descender; StaticCtrlProc had no such limit, because ODDrawCharRemap blits without
+   clipping to the control. RmlUi clips both axes together or neither, and no static caption
+   in any shipped document is wider than its control -- the tightest has 4.5dp to spare --
+   so there is nothing for a clip to protect here. A caption whose text comes from the game
+   rather than the templates asks for the clip back in its own stylesheet. */
+.caption
+{
+	display: block;
+	position: absolute;
+	white-space: nowrap;
+	overflow: visible;
+}
+
+/* A TBS_NOTICKS track bar. The original drew no groove: the control is the wallpaper
+   dimmed inside a one pixel frame, with trakgrip.pcx spanning its whole height. */
+.slider
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #4eb6dc;
+}
+
+.slider slider
+{
+	width: 100%;
+	height: 100%;
+}
+
+.slider sliderbar
+{
+	width: 12dp;
+	height: 100%;
+
+	decorator: image(trakgrip.pcx);
+}
+
+.slider slidertrack
+{
+	width: 100%;
+	height: 100%;
+}
+
+.slider sliderarrowdec,
+.slider sliderarrowinc
+{
+	width: 0dp;
+	height: 0dp;
+}
+
+/* A list box. A row states its own width, because a scrolling container gives its children
+   no width to be a proportion of. */
+.list
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+
+	background-color: #000000b4;
+	border-width: 1dp;
+	border-color: #ffffff;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.list .row
+{
+	display: block;
+	box-sizing: border-box;
+	padding: 1dp 4dp;
+	white-space: nowrap;
+	color: #70ff00;
+}
+
+.list .row.picked
+{
+	background-color: #225061;
+}
+
+.list scrollbarvertical
+{
+	width: 18dp;
+	background-color: #000000b4;
+}
+
+.list scrollbarvertical slidertrack
+{
+	width: 18dp;
+	margin-top: 0dp;
+	background-color: transparent;
+	border-width: 0dp;
+}
+
+.list scrollbarvertical sliderbar
+{
+	width: 18dp;
+	min-height: 20dp;
+
+	decorator: tiled-vertical(sbgript.pcx, sbgripm.pcx, sbgripb.pcx);
+}
+
+.list scrollbarvertical sliderarrowdec,
+.list scrollbarvertical sliderarrowinc
+{
+	width: 18dp;
+	height: 22dp;
+}
+
+.list scrollbarvertical sliderarrowdec { decorator: image(uparrowr.pcx); }
+.list scrollbarvertical sliderarrowinc { decorator: image(dnarrowr.pcx); }
+.list scrollbarvertical sliderarrowdec:active { decorator: image(uparrowp.pcx); }
+.list scrollbarvertical sliderarrowinc:active { decorator: image(dnarrowp.pcx); }
+
+/* Which face a control draws with.
+
+   The dialogs drew a push button, a check box, a static caption, a tab, a combo box and a
+   track bar's value from the dlgsys remap sheets, and reached for the system face only for
+   a list box, a tooltip and the hotkey control; an edit box went through that face too.
+   That split is not decoration -- it is most of why the screens read as the original -- so
+   it is reproduced here rather than applied to everything.
+
+   font-size names the height of a glyph cell. The sheets carry 14 by 18 cells, so 18dp
+   draws one sheet pixel per authored pixel and the text follows the frame scale exactly as
+   the artwork around it does. docs/UI_DESIGN.md, "Fonts", owns the split.
+
+   Everything not named here keeps the shipped face body declares: the lists and their rows,
+   the edit fields, the message logs and the hotkey capture control. */
+.button,
+.check,
+.caption,
+.label,
+.prose,
+select
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

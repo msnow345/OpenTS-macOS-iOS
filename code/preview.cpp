@@ -23,13 +23,12 @@
 #include "lzopipe.h"
 #include "lzostraw.h"
 #include "overtype.h"
-#include "ownrdraw.h"
+#include "drawhelp.h"
 #include "pcx.h"
 #include "scenario.h"
 #include "surface.h"
 #include "tactical.h"
 #include "terrain.h"
-#include "windlg.h"
 #include "xpipe.h"
 #include "xstraw.h"
 
@@ -544,8 +543,19 @@ unsigned * MapPreviewClass::Create_Paletted_Preview(int colorcount, int & size)
 /// arrives already packed, rather than being rendered from the map that is loaded.
 /// </summary>
 /// <param name="buffer">Pointer to the paletted preview block to expand.</param>
-void MapPreviewClass::Create_Preview_Surface(char * buffer)
+// The palette a paletted preview carries is indexed by one byte per pixel, so a count above
+// this one could never be reached and is taken as a malformed block.
+static int const MAX_PREVIEW_COLORS = 256;
+
+
+bool MapPreviewClass::Create_Preview_Surface(char * buffer, int length)
 {
+	// A block that arrived from another machine declares its own extents, so they are
+	// checked against the bytes that came with it before anything is read through them.
+	if (buffer == NULL || length < (int)(sizeof(Header) + sizeof(int))) {
+		return(false);
+	}
+
 	int * header = (int *)buffer;
 
 	int width = *header++;
@@ -553,20 +563,32 @@ void MapPreviewClass::Create_Preview_Surface(char * buffer)
 	int colorcount = *header;
 	unsigned short *palette = (unsigned short *)header;
 
+	if (width <= 0 || height <= 0 || colorcount <= 0 || colorcount > MAX_PREVIEW_COLORS) {
+		return(false);
+	}
+
+	long long const block_offset = (long long)colorcount * (long long)sizeof(unsigned short) + (long long)sizeof(Header) + (long long)sizeof(int);
+	if (block_offset + (long long)width * (long long)height > (long long)length) {
+		return(false);
+	}
+
 	if (SurfacePtr != NULL) {
 		delete SurfacePtr;
 	}
 	SurfacePtr = new DSurface(width, height);
 	SurfacePtr->Fill(TBLACK);
 
-	int offset = (colorcount * sizeof(unsigned short)) + sizeof(Header) + sizeof(int);
+	int offset = (int)block_offset;
 	unsigned char * indexptr = (unsigned char *)buffer + offset;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-			unsigned short entry = palette[*indexptr++ + 2];
+			int const index = *indexptr++;
+			unsigned short entry = palette[(index < colorcount ? index : colorcount - 1) + 2];
 			int color = DSurface::Build_Hicolor_Pixel((entry >> 4) & 0x00F0, entry & 0x00F0, 16 * (entry & 0x000F));
 
 			SurfacePtr->Put_Pixel_Clip(Point2D(x, y), color, SurfacePtr->Get_Rect());
 		}
 	}
+
+	return(true);
 }

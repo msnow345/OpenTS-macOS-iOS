@@ -60,6 +60,7 @@ class PosixSocketClass : public SocketClass
 		bool Open(unsigned short port) override;
 		void Close(void) override;
 		bool Is_Open(void) const override { return(Socket >= 0); }
+		unsigned short Bound_Port(void) const override { return(BoundPort); }
 
 		bool Set_Broadcast(bool enable) override;
 		bool Set_Buffer_Sizes(int receive, int send) override;
@@ -72,6 +73,7 @@ class PosixSocketClass : public SocketClass
 
 	private:
 		int Socket = -1;
+		unsigned short BoundPort = 0;
 };
 
 
@@ -110,6 +112,15 @@ bool PosixSocketClass::Open(unsigned short port)
 		return(false);
 	}
 
+	// A port of zero was bound to whatever the platform had spare, so ask for the
+	// one it chose; the receive pass recognizes our own broadcast by it.
+	BoundPort = port;
+	sockaddr_in bound = {};
+	socklen_t bound_len = sizeof(bound);
+	if (getsockname(Socket, reinterpret_cast<sockaddr *>(&bound), &bound_len) == 0) {
+		BoundPort = ntohs(bound.sin_port);
+	}
+
 	// The transport polls, so the socket must never wait on a call.
 	int nonblocking = 1;
 	if (ioctl(Socket, FIONBIO, &nonblocking) < 0) {
@@ -136,6 +147,7 @@ void PosixSocketClass::Close(void)
 		close(Socket);
 		Socket = -1;
 	}
+	BoundPort = 0;
 }
 
 
