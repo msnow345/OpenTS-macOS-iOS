@@ -470,6 +470,23 @@ bool LoadOptionsClass::Dialog(void)
 
 	screen.Refresh();
 
+	State = STATE_PENDING;
+
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Save_Browser_Screen(screen);
+
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			Clear_List();
+			State = screen.Accepted() ? STATE_OK : STATE_CLOSE;
+			return(screen.Accepted());
+		}
+
+		// Preparation failed, so nothing is shown and the legacy dialog answers instead. A
+		// suspended screen leaves the presenter marked, and the dialog runs the same screen.
+		screen.Result.reset();
+		screen.IsClosing = false;
+	}
+
 	HWND dialog = 0;
 	HWND list = 0;
 

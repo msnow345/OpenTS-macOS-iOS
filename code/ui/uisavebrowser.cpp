@@ -37,8 +37,10 @@
 #include "vector.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Elements/ElementFormControlInput.h>
 #include <RmlUi/Core/Event.h>
 #include <RmlUi/Core/Input.h>
+#include <RmlUi/Core/Traits.h>
 
 #include <cstdio>
 #include <cstring>
@@ -317,4 +319,190 @@ void UISaveBrowserPresenterClass::Execute(UIIntent const & intent)
 		Finish(false);
 		return;
 	}
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the save game browser.
+/// </summary>
+class SaveBrowserViewClass : public UIRmlViewClass
+{
+	public:
+		SaveBrowserViewClass(UISaveBrowserPresenterClass & presenter, char const * document) :
+			UIRmlViewClass(presenter, document),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+	private:
+		void Press(Rml::String const & action);
+
+		// The description the field is holding, which the save screen reads when the action
+		// button is pressed rather than tracking, as the dialog read its edit control.
+		std::string Field_Text(void) const;
+
+		Rml::ElementFormControlInput * Field(void) const;
+
+		UISaveBrowserPresenterClass & Screen;
+};
+
+
+Rml::ElementFormControlInput * SaveBrowserViewClass::Field(void) const
+{
+	if (Element == nullptr) {
+		return(nullptr);
+	}
+	return(rmlui_dynamic_cast<Rml::ElementFormControlInput *>(Element->GetElementById("description")));
+}
+
+
+std::string SaveBrowserViewClass::Field_Text(void) const
+{
+	Rml::ElementFormControlInput * const field = Field();
+	if (field == nullptr) {
+		return(Screen.Description);
+	}
+	return(field->GetValue());
+}
+
+
+/// <summary>
+/// Queues what a button or its key stands for.
+/// The save screen reads the description out of the field here rather than tracking it,
+/// because that is when the dialog read its edit control, and the read is queued ahead of
+/// the action it is read for so the two execute in that order.
+/// </summary>
+void SaveBrowserViewClass::Press(Rml::String const & action)
+{
+	if (Screen.Style == UISaveBrowserPresenterClass::STYLE_SAVE && action == UI_SAVEBROWSER_ACCEPT) {
+		std::string const text = Field_Text();
+		if (text != Screen.Description) {
+			Screen.Queue(UIIntent{UI_SAVEBROWSER_DESCRIBE, text, 0});
+		}
+	}
+
+	Screen.Queue(UIIntent{action, "", 0});
+}
+
+
+void SaveBrowserViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	if (auto entry = model.RegisterStruct<UISaveBrowserPresenterClass::EntryType>()) {
+		entry.RegisterMember("description", &UISaveBrowserPresenterClass::EntryType::Description);
+		entry.RegisterMember("date", &UISaveBrowserPresenterClass::EntryType::Date);
+		entry.RegisterMember("time", &UISaveBrowserPresenterClass::EntryType::Time);
+	}
+	model.RegisterArray<std::vector<UISaveBrowserPresenterClass::EntryType>>();
+
+	model.Bind("entries", &Screen.Entries);
+	model.Bind("selected", &Screen.Selected);
+	model.Bind("description", &Screen.Description);
+	model.Bind("canact", &Screen.CanAct);
+
+	model.BindEventCallback("pick",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_SAVEBROWSER_SELECT, "", (int)arguments[0].Get<float>()});
+		});
+
+	// The field is bound one way, so a value the model already holds is never queued back as
+	// a change the player did not type.
+	model.BindEventCallback("describe",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			Rml::String const value = event.GetParameter<Rml::String>("value", Rml::String());
+			if (value == Screen.Description) return;
+			Screen.Queue(UIIntent{UI_SAVEBROWSER_DESCRIBE, value, 0});
+		});
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Press(arguments[0].Get<Rml::String>());
+		});
+
+	// Escape cancels and Enter presses the action button, which is what IsDialogMessage
+	// delivered to a template that names IDCANCEL and no default push button.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Press(UI_SAVEBROWSER_CANCEL);
+			} else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Press(UI_SAVEBROWSER_ACCEPT);
+			}
+		});
+}
+
+
+void SaveBrowserViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Model.DirtyVariable("entries");
+	Model.DirtyVariable("selected");
+	Model.DirtyVariable("description");
+	Model.DirtyVariable("canact");
+
+	// Picking a row, and a refused empty description, put the focus on the field with its
+	// text selected, which is what the dialog did with SetFocus and Edit_SetSel.
+	if (Screen.FocusDescription) {
+		Screen.FocusDescription = false;
+		if (Rml::ElementFormControlInput * const field = Field()) {
+			field->Focus();
+			field->Select();
+		}
+	}
+
+	Screen.ListChanged = false;
+}
+
+
+/// <summary>
+/// Shows the browser and waits for the player to leave it.
+/// </summary>
+UIResult UI_Save_Browser_Screen(UISaveBrowserPresenterClass & presenter)
+{
+	char const * document = "missionload.rml";
+	if (presenter.Style == UISaveBrowserPresenterClass::STYLE_SAVE) {
+		document = "missionsave.rml";
+	} else if (presenter.Style == UISaveBrowserPresenterClass::STYLE_DELETE) {
+		document = "missiondelete.rml";
+	}
+
+	SaveBrowserViewClass view(presenter, document);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	// Loading draws where this screen is, so the document steps aside for it, which is what
+	// the dialog's own ShowWindow did.
+	while (!presenter.Result.has_value()) {
+		UI_Run_Modal(presenter, view);
+
+		if (presenter.Pending == UISaveBrowserPresenterClass::SUB_NONE) {
+			break;
+		}
+
+		view.Hide();
+		presenter.Run_Pending();
+		if (presenter.Result.has_value()) {
+			break;
+		}
+		view.Show();
+		view.Sync();
+	}
+
+	UIResult const result = presenter.Result.value_or(UIResult{});
+	view.Close();
+	return(result);
 }

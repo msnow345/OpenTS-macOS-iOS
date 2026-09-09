@@ -1,0 +1,78 @@
+/* What the load, save and delete browsers share. Only the look and the list's own columns
+   live here; each document's stylesheet carries the geometry its template gives it.
+
+   The three templates are the same 302 x 198 dialog units and differ only by the list's
+   height, where the action button sits and whether a description field exists, so the
+   family's own sheet is the panel, the column headings and a row. */
+
+/* A row's cells stand where the owner-draw list put its columns. The three dialog
+   procedures register columns with OD_ADDCOLUMN at x 2, 255 and 315, widths 249, 56 and
+   unbounded, and the item's own string is column zero.
+
+   The multiplayer star is deliberately absent. LoadOptionsClass::Fill_List sends OD_SETCELL
+   at x 200 for it, no column is registered there, and OD_SETCELL answers -1 for a column it
+   cannot find, so the legacy list never drew the star either. Preserved rather than
+   repaired, and reported separately. */
+.list .row
+{
+	position: relative;
+	width: 375dp;
+	height: 14dp;
+	line-height: 14dp;
+	padding: 0dp;
+}
+
+.row .description
+{
+	display: block;
+	position: absolute;
+	left: 2dp;
+	top: 0dp;
+	width: 249dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.row .date
+{
+	display: block;
+	position: absolute;
+	left: 255dp;
+	top: 0dp;
+	width: 56dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.row .time
+{
+	display: block;
+	position: absolute;
+	left: 315dp;
+	top: 0dp;
+	width: 60dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+/* The description field, where the template puts an EDITTEXT. It states a width, because a
+   field with none formats no line and RmlUi's End key then moves the caret to the start of
+   an empty line rather than to the end of the value. */
+.field
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	white-space: nowrap;
+	overflow: hidden;
+
+	color: #e4e6da;
+	background-color: #14160f;
+	border-width: 2dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+.field:focus { background-color: #1d2017; }

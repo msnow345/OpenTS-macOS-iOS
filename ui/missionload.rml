@@ -1,0 +1,27 @@
+<rml>
+<head>
+	<title>Load mission</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="savebrowser.rcss"/>
+	<link type="text/rcss" href="missionload.rcss"/>
+</head>
+<body data-model="missionload" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="title">LOAD</div>
+
+		<div class="caption" id="descriptionhead">Description</div>
+		<div class="caption" id="timehead">Time Stamp</div>
+
+		<div id="games" class="list">
+			<div class="row" data-for="entry : entries" data-class-picked="it_index == selected" data-event-click="pick(it_index)">
+				<div class="description">{{ entry.description }}</div>
+				<div class="date">{{ entry.date }}</div>
+				<div class="time">{{ entry.time }}</div>
+			</div>
+		</div>
+
+		<div class="button" id="accept" data-class-disabled="!canact" data-event-click="press('accept')">Load</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>
