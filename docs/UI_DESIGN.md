@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 6 of the migration plan have landed and step 7
-is most of the way through; nothing from step 8 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 7 of the migration plan have landed; nothing
+from step 8 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -817,12 +817,31 @@ text beyond an ASCII test document.
    the family is extracted: `code/ui/uigameoptions.{h,cpp}`,
    `code/ui/uiabort.{h,cpp}`, `code/ui/uigamecontrols.{h,cpp}`,
    `code/ui/uimainoptions.{h,cpp}`, `code/ui/uidisplayoptions.{h,cpp}`,
-   `code/ui/uidisplayconfirm.{h,cpp}` and `code/ui/uikeyboard.{h,cpp}`. Six of
-   the seven have their RmlUi view: `ui/options.rml`, `ui/gameoptions.rml` with
+   `code/ui/uidisplayconfirm.{h,cpp}` and `code/ui/uikeyboard.{h,cpp}`, and each
+   has its RmlUi view: `ui/options.rml`, `ui/gameoptions.rml` with
    its `mp` and `wol` variants, `ui/abort.rml`, `ui/gamecontrols.rml` with its
-   `mp` and `wol` variants, `ui/display.rml` and `ui/modeconfirm.rml`, sharing
+   `mp` and `wol` variants, `ui/display.rml`, `ui/modeconfirm.rml` and
+   `ui/keyboard.rml`, sharing
    the family's look through `ui/optionsbase.rcss` and each carrying its own
-   geometry. The keyboard screen still has only its legacy view.
+   geometry.
+
+   The keyboard screen brought the family's two new controls. The category
+   combo is RmlUi's `select`, sized the way an owner-draw `CBS_DROPDOWNLIST` is
+   sized, from the item height `ownrdraw.cpp` sets rather than from the
+   template's dropped extent. The capture control stands where
+   `msctls_hotkey32` stood: it takes a keypress while it holds the focus and
+   builds the game's own encoding from it, and it leaves alone the keys
+   `IsDialogMessage` took from that control, so Escape and Enter still leave
+   the screen and Tab still moves the focus. Turning a keypress back into that
+   encoding needs the inverse of the shell's key table, which was a short list
+   in one direction only; it is now complete and paired, because a key nothing
+   maps is never delivered to a document at all. Step 9's save-name field wants
+   the same table.
+
+   The display screen needed the host's mode list. `EnumDisplaySettings`
+   answered nothing on this platform, so the resolution list was empty and the
+   trial and its rollback could not be reached through the screen that owns
+   them; the shim answers from the host's own enumeration now.
 
    The mode trial's timeout is the presenter's, not a view's: the driver
    expressed it as a posted `WM_COMMAND` carrying `WM_DESTROY`, which is two,
