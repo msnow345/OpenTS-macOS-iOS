@@ -25,6 +25,7 @@ bool NullSocketClass::Open(unsigned short port)
 void NullSocketClass::Close(void)
 {
 	Opened = false;
+	Port = 0;
 	Inbound.clear();
 	NextInbound = 0;
 }

@@ -479,12 +479,19 @@ void UDPInterfaceClass::Receive_Pending(void)
 		/*
 		**	Make sure this packet didn't come from us. If it did then throw it away.
 		*/
+		// A broadcast is delivered back to the socket that sent it, which is the echo
+		// this discards. The source port has to match as well as the address, because
+		// another instance of the game on this machine answers from the same addresses
+		// and is a peer, not an echo.
 		bool ours = false;
-		uint32_t const from_ip = source.Get_IP();
-		for ( int i=0 ; i<LocalAddresses.Count() ; i++ ) {
-			if ( ! memcmp (LocalAddresses[i], &from_ip, 4) ) {
-				ours = true;
-				break;
+		unsigned short const bound = (Socket != nullptr) ? Socket->Bound_Port() : 0;
+		if (bound != 0 && source.Get_Port() == Socket_Network_Port(bound)) {
+			uint32_t const from_ip = source.Get_IP();
+			for ( int i=0 ; i<LocalAddresses.Count() ; i++ ) {
+				if ( ! memcmp (LocalAddresses[i], &from_ip, 4) ) {
+					ours = true;
+					break;
+				}
 			}
 		}
 		if (ours) continue;

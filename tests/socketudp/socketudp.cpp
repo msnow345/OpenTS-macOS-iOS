@@ -216,20 +216,40 @@ void Test_Reset_Does_Not_End_The_Pass(void)
 }
 
 
-/// A packet from one of our own addresses is our own broadcast coming back.
+/// A packet from one of our own addresses on our own port is our own broadcast
+/// coming back.
 void Test_Own_Address_Is_Discarded(void)
 {
 	uint32_t const mine = 0x0100007f;
 
 	Harness harness({{mine, 0}});
-	IPXAddressClass const self = Peer(mine, 51000);
+	IPXAddressClass const self = Peer(mine, 50000);
 
 	std::vector<unsigned char> const wire = harness.Send("echo", self);
 
 	harness.Socket->Deliver(self, wire.data(), static_cast<int>(wire.size()));
 	harness.Transport.Service();
 
-	Check(harness.Drain().empty(), "a packet from one of our own addresses is thrown away");
+	Check(harness.Drain().empty(), "a packet from our own address and port is thrown away");
+}
+
+
+/// Another instance of the game on this machine sends from one of our own
+/// addresses and a port of its own. It is a peer, so it must be heard.
+void Test_Local_Peer_On_Another_Port_Is_Heard(void)
+{
+	uint32_t const mine = 0x0100007f;
+
+	Harness harness({{mine, 0}});
+	IPXAddressClass const peer = Peer(mine, 50001);
+
+	std::vector<unsigned char> const wire = harness.Send("neighbour", peer);
+
+	harness.Socket->Deliver(peer, wire.data(), static_cast<int>(wire.size()));
+	harness.Transport.Service();
+
+	std::vector<std::string> const got = harness.Drain();
+	Check(got.size() == 1 && got[0] == "neighbour", "a local address on another port is heard");
 }
 
 
@@ -323,6 +343,7 @@ int main(void)
 	Test_Drain_Is_Bounded();
 	Test_Reset_Does_Not_End_The_Pass();
 	Test_Own_Address_Is_Discarded();
+	Test_Local_Peer_On_Another_Port_Is_Heard();
 	Test_Malformed_Is_Rejected();
 	Test_Tunnel_Framing();
 	Test_Broadcast_Addresses();

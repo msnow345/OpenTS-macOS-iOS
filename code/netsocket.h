@@ -81,6 +81,11 @@ class SocketClass
 		virtual void Close(void) = 0;
 		virtual bool Is_Open(void) const = 0;
 
+		// The port the socket ended up bound to, in host order, which for a
+		// socket opened on port zero is the one the platform chose. Zero while
+		// the socket is closed.
+		virtual unsigned short Bound_Port(void) const = 0;
+
 		virtual bool Set_Broadcast(bool enable) = 0;
 		virtual bool Set_Buffer_Sizes(int receive, int send) = 0;
 
@@ -137,7 +142,7 @@ class NullSocketClass : public SocketClass
 
 		void Set_Interfaces(std::vector<InterfaceType> interfaces) { Interfaces = std::move(interfaces); }
 
-		unsigned short Bound_Port(void) const { return(Port); }
+		unsigned short Bound_Port(void) const override { return(Port); }
 
 	private:
 		std::vector<Datagram> Inbound;
