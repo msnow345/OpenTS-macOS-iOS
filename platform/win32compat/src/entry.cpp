@@ -30,6 +30,14 @@ int main(int argc, char ** argv)
 {
 	Win32_Record_Arguments(argc, argv);
 
+#ifdef OPENTS_IOS
+	// The recognizer needs the fingers themselves. A host that also turned them into mouse
+	// events would put a click on the screen before anything knew what the gesture was, and
+	// a stray click on the tactical map is an order.
+	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+	SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
+#endif
+
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
 		SDL_Log("SDL could not start: %s", SDL_GetError());
 		return(1);

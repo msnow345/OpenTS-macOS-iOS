@@ -60,6 +60,20 @@ SDL_MouseButtonFlags Win32_Pointer_Buttons(void)
 }
 
 
+// Warping is what the tactical map's dragging scroll methods are built on: they pull the
+// pointer back to the press point every frame so the map appears to travel under it. A host
+// with no pointer of its own has nothing to pull, so it answers no and the game offers those
+// methods to nobody.
+bool Win32_Pointer_Can_Warp(void)
+{
+#ifdef OPENTS_IOS
+	return(false);
+#else
+	return(true);
+#endif
+}
+
+
 // A host reports motion only while its mouse is over a window it is delivering input to, and
 // the engine polls a position whether it is or not, so the host is asked directly while it is
 // not. The same call gives the pointer its opening position before the player has moved the

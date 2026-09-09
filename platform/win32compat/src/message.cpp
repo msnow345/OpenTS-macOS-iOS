@@ -84,6 +84,45 @@ static WPARAM Mouse_Key_State(void)
 }
 
 
+// The repeat count, the scan code and the transition bit occupy the same places in the
+// parameter that Windows puts them in.
+static LPARAM Key_LParam(SDL_Scancode scancode, bool down)
+{
+	LPARAM lparam = 1;
+	lparam |= (LPARAM)(scancode & 0xFF) << 16;
+	if (!down) lparam |= (LPARAM)3 << 30;
+	return(lparam);
+}
+
+
+void Win32_Post_Pointer_Message(UINT message)
+{
+	HWND const main = Win32_Main_Window();
+
+	if (main == NULL) {
+		return;
+	}
+
+	Win32_Post_Message(main, message, Mouse_Key_State(), Pointer_To_LParam());
+}
+
+
+extern SDL_Scancode Scancode_For_Virtual_Key(int key);
+
+
+void Win32_Post_Key_Message(int virtualkey, bool down)
+{
+	HWND const main = Win32_Main_Window();
+
+	if (main == NULL) {
+		return;
+	}
+
+	Win32_Post_Message(main, down ? WM_KEYDOWN : WM_KEYUP, (WPARAM)virtualkey,
+		Key_LParam(Scancode_For_Virtual_Key(virtualkey), down));
+}
+
+
 extern int Win32_Virtual_Key(SDL_Scancode scancode, SDL_Keycode keycode);
 
 
@@ -144,12 +183,26 @@ static void Translate_Event(SDL_Event const & event)
 			break;
 
 		case SDL_EVENT_MOUSE_MOTION:
+#ifdef OPENTS_IOS
+			// A host that turns touches into mouse events would fight the recognizer for
+			// the pointer, and the recognizer is the one that knows what the gesture was.
+			// The hint that asks for them is already off; this is the second lock.
+			if (event.motion.which == SDL_TOUCH_MOUSEID) {
+				return;
+			}
+#endif
 			Win32_Pointer_Move(event.motion.x, event.motion.y);
 			Win32_Post_Message(main, WM_MOUSEMOVE, Mouse_Key_State(), Pointer_To_LParam());
 			break;
 
 		case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		case SDL_EVENT_MOUSE_BUTTON_UP: {
+#ifdef OPENTS_IOS
+			if (event.button.which == SDL_TOUCH_MOUSEID) {
+				return;
+			}
+#endif
+
 			bool const down = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN;
 			bool const doubled = down && event.button.clicks >= 2;
 			UINT message = 0;
@@ -199,15 +252,20 @@ static void Translate_Event(SDL_Event const & event)
 				? (system ? WM_SYSKEYDOWN : WM_KEYDOWN)
 				: (system ? WM_SYSKEYUP : WM_KEYUP);
 
-			// The repeat count, the scan code and the transition bit occupy the same
-			// places in the parameter that Windows puts them in.
-			LPARAM lparam = 1;
-			lparam |= (LPARAM)(event.key.scancode & 0xFF) << 16;
-			if (!down) lparam |= (LPARAM)3 << 30;
-
-			Win32_Post_Message(main, message, (WPARAM)key, lparam);
+			Win32_Post_Message(main, message, (WPARAM)key, Key_LParam(event.key.scancode, down));
 			break;
 		}
+
+#ifdef OPENTS_IOS
+		// Only a host whose pointer is a finger routes them. A trackpad reports fingers
+		// too, and its own pointer is already the right answer there.
+		case SDL_EVENT_FINGER_DOWN:
+		case SDL_EVENT_FINGER_MOTION:
+		case SDL_EVENT_FINGER_UP:
+		case SDL_EVENT_FINGER_CANCELED:
+			Win32_Touch_Handle_Event(event);
+			break;
+#endif
 
 		case SDL_EVENT_TEXT_INPUT: {
 			for (char const * cursor = event.text.text; cursor != NULL && *cursor != '\0'; cursor++) {
@@ -248,6 +306,7 @@ void Win32_Pump_Host_Events(void)
 		Translate_Event(event);
 	}
 
+	Win32_Touch_Service();
 	Service_Timers();
 }
 

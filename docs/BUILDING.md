@@ -222,6 +222,17 @@ reaches AVAudioSession, so its translation unit compiles as Objective-C. The
 application bundle holds no loose libraries beside its executable, and the
 strings come from `Language.dat` either way.
 
+Fingers reach the engine as the pointer every other host writes. One finger taps
+and drags, a held finger is the right button, and two fingers scroll the tactical
+view. The recognizer writes down every finger, every decision and every message
+it posts when a directory named `touchlog` exists beside the game: `touchlog`
+inside the application's `Documents` folder on iOS, which the Files app shows and
+a log can be copied out of, and `touchlog` in the working directory elsewhere,
+where `OPENTS_TOUCH_LOG_DIR` names a different one. `-TOUCHLOG` on the command
+line, or `OPENTS_TOUCH_LOG` in the environment, creates the directory rather than
+waiting for one. Each run writes its own file and every line is flushed, so a run
+that ends without a crash report still leaves its last gesture on disk.
+
 ## Build from Visual Studio Code
 
 With the recommended extensions installed, the repository provides:

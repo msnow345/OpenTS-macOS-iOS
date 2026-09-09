@@ -90,7 +90,7 @@ int Win32_Virtual_Key(SDL_Scancode scancode, SDL_Keycode keycode)
 }
 
 
-static SDL_Scancode Scancode_For_Virtual_Key(int key)
+SDL_Scancode Scancode_For_Virtual_Key(int key)
 {
 	if (key >= 'A' && key <= 'Z') {
 		return((SDL_Scancode)(SDL_SCANCODE_A + (key - 'A')));
@@ -304,6 +304,12 @@ static Win32Cursor * Lookup_Cursor(HCURSOR cursor)
 // is on screen, so they are applied together.
 static void Apply_Cursor(void)
 {
+#ifdef OPENTS_IOS
+	// A finger is its own pointer. The game keeps choosing shapes, because the choice is
+	// what the rest of it reads, but nothing draws them.
+	SDL_HideCursor();
+	return;
+#else
 	Win32Cursor * record = Lookup_Cursor(_CurrentCursor);
 
 	if (!_CursorShown || _CursorCount < 0) {
@@ -315,6 +321,7 @@ static void Apply_Cursor(void)
 	// be drawing the window class's cursor, so the host's own pointer stands in for it.
 	SDL_SetCursor(record != NULL ? record->Cursor : SDL_GetDefaultCursor());
 	SDL_ShowCursor();
+#endif
 }
 
 

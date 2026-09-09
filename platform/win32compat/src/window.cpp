@@ -11,6 +11,7 @@
 
 #include <SDL3/SDL_metal.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -699,7 +700,13 @@ extern "C" int GetSystemMetrics(int index)
 
 		case SM_CXDRAG:
 		case SM_CYDRAG:
+#ifdef OPENTS_IOS
+			// Four pixels is a mouse's answer. A finger covers several millimetres of glass
+			// and rolls as it presses, so the threshold is given a physical size instead.
+			return(std::max(4, (int)(3.0f * (160.0f / 25.4f) * density)));
+#else
 			return(4);
+#endif
 
 		case SM_SWAPBUTTON:
 			return(0);
