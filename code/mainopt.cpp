@@ -37,6 +37,7 @@
 #include "wwmouse.h"
 #include "ui/uidisplayconfirm.h"
 #include "ui/uidisplayoptions.h"
+#include "ui/uimainoptions.h"
 
 #include "color.hh"
 
@@ -48,9 +49,9 @@ bool Test_Display_Mode_Dialog(int width, int height);
 INT_PTR CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 
-
 // The screens the dialog procedures read and write. A driver owns one for the whole life of
 // its dialog, which is the lifetime DWLP_USER gave the result pointer each replaces.
+static UIMainOptionsPresenterClass * _MainScreen = NULL;
 static UIDisplayOptionsPresenterClass * _DisplayScreen = NULL;
 static UIDisplayConfirmPresenterClass * _ConfirmScreen = NULL;
 
@@ -73,91 +74,54 @@ static void Options_Queue(UIPresenterClass & screen, char const * action, int va
 /// <remarks>Game logic is suspended for the duration of this routine.</remarks>
 void Main_Options_Dialog(void)
 {
-	bool old_game_active = GameActive;
-	GameActive = false;
+	UIMainOptionsPresenterClass screen;
+	screen.Begin();
+	screen.Refresh();
 
-	HWND main_handle;
-	LONG main_rc;
-
-	HWND in_handle;
-	LONG in_rc;
+	_MainScreen = &screen;
 
 	while (true) {
+		screen.Result.reset();
+		screen.Choice = UIMainOptionsPresenterClass::CHOICE_NONE;
+
+		HWND main_handle;
 		do {
-			main_rc = -1;
 			main_handle = OwnerDraw::Begin_Dialog(IDD_OPT_MAIN, Main_Options_Dialog_Proc);
 		} while (main_handle == 0);
-		SetWindowLongPtr(main_handle, DWLP_USER, (LONG_PTR)&main_rc);
 
 		OwnerDraw::Move_Dialog(main_handle, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
 		OwnerDraw::Display_Dialog(main_handle);
 
-		while (main_rc < 0) {
+		while (!screen.Result.has_value()) {
 			if (OwnerDraw::Dialog_Message_Handler() == true) {
+				// A session that ended underneath the screen leaves the family, which is
+				// what the driver's own unanswered result did on the way to its default arm.
+				UIResult ended;
+				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
+				ended.GameEnded = true;
+				screen.Choice = UIMainOptionsPresenterClass::CHOICE_EXIT;
+				screen.Result = ended;
 				break;
 			}
-			Title_Screen_Restore();
+
+			screen.Drain();
+			screen.Service();
 		}
 
 		OwnerDraw::End_Dialog(main_handle);
 
-		switch (main_rc) {
-			case IDC_OPTMAIN_SOUND:
-				SoundControlsClass().Dialog();
-				break;
-
-			case IDC_OPTMAIN_DISPLAY:
-				Display_Options_Dialog();
-				break;
-
-			case IDC_OPTMAIN_KEYBOARD:
-				Options.Hotkey_Dialog();
-				break;
-
-			case IDC_OPTMAIN_GAME_SETTINGS:
-				GameControlsClass().Dialog();
-				break;
-
-			default:
-				Options.Save_Settings();
-				GameActive = old_game_active;
-				return;
+		if (screen.Exits()) {
+			break;
 		}
+
+		// The sub-screen runs with this one destroyed, which is the coexistence rule the
+		// driver already kept.
+		screen.Run_Pending();
 	}
-}
 
+	_MainScreen = NULL;
 
-/// <summary>
-/// Handles the main options dialog.
-/// This routine reports the button the player pressed back to the options dialog driver so
-/// that it can bring up the appropriate sub dialog. The sound button is disabled when there
-/// is no audio hardware to talk to.
-/// </summary>
-INT_PTR CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	int *result;
-	HWND handle;
-
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-	if (rc == 0) {
-		result = (int *)GetWindowLongPtr(window, DWLP_USER);
-		switch (message) {
-
-			case WM_COMMAND:
-				*result = LOWORD(wparam);
-				break;
-
-			case WM_INITDIALOG:
-				handle = GetDlgItem(window, IDC_OPTMAIN_SOUND);
-				if (handle) {
-					EnableWindow(handle, AudioEngine.Is_Available());
-				}
-				break;
-
-		}
-		return(0);
-	}
-	return(rc);
+	screen.End();
 }
 
 
@@ -212,6 +176,63 @@ void Display_Options_Dialog(void)
 
 		break;
 	}
+}
+
+
+/// <summary>
+/// Handles the main options dialog.
+/// The procedure queues what the player pressed for the driver to execute after the pump,
+/// and disables the sound button when there is no audio hardware to talk to.
+/// </summary>
+INT_PTR CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+{
+	HWND handle;
+
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	if (rc == 0) {
+		if (_MainScreen == NULL) {
+			return(0);
+		}
+
+		UIMainOptionsPresenterClass & screen = *_MainScreen;
+
+		switch (message) {
+
+			case WM_COMMAND:
+				switch (LOWORD(wparam)) {
+					case IDC_OPTMAIN_SOUND:
+						Options_Queue(screen, UI_MAINOPT_SOUND);
+						break;
+
+					case IDC_OPTMAIN_DISPLAY:
+						Options_Queue(screen, UI_MAINOPT_DISPLAY);
+						break;
+
+					case IDC_OPTMAIN_KEYBOARD:
+						Options_Queue(screen, UI_MAINOPT_KEYBOARD);
+						break;
+
+					case IDC_OPTMAIN_GAME_SETTINGS:
+						Options_Queue(screen, UI_MAINOPT_SETTINGS);
+						break;
+
+					default:
+						Options_Queue(screen, UI_MAINOPT_EXIT);
+						break;
+				}
+				break;
+
+			case WM_INITDIALOG:
+				handle = GetDlgItem(window, IDC_OPTMAIN_SOUND);
+				if (handle) {
+					EnableWindow(handle, screen.SoundAvailable);
+				}
+				break;
+
+		}
+		return(0);
+	}
+	return(rc);
 }
 
 
