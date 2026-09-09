@@ -34,7 +34,7 @@ public:
 	void Blit_Preview(HWND window);
 
 	unsigned * Create_Paletted_Preview(int, int & size);
-	void Create_Preview_Surface(char * buffer);
+	bool Create_Preview_Surface(char * buffer, int length);
 	XSurface * Get_Preview_Surface(void) { return(SurfacePtr); }
 
 private:

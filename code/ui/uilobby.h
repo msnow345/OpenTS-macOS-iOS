@@ -183,9 +183,10 @@ class UILobbyPresenterClass : public UIPresenterClass
 
 		std::string Handle;
 
-		// The longest handle the name field accepts, in bytes, which is the limit the
-		// dialog set on its edit control.
-		enum { HANDLE_LIMIT = 16 };
+		// The longest handle the name field accepts, in bytes. Session.Handle is
+		// MPLAYER_NAME_MAX bytes and travels in a packet field of that size, so anything
+		// longer is thrown away rather than sent.
+		enum { HANDLE_LIMIT = 11 };
 
 		int Color = 0;
 

@@ -8,7 +8,7 @@
 <body data-model="gamelist" data-event-keydown="key()">
 	<div id="dialog" class="panel">
 		<div class="caption" id="namelabel">Your Name:</div>
-		<input type="text" id="yourname" class="field" maxlength="16" data-attr-value="handle" data-event-change="rename()"/>
+		<input type="text" id="yourname" class="field" maxlength="11" data-attr-value="handle" data-event-change="rename()"/>
 
 		<div class="caption" id="gameslabel">Games:</div>
 		<div id="games" class="list">

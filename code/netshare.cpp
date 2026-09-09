@@ -1435,6 +1435,11 @@ void Rebuild_Network_Map_Preview(void)
 /// ready, the compressed preview file is downloaded, and the decompressed image becomes the
 /// preview shown in the multiplayer dialog.
 /// </summary>
+// The largest paletted preview block a host may declare, which is far above the picture the
+// game itself makes and well below a length that could not be allocated.
+static int const MAX_PREVIEW_BLOCK_SIZE = 4 * 1024 * 1024;
+
+
 void Receive_Random_Map_Preview(void)
 {
 	Ipx.Set_Timing(50, -1, 5000);
@@ -1468,24 +1473,42 @@ void Receive_Random_Map_Preview(void)
 	DebugString("Loading the compressed preview image\n");
 	CDFileClass file(preview_name);
 	int size = file.Size();
+
+	// The file came from the host, so its declared decompressed length is checked before it
+	// is used to size anything.
+	if (size <= (int)sizeof(int)) {
+		DebugString("Preview file is too short to carry a length\n");
+		Ipx.Set_Timing(TIMER_SECOND / 2, -1, 10 * TIMER_SECOND);
+		return;
+	}
+
 	char * buffer = new char[size];
 	file.Read(buffer, size);
 	int preview_size = ((int *)buffer)[0];
 
+	if (preview_size <= 0 || preview_size > MAX_PREVIEW_BLOCK_SIZE) {
+		DebugString("Preview file declares an unusable length of %d bytes\n", preview_size);
+		delete [] buffer;
+		Ipx.Set_Timing(TIMER_SECOND / 2, -1, 10 * TIMER_SECOND);
+		return;
+	}
+
 	DebugString("Decompressing the preview image\n");
 
-	BufferStraw bstraw(&((int *)buffer)[1], size);
+	BufferStraw bstraw(&((int *)buffer)[1], size - (int)sizeof(int));
 	LZOStraw lzostraw(LZOStraw::DECOMPRESS);
 	lzostraw.Get_From(&bstraw);
-	char * preview = new char[2 * preview_size];
-	lzostraw.Get(preview, preview_size);
+	char * preview = new char[preview_size];
+	int const decompressed = lzostraw.Get(preview, preview_size);
 
 	DebugString("Creating the new preview surface\n");
 	if (MultiplayerMapPreview) {
 		delete MultiplayerMapPreview;
 	}
 	MultiplayerMapPreview = new MapPreviewClass;
-	MultiplayerMapPreview->Create_Preview_Surface(preview);
+	if (!MultiplayerMapPreview->Create_Preview_Surface(preview, decompressed)) {
+		DebugString("Preview block does not describe a usable picture\n");
+	}
 	InvalidateRect(WS_Top_Window(), NULL, FALSE);
 
 	DebugString("Cleaning up the temporary decompression buffers\n");
