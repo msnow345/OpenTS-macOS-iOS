@@ -805,7 +805,13 @@ text beyond an ASCII test document.
 7. **Options family** (L, two changes each). Main options, display with its
    timed rollback, game controls (three variants), keyboard with the hotkey
    capture control, the display-mode confirmation, abort and surrender.
-   Evidence: settings round-trip through `SUN.INI` unchanged.
+   Evidence: settings round-trip through `SUN.INI` unchanged. Started: the
+   first change of three of them has landed, classified preserved, with the
+   legacy view still selected --- `code/ui/uigameoptions.{h,cpp}` for the
+   in-game options screen, `code/ui/uiabort.{h,cpp}` for abort and surrender,
+   and `code/ui/uigamecontrols.{h,cpp}` for the game controls. Main options,
+   display with its rollback, the display-mode confirmation and the keyboard
+   screen are not extracted, and no RmlUi view exists for any of them.
 8. **Main menu family** (M). `IDD_MAIN_MENU`, campaign choice, game type,
    multiplayer game selection. The `NewMenuClass` drivers keep their loops.
 9. **Load, save, delete** (M, two changes).
