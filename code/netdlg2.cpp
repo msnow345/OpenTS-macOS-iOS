@@ -213,6 +213,20 @@ static int Lobby_Response_Identifier(UILobbyPresenterClass::ResponseType respons
 
 
 /// <summary>
+/// Answers the lobby driver from the network rather than from a button.
+/// The runner returns on a result or a suspension, so a screen answered from inside its own
+/// service steps aside; otherwise the driver never gets its pass back to act on the answer.
+/// </summary>
+static void Net2AnswerLobby(int response)
+{
+	_netresponse = response;
+	if (Lobby_Screen() != NULL) {
+		Lobby_Screen()->Answered = true;
+	}
+}
+
+
+/// <summary>
 /// Fills a side box with the multiplayable countries, each entry carrying its country index.
 /// </summary>
 void Fill_Country_Box(HWND combo)
@@ -2493,7 +2507,7 @@ static void Get_Join_Responses(void)
 					ODMessageBox(item, 0, Net2Callback, 0);
 				}
 				if ( Net2LobbyScreenID() != IDD_MPLAYER_GAME_LIST ) {
-					_netresponse = IDCANCEL;
+					Net2AnswerLobby(IDCANCEL);
 				}
 				Send_Join_Queries (0, 0, 1, 0);
 			}
@@ -2584,7 +2598,7 @@ static void Get_Join_Responses(void)
 					if (i==CurGame) {
 						Clear_Vector (&Session.Players);
 						if (Net2LobbyScreenID() != IDD_MPLAYER_GAME_LIST && Net2LobbyScreenID() == IDD_MPLAYER_GUEST) {
-							_netresponse = 2;
+							Net2AnswerLobby(2);
 						}
 					}
 
@@ -2696,11 +2710,11 @@ static void Get_Join_Responses(void)
 				Session.MaxAhead = Session.GPacket.ResponseTime.OneWay;
 				Session.HostAddress = Session.GAddress;
 				Session.NumPlayers = Session.Players.Count();
-				_netresponse = IDOK;
+				Net2AnswerLobby(IDOK);
 				if (Session.GPacket.Command==NET_GO) {
 					JoinState = JOIN_GAME_START;
 					if (!Net2ReadyToGo(0)) {
-						_netresponse = 2;
+						Net2AnswerLobby(2);
 						Net2GameStarted = false;
 					} else {
 						Net2GameStarted = true;

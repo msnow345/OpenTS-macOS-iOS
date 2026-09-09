@@ -148,8 +148,13 @@ class UILobbyPresenterClass : public UIPresenterClass
 		// document once and a join is confirmed from inside the service.
 		virtual bool Suspends(void) const override
 		{
-			return(Pending != SUB_NONE || (Running != SCREEN_NONE && Running != Showing));
+			return(Pending != SUB_NONE || Answered || (Running != SCREEN_NONE && Running != Showing));
 		}
+
+		// Has the network answered the driver on the player's behalf? A confirmed start, a
+		// rejected join and a host signing off all answer from inside the service, where
+		// there is no result to return, so the screen steps aside to let the driver act.
+		bool Answered = false;
 
 		// The screen the runner is holding a document open for, which the runner sets and
 		// clears around itself.
