@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 8 of the migration plan have landed; nothing
-from step 9 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 9 of the migration plan have landed; nothing
+from step 10 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -890,7 +890,26 @@ text beyond an ASCII test document.
    document that names another's gets no bindings and no events at all. The
    step 7 variants had that fault and it went unseen until a click was driven
    through one.
-9. **Load, save, delete** (M, two changes).
+9. **Load, save, delete** (M, two changes). Landed: `code/ui/uisavebrowser.{h,cpp}`
+    holds all three templates as one screen, because they differ by which controls
+    exist and by what the action button does rather than by how the list is built,
+    with `ui/missionload.rml`, `ui/missionsave.rml` and `ui/missiondelete.rml`
+    sharing `ui/savebrowser.rcss` beside `ui/optionsbase.rcss` and each carrying its
+    own geometry, converted from the `IDD_MISSION_LOAD`, `IDD_MISSION_SAVE` and
+    `IDD_MISSION_DELETE` templates.
+
+    A row's cells stand where the owner-draw list put its columns, which the three
+    dialog procedures register with `OD_ADDCOLUMN` at x 2, 255 and 315. The
+    multiplayer star is absent from the documents because it was absent from the
+    dialog: `Fill_List` sends `OD_SETCELL` at x 200, no column is registered there,
+    and `OD_SETCELL` answers -1 for a column it cannot find.
+
+    The description field states a width. RmlUi moves the caret for the End key by
+    the length of the formatted line, and a field that formats no line, because it
+    has no usable width or no font face, reports that length as zero and sends the
+    caret to the start instead. Home is unaffected, because it asks for index zero
+    outright, and so is Ctrl+End, which takes the value's own length. Step 12's map
+    generator screens want the same field.
 10. **Skirmish and map selection** (M, two changes). Includes the scenario
     picker templates and the preview surface.
 11. **Network lobbies** (L, two changes). Host, guest, game list, the `WS_`
