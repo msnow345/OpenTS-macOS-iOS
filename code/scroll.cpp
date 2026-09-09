@@ -60,6 +60,7 @@
 #include "suprtype.h"
 #include "surface.h"
 #include "tactical.h"
+#include "video.h"
 #include "vidscale.h"
 #include "waypoint.h"
 #include "winstub.h"
@@ -557,13 +558,21 @@ static void Pointer_Scroll_AI(bool apply)
 		return;
 	}
 
-	POINT origin = { 0, 0 };
-	POINT offset = { windowx, windowy };
-	Window_Point_To_Game(origin);
-	Window_Point_To_Game(offset);
+	/*
+	 * The offset is a distance rather than a position, so it is scaled directly. Converting
+	 * its two ends with Window_Point_To_Game instead would floor each of them, and the
+	 * fraction the remainder below exists to carry would be gone before it arrived: a device
+	 * polled thousands of times a second hands over a pixel or two at a time, every one of
+	 * which floors to no movement at all.
+	 */
+	VideoScaleInfo const & scale = Video_Get_Scale_Info();
 
-	double const scaledx = (double)(offset.x - origin.x) + _PointerScrollRemainderX;
-	double const scaledy = (double)(offset.y - origin.y) + _PointerScrollRemainderY;
+	if (scale.DestWidth <= 0 || scale.DestHeight <= 0) {
+		return;
+	}
+
+	double const scaledx = (double)windowx * (double)scale.GameWidth / (double)scale.DestWidth + _PointerScrollRemainderX;
+	double const scaledy = (double)windowy * (double)scale.GameHeight / (double)scale.DestHeight + _PointerScrollRemainderY;
 	int distx = (int)scaledx;
 	int disty = (int)scaledy;
 	_PointerScrollRemainderX = scaledx - distx;
