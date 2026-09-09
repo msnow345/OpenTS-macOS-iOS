@@ -128,13 +128,6 @@ class OptionsClass {
 		bool ToolTips;
 
 		/*
-		 * Should a screen that has been migrated to the new user interface open the Win32
-		 * dialog it replaced instead? This is transitional: it exists while both views of a
-		 * screen do, and goes when the last legacy dialog does.
-		 */
-		bool LegacyDialogs;
-
-		/*
 		 * The palette index drawn behind each glyph of the in-game message list, or zero for
 		 * none. Twelve, black, is the value the CnCNet client's chat background option writes.
 		 */

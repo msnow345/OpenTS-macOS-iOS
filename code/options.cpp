@@ -123,7 +123,6 @@ OptionsClass::OptionsClass(void) :
 	SidebarSorting(true),
 	ActionLines(true),
 	ToolTips(true),
-	LegacyDialogs(false),
 	TextBackgroundColor(12),
 	AutoSaveInterval(10800),
 	ScreenWidth(-1),
@@ -405,9 +404,6 @@ void OptionsClass::Load_Settings(void)
 	AutoSaveInterval = ConfigINI.Get_Int("Options", "AutoSaveInterval", AutoSaveInterval);
 	DebugString("AutoSaveInterval = %d\n", AutoSaveInterval);
 
-	LegacyDialogs = ConfigINI.Get_Bool("Options", "LegacyDialogs", LegacyDialogs);
-	DebugString("LegacyDialogs are %s\n", LegacyDialogs == true ? "ON" : "OFF");
-
 	ScreenWidth = ConfigINI.Get_Int("Video", "ScreenWidth", ScreenWidth);
 	ScreenHeight = ConfigINI.Get_Int("Video", "ScreenHeight", ScreenHeight);
 	DebugString("Resolution = %d X %d\n", ScreenWidth, ScreenHeight);
@@ -479,7 +475,6 @@ void OptionsClass::Save_Settings (void)
 	ConfigINI.Put_Bool("Options", "ToolTips", ToolTips);
 	ConfigINI.Put_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	ConfigINI.Put_Int("Options", "AutoSaveInterval", AutoSaveInterval);
-	ConfigINI.Put_Bool("Options", "LegacyDialogs", LegacyDialogs);
 	ConfigINI.Put_Int("Video", "ScreenWidth", ScreenWidth);
 	ConfigINI.Put_Int("Video", "ScreenHeight", ScreenHeight);
 	ConfigINI.Put_Bool("Video", "StretchMovies", StretchMovies);
