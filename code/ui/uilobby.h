@@ -63,14 +63,6 @@ class UILobbyPresenterClass : public UIPresenterClass
 			std::string Name;
 			std::string SideName;
 			int Color = 0;
-
-		// The country the player is showing, which is a country rather than a row, because
-		// the side list holds only the countries that may be played.
-		int House = 0;
-
-		// Is the accept button available? A guest may accept once per change the host
-		// makes, which is what disabling the button after a press stood for.
-		bool CanAccept = false;
 			int Side = -1;
 			bool IsHost = false;
 			bool HasAccepted = false;
