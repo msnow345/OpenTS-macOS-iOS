@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="optionsbase.rcss"/>
 	<link type="text/rcss" href="gameoptionswol.rcss"/>
 </head>
-<body data-model="gameoptions" data-event-keydown="key()">
+<body data-model="gameoptionswol" data-event-keydown="key()">
 	<div id="dialog" class="panel">
 		<div class="button" id="settings" data-event-click="press('settings')">Game Controls</div>
 		<div class="button" id="load" data-class-disabled="!canload" data-event-click="press('load')">Load Game</div>

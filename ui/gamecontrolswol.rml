@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="optionsbase.rcss"/>
 	<link type="text/rcss" href="gamecontrolswol.rcss"/>
 </head>
-<body data-model="gamecontrols" data-event-keydown="key()">
+<body data-model="gamecontrolswol" data-event-keydown="key()">
 	<div id="dialog" class="panel">
 		<div class="caption" id="scrolllabel">Scroll Rate:</div>
 		<input id="scroll" class="slider" type="range" orientation="horizontal" min="0" max="6" step="1" data-attr-value="scroll" data-event-change="move('scroll')"/>

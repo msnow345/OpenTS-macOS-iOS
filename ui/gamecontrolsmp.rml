@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="optionsbase.rcss"/>
 	<link type="text/rcss" href="gamecontrolsmp.rcss"/>
 </head>
-<body data-model="gamecontrols" data-event-keydown="key()">
+<body data-model="gamecontrolsmp" data-event-keydown="key()">
 	<div id="dialog" class="panel">
 		<div class="caption" id="speedlabel">Game Speed:</div>
 		<input id="speed" class="slider" type="range" orientation="horizontal" min="0" max="6" step="1" data-attr-value="speed" data-event-change="move('speed')"/>

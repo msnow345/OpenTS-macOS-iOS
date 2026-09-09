@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="optionsbase.rcss"/>
 	<link type="text/rcss" href="mpselectfs.rcss"/>
 </head>
-<body data-model="mpselect" data-event-keydown="key()">
+<body data-model="mpselectfs" data-event-keydown="key()">
 	<div id="dialog" class="panel">
 		<div class="caption" id="question">Select Multiplayer Game</div>
 		<div class="button" id="internet" data-class-disabled="!internet" data-event-click="press('internet')">Internet</div>

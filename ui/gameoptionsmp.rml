@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="optionsbase.rcss"/>
 	<link type="text/rcss" href="gameoptionsmp.rcss"/>
 </head>
-<body data-model="gameoptions" data-event-keydown="key()">
+<body data-model="gameoptionsmp" data-event-keydown="key()">
 	<div id="dialog" class="panel">
 		<div class="button" id="settings" data-event-click="press('settings')">Game Controls</div>
 		<div class="button" id="abort" data-event-click="press('abort')">Abort Mission</div>
