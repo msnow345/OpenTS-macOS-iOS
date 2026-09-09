@@ -134,3 +134,121 @@ void UIMainMenuPresenterClass::Execute(UIIntent const & intent)
 	result.Value = Selection();
 	Result = result;
 }
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the main menu.
+/// </summary>
+class MainMenuViewClass : public UIRmlViewClass
+{
+	public:
+		MainMenuViewClass(UIMainMenuPresenterClass & presenter) :
+			UIRmlViewClass(presenter, "mainmenu.rml"),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+	private:
+		UIMainMenuPresenterClass & Screen;
+
+		// Was a modifier held for the key that produced the character now arriving? The
+		// driver read the version and credits combinations off the queue before anything
+		// else saw them, so a character they produce is not a character the player typed.
+		bool Modified = false;
+};
+
+
+void MainMenuViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	model.Bind("canload", &Screen.CanLoad);
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// The keys the driver watched for beside the buttons are the screen's, so the document
+	// carries them: the shell's modal scope takes every key message before the game's own
+	// queue sees it, and Keyboard->Check() never fires again while a document is shown.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			bool const ctrl = event.GetParameter<bool>("ctrl_key", false);
+			bool const alt = event.GetParameter<bool>("alt_key", false);
+
+			Modified = ctrl || alt;
+
+			if (key == Rml::Input::KI_V && ctrl && !alt) {
+				Screen.Queue(UIIntent{UI_MAINMENU_VERSION, "", 0});
+			} else if (key == Rml::Input::KI_C && ctrl && alt) {
+				Screen.Queue(UIIntent{UI_MAINMENU_CREDITS, "", 0});
+			}
+		});
+
+	// A cheat word is spelled out, so the screen wants the character rather than the key
+	// that produced it.
+	model.BindEventCallback("typed",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			if (Modified) return;
+
+			Rml::String const text = event.GetParameter<Rml::String>("text", Rml::String());
+			for (char const letter : text) {
+				Screen.Queue(UIIntent{UI_MAINMENU_TYPED, "", (int)letter});
+			}
+		});
+}
+
+
+void MainMenuViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Model.DirtyVariable("canload");
+}
+
+
+/// <summary>
+/// Shows the main menu and waits for the player to choose.
+/// </summary>
+UIResult UI_Main_Menu_Screen(UIMainMenuPresenterClass & presenter)
+{
+	MainMenuViewClass view(presenter);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	// The version screen is a screen of a different kind, so it nests; getting out of the
+	// way of it is hiding this document, which is what the dialog's ShowWindow did.
+	while (!presenter.Result.has_value()) {
+		UIResult const pass = UI_Run_Modal(presenter, view);
+
+		if (pass.GameEnded) {
+			view.Close();
+			return(pass);
+		}
+
+		if (!presenter.VersionPending) {
+			break;
+		}
+
+		view.Hide();
+		presenter.Run_Pending();
+		view.Show();
+		view.Sync();
+	}
+
+	UIResult const result = presenter.Result.value_or(UIResult{});
+	view.Close();
+	return(result);
+}

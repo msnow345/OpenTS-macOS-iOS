@@ -157,3 +157,116 @@ void UICampaignPresenterClass::Execute(UIIntent const & intent)
 	result.Value = Chosen();
 	Result = result;
 }
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the campaign choice screen.
+/// </summary>
+class CampaignViewClass : public UIRmlViewClass
+{
+	public:
+		CampaignViewClass(UICampaignPresenterClass & presenter) :
+			UIRmlViewClass(presenter, "campaign.rml"),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+		// The track bar takes its position from the model as the document loads, and that
+		// raises a change event of its own. Nothing is queued until this is set.
+		void Settle(void) { Settled = true; }
+
+	private:
+		UICampaignPresenterClass & Screen;
+		bool Settled = false;
+};
+
+
+void CampaignViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	if (auto entry = model.RegisterStruct<UICampaignPresenterClass::EntryType>()) {
+		entry.RegisterMember("label", &UICampaignPresenterClass::EntryType::Label);
+	}
+	model.RegisterArray<std::vector<UICampaignPresenterClass::EntryType>>();
+
+	model.Bind("campaigns", &Screen.Campaigns);
+	model.Bind("selected", &Screen.Selected);
+	model.Bind("difficulty", &Screen.Difficulty);
+	model.Bind("difficultyname", &Screen.DifficultyLabel);
+
+	model.BindEventCallback("pick",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_CAMPAIGN_SELECT, "", (int)arguments[0].Get<float>()});
+		});
+
+	// The track bar is bound one way and a position the screen already holds raises no
+	// intent, so setting it from the model cannot move a difficulty the player did not.
+	// The dialog read its slider back at accept because a keyboard or page move raised no
+	// thumb notification; RmlUi raises a change for every move, so there is nothing left to
+	// read back.
+	model.BindEventCallback("slide",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			if (!Settled) return;
+
+			int const step = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
+			if (step == Screen.Difficulty) return;
+
+			Screen.Queue(UIIntent{UI_CAMPAIGN_DIFFICULTY, "", step});
+		});
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// Escape cancels and Enter accepts, which is what IsDialogMessage delivered to a dialog
+	// whose template names no default push button.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Screen.Queue(UIIntent{UI_CAMPAIGN_CANCEL, "", 0});
+			} else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_CAMPAIGN_ACCEPT, "", 0});
+			}
+		});
+}
+
+
+void CampaignViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Model.DirtyVariable("campaigns");
+	Model.DirtyVariable("selected");
+	Model.DirtyVariable("difficultyname");
+}
+
+
+/// <summary>
+/// Shows the campaign list and waits for the player to choose.
+/// </summary>
+UIResult UI_Campaign_Screen(UICampaignPresenterClass & presenter)
+{
+	CampaignViewClass view(presenter);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	view.Settle();
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
+}

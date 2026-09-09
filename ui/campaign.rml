@@ -1,0 +1,23 @@
+<rml>
+<head>
+	<title>Select campaign</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="campaign.rcss"/>
+</head>
+<body data-model="campaign" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="question">Select Campaign:</div>
+
+		<div class="list" id="campaignlist">
+			<div class="row" data-for="entry : campaigns" data-class-picked="it_index == selected" data-event-click="pick(it_index)">{{ entry.label }}</div>
+		</div>
+
+		<div class="caption" id="difficultylabel">Difficulty</div>
+		<div class="caption" id="difficultyvalue">{{ difficultyname }}</div>
+		<input id="difficulty" class="slider" type="range" orientation="horizontal" min="0" max="2" step="1" data-attr-value="difficulty" data-event-change="slide()"/>
+
+		<div class="button" id="ok" data-event-click="press('accept')">[[TXT_OK]]</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

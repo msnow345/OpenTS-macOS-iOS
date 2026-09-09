@@ -843,6 +843,17 @@ static CampaignType Choose_Campaign(void)
 	UICampaignPresenterClass screen;
 	screen.Refresh();
 
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		if (UI_Campaign_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			return((CampaignType)screen.Chosen());
+		}
+
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
+
 	_CampaignScreen = &screen;
 
 	dialog = OwnerDraw::Begin_Dialog(IDD_CAMPAIGN, Campaign_Choice_Dialog_Proc);
@@ -3083,6 +3094,29 @@ void Version_Dialog(void)
 }
 
 
+/// <summary>
+/// Puts the title screen behind the menu.
+/// </summary>
+static void Draw_Title_Screen(void)
+{
+	char * menu = Get_New_Menu()->Background;
+	Load_Title_Screen(menu, HiddenSurface, &CCPalette);
+	Draw_Version_Text(HiddenSurface);
+	Update_Visible_Surface();
+}
+
+
+/// <summary>
+/// Seeds the cryptographic random number generator from the clock.
+/// </summary>
+static void Seed_Crypto_Random(void)
+{
+	SYSTEMTIME t;
+	GetSystemTime(&t);
+	CryptRandom.Seed_Byte(t.wMilliseconds);
+}
+
+
 /***************************************************************************
  * Main_Menu -- Menu processing                                            *
  *                                                                         *
@@ -3110,14 +3144,37 @@ int Main_Menu(unsigned int timeout)
 
 	_MainMenuScreen = &screen;
 
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		Draw_Title_Screen();
+
+		UIResult const result = UI_Main_Menu_Screen(screen);
+
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			// A session that ended underneath the screen leaves the menu, which is what the
+			// driver's own exit intent did for the same condition.
+			if (result.Outcome == UIResult::OUTCOME_SESSION_ENDED) {
+				screen.Choice = UIMainMenuPresenterClass::CHOICE_EXIT;
+			}
+
+			retval = screen.Selection();
+			Seed_Crypto_Random();
+
+			_MainMenuScreen = NULL;
+			SetFocus(MainWindow);
+			return(retval);
+		}
+
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
+
 	dialog = OwnerDraw::Begin_Dialog(IDD_MAIN_MENU, Main_Menu_Dialog_Proc);
 	assert(dialog != NULL);
 
 	if (dialog != NULL) {
-		char *menu = Get_New_Menu()->Background;
-		Load_Title_Screen(menu, HiddenSurface, &CCPalette);
-		Draw_Version_Text(HiddenSurface);
-		Update_Visible_Surface();
+		Draw_Title_Screen();
 		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
 		OwnerDraw::Display_Dialog(dialog);
 		SetFocus(MainWindow);
@@ -3169,12 +3226,7 @@ int Main_Menu(unsigned int timeout)
 
 		OwnerDraw::End_Dialog(dialog);
 
-		/*
-		 * Seed cryptographic random number generator.
-		 */
-		SYSTEMTIME t;
-		GetSystemTime(&t);
-		CryptRandom.Seed_Byte(t.wMilliseconds);
+		Seed_Crypto_Random();
 	} else {
 		retval = SEL_EXIT;
 	}
