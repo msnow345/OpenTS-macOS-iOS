@@ -1,7 +1,8 @@
 # UI system design
 
-Status: in progress. Steps 1 to 10 of the migration plan have landed; nothing
-from step 11 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 10 of the migration plan have landed, and step
+11's first change and most of its second; nothing from step 12 onward is
+implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -946,19 +947,31 @@ text beyond an ASCII test document.
     The same rule the text field learned at step 9, one control further on.
 11. **Network lobbies** (L, two changes). Host, guest, game list, the `WS_`
     stack, and `netshare.cpp` as one family; then disconnect, desync, and
-    reconnect. Packets unchanged. In progress: the family shares one presenter,
-    `code/ui/uilobby.{h,cpp}`, because the three screens share the session's
-    game, player and chat rosters and hand the driver one answer between them.
-    The game list and the guest screen read the view-model and queue intents,
-    and `Net2Remote_Connect` drains them after its pump; the host screen's
-    commands are not extracted and still write the driver's response themselves.
-    No document exists for any of the three.
+    reconnect. Packets unchanged. All three screens are extracted behind one
+    presenter, `code/ui/uilobby.{h,cpp}`, because they share the session's game,
+    player and chat rosters and hand the driver one answer between them, and all
+    three have their RmlUi view: `ui/gamelist.rml`, `ui/mphost.rml` and
+    `ui/mpguest.rml`, sharing `ui/lobbybase.rcss` beside `ui/optionsbase.rcss`
+    and each carrying its own geometry. Disconnect, desync and reconnect are
+    outstanding.
 
     `Net2DisplayGameList` and `_Net2DisplayUsers` are split the way `Fill_List`
     was: the presenter reads the rosters into the model and the old names put
     the model on the controls. The host's accepted status is recorded with the
     roster rather than while painting the row, because it is a fact about the
-    player rather than about the row.
+    player rather than about the row. That split belongs above the window
+    check, not below it: a rebuild that happens only when there is a window to
+    draw into leaves a presentation that is not a window holding a stale model.
+    `PMessagePrintf` and the game-option decoder take the same split.
+
+    A document has no window, so the driver asks the presenter which of the
+    three screens it is on rather than asking for the top window. Five places
+    in the lobby's protocol asked for a window's identifier where they meant
+    the screen, the load-bearing one being the query a host must stop sending.
+
+    A screen answers its driver with a result as well as a response, because
+    the runner returns on a result; a family whose members are opened one after
+    another clears both before it shows the next screen.
 12. **Map generator and WDT** (L).
 13. **Retire OwnerDraw** (M). Delete `ownrdraw.cpp`, `windlg.cpp`, the
     modeless dialog list, the dialog templates, the kill switch, and the
