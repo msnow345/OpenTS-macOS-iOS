@@ -184,10 +184,9 @@ void _Play_Movie(char const * name, ThemeType theme)
 /// </summary>
 void Play_Movie(VQType vq, ThemeType theme, bool clrscrn, bool stretch)
 {
-	static char _buf[20];
+	static char _buf[MOVIE_FILENAME_SIZE];
 	if (vq != VQ_NONE) {
-		strcpy(_buf, Movies[vq]);
-		strcpy(_buf + strlen(Movies[vq]), ".VQA");
+		snprintf(_buf, sizeof(_buf), "%s.VQA", Movies[vq]);
 		Play_Movie(_buf, theme, clrscrn, stretch, true);
 	}
 }
@@ -219,10 +218,9 @@ void Play_Ingame_Movie(const char * name)
 /// </summary>
 void Play_Ingame_Movie(VQType vq)
 {
-	static char _buf[20];
+	static char _buf[MOVIE_FILENAME_SIZE];
 	if (vq != VQ_NONE) {
-		strcpy(_buf, Movies[vq]);
-		strcpy(_buf + strlen(Movies[vq]), ".VQA");
+		snprintf(_buf, sizeof(_buf), "%s.VQA", Movies[vq]);
 		Play_Ingame_Movie(_buf);
 	}
 }

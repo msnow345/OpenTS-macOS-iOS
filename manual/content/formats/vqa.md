@@ -92,9 +92,7 @@ Two entries in that list decide nothing. The drawing position is read only where
 
 A movie is read from the archive file itself rather than from a cached copy, so the position the reader seeks to is measured from the start of that file whether or not the archive was cached. [MIX archives](/formats/mix/) covers what caching does.
 
-:::danger[A long movie name overruns the buffer the filename is built in]
-The filename is assembled in a fixed twenty-byte buffer. `.VQA` takes four of those bytes and the string terminator a fifth, so a registered name of fifteen characters fills the buffer exactly and a sixteenth character writes one byte past its end. The registry accepts names of up to thirty-one characters, and playing a movie registered at that length writes sixteen bytes over whatever follows the buffer. The names the game ships with are all eight characters or fewer.
-:::
+The filename is built from the registered name and `.VQA` into a buffer sized for the longest name the registry accepts, so a name of any length the registry admits is truncated rather than written past the end. The names the game ships with are all eight characters or fewer.
 
 ## Sound and picture
 
