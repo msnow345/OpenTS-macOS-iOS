@@ -1,0 +1,26 @@
+<rml>
+<head>
+	<title>Waiting for players</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="lobbybase.rcss"/>
+	<link type="text/rcss" href="reconnect.rcss"/>
+</head>
+<body data-model="reconnect" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="seat" data-for="entry : seats" data-style-left="entry.left" data-style-top="entry.top">
+			<div class="button kick" data-event-click="kick(it_index)">{{ entry.name }}</div>
+			<div class="barframe">
+				<div class="bar" data-style-width="entry.width" data-style-background-color="entry.hex"></div>
+			</div>
+		</div>
+
+		<div class="caption" id="timeremaining">{{ timetext }}</div>
+
+		<div id="messages" class="log">
+			<div class="line" data-for="line : messages">{{ line }}</div>
+		</div>
+
+		<div class="button" id="cancel" data-event-click="press()">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

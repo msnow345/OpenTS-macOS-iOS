@@ -1,0 +1,96 @@
+/* The reconnect and kick-vote screen, IDD_MPLAYER_DISCONNECT.
+
+   Geometry converted from the template's dialog units at the 8 point MS Sans Serif it
+   names: 1.5 pixels across and 1.625 down, with a child's offset taken from the panel's
+   content box and the panel's declared size taken inside its own border. The template is
+   339 x 220 dialog units, so 508.5 x 357.5 pixels, and its driver centers it. */
+
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -254.25dp;
+	margin-top: -178.75dp;
+
+	width: 504.5dp;
+	height: 353.5dp;
+}
+
+/* A seat: the button carrying the player's name and the sync bar beside it. The template
+   puts eight of these in two columns of four, the button 90 x 14 units and the bar's group
+   box 40 x 10 six units to its right, so a seat spans 136 units and each carries its own
+   position because the game shows only the seats it holds. */
+.seat
+{
+	display: block;
+	position: absolute;
+	width: 204dp;
+	height: 22.75dp;
+}
+
+.seat .kick
+{
+	left: 0dp;
+	top: 0dp;
+	width: 135dp;
+	height: 22.75dp;
+	line-height: 15.5dp;
+}
+
+.seat .barframe
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 144dp;
+	top: 0dp;
+	width: 60dp;
+	height: 16.25dp;
+
+	background-color: #14160f;
+	border-width: 1dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+/* The bar shrinks and changes color as the wait on its seat drags on, which is what
+   Draw_Sync_Bars filled into the surface. Both come from the model, because the dialog
+   chose them from elapsed time rather than from a state a stylesheet can name. The floor is
+   the six pixels the dialog kept of the box's sixty. */
+.seat .bar
+{
+	display: block;
+	position: absolute;
+	left: 0dp;
+	top: 0dp;
+	height: 100%;
+	min-width: 6dp;
+}
+
+/* The time remaining, an LTEXT at 29, 88 across 279 x 8 units. */
+#timeremaining
+{
+	left: 43.5dp;
+	top: 143dp;
+	width: 418.5dp;
+	height: 13dp;
+	line-height: 13dp;
+	color: #e4e6da;
+}
+
+/* The message list, 295 x 84 units at 22, 103. It is a LBS_NOSEL list box, which is what
+   the shared log style stands for. */
+#messages { left: 33dp; top: 167.375dp; width: 442.5dp; height: 136.5dp; }
+#messages .line { width: 430.5dp; }
+
+/* The cancel button, 295 x 14 units at 22, 194. */
+#cancel
+{
+	left: 33dp;
+	top: 315.25dp;
+	width: 442.5dp;
+	height: 22.75dp;
+	line-height: 15.5dp;
+}
