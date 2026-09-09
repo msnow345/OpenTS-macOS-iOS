@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 12 of the migration plan have landed; nothing
-from step 13 onward is implemented.
+Status: in progress. Steps 1 to 13 of the migration plan have landed. OwnerDraw
+is gone; step 14, the sidebar, is the only step left.
 Everything outside the migration plan remains a proposal informed by source
 inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
@@ -83,17 +83,18 @@ the presenter closing and a marked presenter drains nothing.
 
 ## Where the UI stands today
 
-OpenTS has four UI systems plus a few bespoke screens. They share the software
-frame and the keyboard queue but nothing else.
+OpenTS has three UI systems plus a few bespoke screens. They share the software
+frame and the keyboard queue but nothing else. OwnerDraw was the fourth and step
+13 deleted it. What follows describes what it was, because the screens that
+replaced it were converted from its templates and inherit its geometry.
 
 | System | Files | Used by | Draws into |
 | --- | --- | --- | --- |
-| OwnerDraw | `ownrdraw.cpp` (7,009 lines), `windlg.cpp`, `msgloop.cpp`, 53 templates in `language.rc` | main menu, options, skirmish, load and save, lobbies, desync, map generator, WDT, message boxes, progress wait | `AlternateSurface`, then `VisibleSurface` |
 | GadgetClass | `gadget.cpp`, `control.cpp`, `toggle.cpp`, `list.cpp`, `edit.cpp`, `slider.cpp`, ... | sidebar, radar, tactical buttons, message list, checklist, mission restate | `LogicalSurface` (`SidebarSurface`, `HiddenSurface`) |
 | MSEngine | `msengine.cpp`, `msanim.cpp`, `grphmenu.cpp` | graphic menu, map select, score screens, WDT screens, credits | `AlternateSurface`, `HiddenSurface` |
 | Bespoke | `progress.cpp`, `score.cpp`, `movies.cpp` | loading screen, score, movies | `HiddenSurface` |
 
-OwnerDraw is the largest and the least portable. Each dialog is a real Win32
+OwnerDraw was the largest and the least portable. Each dialog was a real Win32
 child window of `MainWindow`, created from a resource template by
 `CreateDialogIndirectParam`. Every control is subclassed; its window procedure
 paints into `AlternateSurface` and blits the result into `VisibleSurface`
@@ -640,15 +641,11 @@ strings, is inserted as text, never as markup.
 
 ## Configuration
 
-One transitional key in `SUN.INI`, `LegacyDialogs` under `[Options]`, returns
-every migrated screen to its legacy view while that view exists. Step 3 named
-it and `UI_Use_Rml` reads it.
-Defaults are decided per screen family in code, so a family switches to RmlUi
-by default when its evidence is in without a key per family. The key is
-deleted with OwnerDraw. There is no build option: RmlUi and ImGui are always
-compiled and linked, so one configuration matrix carries the evidence.
-`Options` reads and writes the key where it handles `[Video]` today, and the
-key has its manual page. A sidebar view key follows the sidebar view.
+`LegacyDialogs` under `[Options]` in `SUN.INI` returned every migrated screen to
+its legacy view while both existed. Step 3 named it; step 13 deleted it with
+OwnerDraw, along with `UI_Use_Rml` and its manual page. There is no build
+option: RmlUi and ImGui are always compiled and linked, so one configuration
+matrix carries the evidence. A sidebar view key follows the sidebar view.
 
 ## Dear ImGui
 
@@ -1034,9 +1031,34 @@ text beyond an ASCII test document.
     own blitter stretches, and a `UISurfaceBufferClass` is not one.
     `MapPreviewSurfaceClass` had relied on that blit since step 10, where the two
     sizes were close enough to hide it.
-13. **Retire OwnerDraw** (M). Delete `ownrdraw.cpp`, `windlg.cpp`, the
-    modeless dialog list, the dialog templates, the kill switch, and the
-    coexistence assertions. String tables stay.
+13. **Retire OwnerDraw** (M). Landed. `ownrdraw.cpp`, `ownrdraw.h`,
+    `windlg.cpp` and `windlg.h` are gone, with the legacy view behind every
+    migrated screen, the modeless dialog list in `msgloop.cpp`, the 53 dialog
+    templates in `language.rc`, the `LegacyDialogs` key and `UI_Use_Rml`.
+    `Language.dat` is byte-identical across the template deletion, as it was
+    across step 4's name table. `UI_Document_Is_Visible` went with the kill
+    switch: it was the coexistence check and it never had a caller, because a
+    legacy dialog cannot open on this fork at all.
+
+    Six things in those files had nothing to do with dialogs and are still
+    wanted by unmigrated MSEngine and bespoke screens, so they moved to
+    `code/drawhelp.{h,cpp}`: the remapped bitmap text drawing
+    (`OD_Draw_Text_Remap` and the font metrics behind it), `OD_Draw_Text`,
+    `OD_Blend_Color` with its component masks, `WS_Get_Font` and its font cache,
+    `Get_Display_Rect`, and the counted pointer-capture pair. The `OD_` and `WS_`
+    names are kept because their callers spell them, and the header says why.
+    `Build_Hotkey_String` went to `keyboard.cpp` instead: it spells a key, not a
+    control.
+
+    The pointer-capture pair is load-bearing and there is now exactly one
+    counter. `OwnerDraw::Capture_Mouse` released the game's mouse to the host so
+    that `WM_SETCURSOR` would fall through and the window class arrow would be
+    drawn, and the shell had grown a second counter of its own for documents.
+    Both now call the pair in `drawhelp.cpp`, so a graphic menu and a document
+    cannot disagree about who holds the pointer.
+
+    `_dialog_count` became dead and took `Heal_Dialog_Controls` and
+    `SidebarClass::Scroll`'s guard against scrolling under a dialog with it.
 14. **Sidebar** (M, then L). The model and view split with the gadget view;
     later the RmlUi view over the whole column and its selection key.
 
