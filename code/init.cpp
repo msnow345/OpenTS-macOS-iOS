@@ -195,6 +195,8 @@
 
 #include "bench.hh"
 #include "scrnsel.hh"
+#include "ui/uicampaign.h"
+#include "ui/uimainmenu.h"
 
 #include <algorithm>
 #include <conio.h>
@@ -205,10 +207,6 @@
 
 extern VoxelDataStruct DropPodVoxel;
 
-struct ChooseCampaignStruct {
-	CampaignType ChosenCampaign;
-	bool ChoiceMade;
-};
 
 /**********************************************************************
 **	Optional parameter control for special options.
@@ -278,7 +276,7 @@ static CheatEntryStruct CheatEntries[] = {
 };
 
 static void Cheat_Disable(void);
-static bool Cheat_Key_Process(char chr);
+bool Cheat_Key_Process(char chr);
 static void Cheat_Version_Suffix(char * string);
 
 
@@ -718,30 +716,20 @@ void Prepare_Side_Roster(void)
 }
 
 
+
+static UICampaignPresenterClass * _CampaignScreen = NULL;
+static UIMainMenuPresenterClass * _MainMenuScreen = NULL;
+
+
 /// <summary>
-/// Can this campaign be played with the addons that are enabled?
-/// A base game campaign is offered only when no addon is running, and an addon's own
-/// campaign only when that particular addon is running.
+/// Puts the view-model on the campaign dialog's controls.
 /// </summary>
-/// <param name="campaign">The campaign to be tested.</param>
-/// <returns>bool; Is the campaign available for the player to select?</returns>
-static bool Campaign_Available(CampaignClass * campaign)
+static void Campaign_Sync_Controls(HWND window, UICampaignPresenterClass const & screen)
 {
-	if (Addon_Enabled(ADDON_ANY) == true) {
-		if (campaign->RequiredAddon == ADDON_BASE_GAME) {
-			return(false);
-		}
-		if (Addon_Enabled((AddonType)campaign->RequiredAddon)) {
-			return(true);
-		}
-		return(false);
+	HWND handle = GetDlgItem(window, IDC_DIFFICULTY_LABEL);
+	if (handle) {
+		SetWindowText(handle, screen.DifficultyLabel.c_str());
 	}
-
-	if (campaign->RequiredAddon == ADDON_BASE_GAME) {
-		return(true);
-	}
-
-	return(false);
 }
 
 
@@ -753,7 +741,6 @@ static bool Campaign_Available(CampaignClass * campaign)
 static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	HWND item;
-	struct ChooseCampaignStruct * state;
 
 	INT_PTR rc;
 	rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
@@ -762,6 +749,12 @@ static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, W
 		return(rc);
 	}
 
+	if (_CampaignScreen == NULL) {
+		return(FALSE);
+	}
+
+	UICampaignPresenterClass & screen = *_CampaignScreen;
+
 	switch (message) {
 
 		case WM_INITDIALOG:
@@ -769,28 +762,18 @@ static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, W
 
 			if (item != NULL) {
 				DebugString("Initializing Choose_Campaign() Dialog.\n");
-				for (int index = 0; index < Campaigns.Count(); index++) {
-					CampaignClass * campaign = Campaigns[index];
-
-					if (!Campaign_Available(campaign)) {
-						DebugString("\tSkipping Campaign [%d] - %s\n", index, campaign->Description);
-						continue;
-					}
-
-					DebugString("\tAdding Campaign [%d] - %s\n", index, campaign->Description);
-					int pos = ListBox_AddString(item, campaign->Description);
-					ListBox_SetItemData(item, pos, index);
+				for (UICampaignPresenterClass::EntryType const & entry : screen.Campaigns) {
+					ListBox_AddString(item, entry.Label.c_str());
 				}
-
-				ListBox_SetCurSel(item, 0);
+				ListBox_SetCurSel(item, screen.Selected);
 			}
 
 			item = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
 
 			if (item != NULL) {
 				SendMessage(item, OD_TRACKNUMBERS, 0, 0);
-				Slider_SetRange(item, 0,2);
-				Slider_SetPos(item, Options.Difficulty);
+				Slider_SetRange(item, 0, UICampaignPresenterClass::DIFFICULTY_STEPS - 1);
+				Slider_SetPos(item, screen.Difficulty);
 			}
 			break;
 
@@ -798,34 +781,26 @@ static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, W
 			switch (LOWORD(wparam)) {
 				case IDOK:
 					if (HIWORD(wparam) == BN_CLICKED) {
-						state = (ChooseCampaignStruct *)GetWindowLongPtr(window, DWLP_USER);
-
-						if (state != NULL) {
-							item = GetDlgItem(window, IDC_LIST);
-
-							if (item != NULL) {
-								int pos = ListBox_GetCurSel(item);
-								state->ChosenCampaign = (CampaignType)ListBox_GetItemData(item, pos);
-								state->ChoiceMade = true;
-							}
-						}
-
-						item = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
-
+						item = GetDlgItem(window, IDC_LIST);
 						if (item != NULL) {
-							Options.Difficulty = Slider_GetPos(item);
+							screen.Queue(UIIntent{UI_CAMPAIGN_SELECT, "", ListBox_GetCurSel(item)});
 						}
+
+						// The slider is read back here rather than tracked, because a
+						// keyboard or page move changes a track bar without raising the
+						// thumb notification the label follows.
+						item = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
+						if (item != NULL) {
+							screen.Queue(UIIntent{UI_CAMPAIGN_DIFFICULTY, "", Slider_GetPos(item)});
+						}
+
+						screen.Queue(UIIntent{UI_CAMPAIGN_ACCEPT, "", 0});
 					}
 					break;
 
 				case IDCANCEL:
 					if (HIWORD(wparam) == BN_CLICKED) {
-						state = (ChooseCampaignStruct *)GetWindowLongPtr(window, DWLP_USER);
-
-						if (state != NULL) {
-							state->ChosenCampaign = CAMPAIGN_NONE;
-							state->ChoiceMade = true;
-						}
+						screen.Queue(UIIntent{UI_CAMPAIGN_CANCEL, "", 0});
 					}
 
 					break;
@@ -833,13 +808,8 @@ static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, W
 			break;
 
 		case WM_HSCROLL: {
-			int diff = HIWORD(wparam);
-			int stringID = 0;
-
 			if ((HWND)lparam == GetDlgItem(window, IDC_DIFFICULTY_SLIDER)) {
-				stringID = GameDifficultyNames[diff];
-				item = GetDlgItem(window, IDC_DIFFICULTY_LABEL);
-				Static_SetText(item, Fetch_String(stringID));
+				screen.Queue(UIIntent{UI_CAMPAIGN_DIFFICULTY, "", (int)HIWORD(wparam)});
 			}
 			break;
 		}
@@ -861,10 +831,6 @@ static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, W
 static CampaignType Choose_Campaign(void)
 {
 	HWND dialog;
-	struct ChooseCampaignStruct state;
-
-	state.ChoiceMade = false;
-	state.ChosenCampaign = CAMPAIGN_NONE;
 
 	if (Campaigns.Count() == 0) {
 		Init_Campaigns();
@@ -874,25 +840,33 @@ static CampaignType Choose_Campaign(void)
 		}
 	}
 
+	UICampaignPresenterClass screen;
+	screen.Refresh();
+
+	_CampaignScreen = &screen;
+
 	dialog = OwnerDraw::Begin_Dialog(IDD_CAMPAIGN, Campaign_Choice_Dialog_Proc);
 
 	if (dialog != NULL) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR) &state);
-
 		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
 		OwnerDraw::Display_Dialog(dialog);
 
-		while (state.ChoiceMade == false) {
+		while (!screen.Result.has_value()) {
 			if (OwnerDraw::Dialog_Message_Handler() == true) {
 				break;
 			}
-			Title_Screen_Restore();
+
+			screen.Drain();
+			Campaign_Sync_Controls(dialog, screen);
+			screen.Service();
 		}
 
 		OwnerDraw::End_Dialog(dialog);
 	}
 
-	return(state.ChosenCampaign);
+	_CampaignScreen = NULL;
+
+	return((CampaignType)screen.Chosen());
 }
 
 
@@ -3131,11 +3105,15 @@ int Main_Menu(unsigned int timeout)
 
 	timeout = 0;
 
+	UIMainMenuPresenterClass screen;
+	screen.Refresh();
+
+	_MainMenuScreen = &screen;
+
 	dialog = OwnerDraw::Begin_Dialog(IDD_MAIN_MENU, Main_Menu_Dialog_Proc);
 	assert(dialog != NULL);
 
 	if (dialog != NULL) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&retval);
 		char *menu = Get_New_Menu()->Background;
 		Load_Title_Screen(menu, HiddenSurface, &CCPalette);
 		Draw_Version_Text(HiddenSurface);
@@ -3146,40 +3124,48 @@ int Main_Menu(unsigned int timeout)
 
 		do {
 			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				retval = SEL_EXIT;
+				screen.Queue(UIIntent{UI_MAINMENU_EXIT, "", 0});
 			}
 
-			Title_Screen_Restore();
+			screen.Drain();
+			screen.Service();
 
 			if (Keyboard->Check()) {
 				KeyNumType input = Keyboard->Get();
 
 				switch ((unsigned int)input) {
 					case (KN_V | KN_CTRL_BIT):
-						ShowWindow(dialog, SW_HIDE);
-						UpdateWindow(MainWindow);
-						Version_Dialog();
-						ShowWindow(dialog, SW_SHOW);
-						UpdateWindow(dialog);
-						SetFocus(MainWindow);
+						screen.Queue(UIIntent{UI_MAINMENU_VERSION, "", 0});
 						break;
 
 					case VK_C | KN_CTRL_BIT | KN_ALT_BIT:
-						retval = SEL_VIEW_CREDITS;
+						screen.Queue(UIIntent{UI_MAINMENU_CREDITS, "", 0});
 						break;
 
 					default:
 						if ((input & KN_RLSE_BIT) == 0) {
-							if (Cheat_Key_Process((char)input) == true) {
-								Sound_Effect(Rule->OptionsChanged);
-								Title_Screen_Restore(true);
-							}
+							screen.Queue(UIIntent{UI_MAINMENU_TYPED, "", (int)(char)input});
 						}
 						break;
 				}
+
+				screen.Drain();
+			}
+
+			// The version screen is a screen of a different kind, so it nests; getting out
+			// of the way of it is what the dialog's ShowWindow did.
+			if (screen.VersionPending) {
+				ShowWindow(dialog, SW_HIDE);
+				UpdateWindow(MainWindow);
+				screen.Run_Pending();
+				ShowWindow(dialog, SW_SHOW);
+				UpdateWindow(dialog);
+				SetFocus(MainWindow);
 			}
 		}
-		while (retval == SEL_NONE);
+		while (!screen.Result.has_value());
+
+		retval = screen.Selection();
 
 		OwnerDraw::End_Dialog(dialog);
 
@@ -3193,6 +3179,8 @@ int Main_Menu(unsigned int timeout)
 		retval = SEL_EXIT;
 	}
 
+	_MainMenuScreen = NULL;
+
 	SetFocus(MainWindow);
 	return(retval);
 }
@@ -3205,24 +3193,25 @@ int Main_Menu(unsigned int timeout)
 /// </summary>
 INT_PTR CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int * res;
-
 	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (rc) {
 		return(rc);
 	}
 
-	res = (int *) GetWindowLongPtr(window, DWLP_USER);
+	if (_MainMenuScreen == NULL) {
+		return(FALSE);
+	}
+
+	UIMainMenuPresenterClass & screen = *_MainMenuScreen;
 
 	switch (message) {
 		case WM_INITDIALOG: {
 			HWND control = GetDlgItem(window, IDC_LOAD_MISSION);
 			if (control) {
-				if (LoadOptionsClass().Files_Present() == true) {
-					EnableWindow(control, TRUE);
+				EnableWindow(control, screen.CanLoad ? TRUE : FALSE);
+				if (screen.CanLoad) {
 					return(FALSE);
 				}
-				EnableWindow(control, FALSE);
 			}
 		}
 		break;
@@ -3230,27 +3219,27 @@ INT_PTR CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam,
 		case WM_COMMAND: {
 			switch (LOWORD(wparam)) {
 				case IDC_OPTIONS:
-					*res = SEL_OPTIONS;
+					screen.Queue(UIIntent{UI_MAINMENU_OPTIONS, "", 0});
 					break;
 
 				case IDC_EXIT_GAME:
-					*res = SEL_EXIT;
+					screen.Queue(UIIntent{UI_MAINMENU_EXIT, "", 0});
 					break;
 
 				case IDC_INTRO:
-					*res = SEL_INTRO;
+					screen.Queue(UIIntent{UI_MAINMENU_INTRO, "", 0});
 					break;
 
 				case IDC_NEWCAMPAIGN:
-					*res = SEL_CAMPAIGN_GAME;
+					screen.Queue(UIIntent{UI_MAINMENU_CAMPAIGN, "", 0});
 					break;
 
 				case IDC_MULTIPLAYER_GAME:
-					*res = SEL_MULTIPLAYER_GAME;
+					screen.Queue(UIIntent{UI_MAINMENU_MULTIPLAYER, "", 0});
 					break;
 
 				case IDC_LOAD_MISSION:
-					*res = SEL_LOAD_GAME;
+					screen.Queue(UIIntent{UI_MAINMENU_LOAD, "", 0});
 					break;
 			}
 		}
