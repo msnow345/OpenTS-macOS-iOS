@@ -510,8 +510,7 @@ int BufferIOFileClass::Open(char const * filename, int rights)
  * INPUT:   rights   -- The file access rights to use when opening this file. This is a        *
  *                      combination of READ and/or WRITE bit flags.                            *
  *                                                                                             *
- * OUTPUT:  bool; Was the file opened successfully? This will always return true by reason of  *
- *          the error handler.                                                                 *
+ * OUTPUT:  bool; Was the file opened successfully?                                            *
  *                                                                                             *
  * WARNINGS:   none                                                                            *
  *                                                                                             *
@@ -529,19 +528,31 @@ int BufferIOFileClass::Open(int rights)
 		if (rights != READ ||
 			 (rights == READ && FileSize > BufferSize) ) {
 
+			int opened = true;
+
 			if (rights == WRITE) {
-				BASECLASS::Open( rights );
+				opened = BASECLASS::Open( rights );
 				BASECLASS::Close();
 				rights = READ | WRITE;
 				TrueFileStart = 0;		// now writing to single file
 			}
 
-			if (TrueFileStart) {
-				UseBuffer = false;
-				Open( rights );
-				UseBuffer = true;
-			} else {
-				BASECLASS::Open( rights );
+			if (opened) {
+				if (TrueFileStart) {
+					UseBuffer = false;
+					opened = Open( rights );
+					UseBuffer = true;
+				} else {
+					opened = BASECLASS::Open( rights );
+				}
+			}
+
+			// A file that would not open is not open. Reporting otherwise leaves Is_Open
+			// answering true for a buffered file with no handle behind it, and the next
+			// write reaches the standard library with a null stream.
+			if (!opened) {
+				IsDiskOpen = false;
+				return( false );
 			}
 
 			IsDiskOpen = true;
@@ -561,7 +572,7 @@ int BufferIOFileClass::Open(int rights)
 		FilePos				= 0;
 		IsOpen				= true;
 	} else {
-		BASECLASS::Open( rights );
+		return( BASECLASS::Open( rights ) );
 	}
 
 	return( true );
