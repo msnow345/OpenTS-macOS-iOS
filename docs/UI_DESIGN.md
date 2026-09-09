@@ -911,7 +911,26 @@ text beyond an ASCII test document.
     outright, and so is Ctrl+End, which takes the value's own length. Step 12's map
     generator screens want the same field.
 10. **Skirmish and map selection** (M, two changes). Includes the scenario
-    picker templates and the preview surface.
+    picker templates and the preview surface. In progress: both screens are
+    extracted, `code/ui/uiskirmish.{h,cpp}` and `code/ui/uiscenariopick.{h,cpp}`,
+    with `skirmish.cpp` and `netshare.cpp` rewired and the legacy views still
+    selected; the map selection screen has its RmlUi view, `ui/selectmap.rml`
+    with `ui/selectmap.rcss`, converted from the `IDD_MPLAYER_SELECT_MAP`
+    template. The skirmish screen has no document yet.
+
+    `Update_Network_Dialog_Preview` is split the way `Fill_List` was: a new
+    `Rebuild_Network_Map_Preview` owns the preview and the old name owns telling
+    a window to repaint, so a presentation that is not a window can ask for one.
+    `Pick_Scenario_Screen` is the entry a screen uses, because a presenter names
+    no window.
+
+    The preview reaches the document through the `<surface>` element step 6
+    built, with no change to the element. The view owns a `UISurfaceBufferClass`
+    the size of the template's preview frame, scales the picture into it the way
+    `MapPreviewClass::Blit_Preview` scales it into the group box, and fills the
+    letterbox with the buffer's color key; the element takes its size from that
+    provider and uploads when the provider's generation moves. The presenter
+    carries only the artwork's name.
 11. **Network lobbies** (L, two changes). Host, guest, game list, the `WS_`
     stack, and `netshare.cpp` as one family; then disconnect, desync, and
     reconnect. Packets unchanged.
