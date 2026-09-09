@@ -31,6 +31,7 @@
 #include "stimer.h"
 #include "surface.h"
 #include "timer.h"
+#include "winstub.h"
 
 #include "color.hh"
 #include "dialog.hh"
@@ -167,6 +168,7 @@ namespace MovieSkip
 	Playback::Playback(char const * name)
 	{
 		State = VoteState();
+		Win_Set_Movie_Playing(true);
 		if (!Is_Network_Game()) {
 			return;
 		}
@@ -186,6 +188,7 @@ namespace MovieSkip
 
 	Playback::~Playback(void)
 	{
+		Win_Set_Movie_Playing(false);
 		if (State.IsActive) {
 			DebugString("Movie skip: movie %08x/%u is over.\n", State.Movie, State.Instance);
 		}

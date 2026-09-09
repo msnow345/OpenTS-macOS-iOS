@@ -379,6 +379,7 @@ extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
 bool Win32_Pointer_Can_Warp(void);
 bool Win32_Touch_Take_Scroll(int * x, int * y);
+void Win32_Touch_Set_Movie_Mode(bool playing);
 #endif
 
 
@@ -451,6 +452,21 @@ bool Win_Pointer_Take_Scroll(int & x, int & y)
 	return(false);
 #else
 	return(Win32_Touch_Take_Scroll(&x, &y));
+#endif
+}
+
+
+/// <summary>
+/// Tells the host's input layer that a fullscreen movie is playing.
+/// A movie is escaped with a key, and a host with no keyboard has to raise that key from
+/// whatever it does have. Nothing else about the movie is its business.
+/// </summary>
+void Win_Set_Movie_Playing(bool playing)
+{
+#ifdef _WIN32
+	(void)playing;
+#else
+	Win32_Touch_Set_Movie_Mode(playing);
 #endif
 }
 
