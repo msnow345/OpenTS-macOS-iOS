@@ -15,6 +15,8 @@
 
 #include "dbgprint.h"
 
+#include "winstub.h"
+
 #include "opents_build.h"
 #include "win.h"
 
@@ -244,8 +246,13 @@ static void Init_Locked(void)
 	char drive[_MAX_DRIVE];
 	char dir[_MAX_DIR];
 
-	// The log belongs beside the executable, which is not yet the current directory.
-	if (GetModuleFileName(GetModuleHandle(NULL), path_to_exe, sizeof(path_to_exe)) != 0) {
+	// The log belongs beside the executable, which is not yet the current directory. A host
+	// that will not be written to there names somewhere else instead.
+	char hostdirectory[MAX_PATH];
+
+	if (Win_Log_Directory(hostdirectory, sizeof(hostdirectory))) {
+		snprintf(DebugDirectory, sizeof(DebugDirectory), "%s/Debug", hostdirectory);
+	} else if (GetModuleFileName(GetModuleHandle(NULL), path_to_exe, sizeof(path_to_exe)) != 0) {
 		_splitpath(path_to_exe, drive, dir, NULL, NULL);
 		snprintf(DebugDirectory, sizeof(DebugDirectory), "%s%sDebug", drive, dir);
 	}

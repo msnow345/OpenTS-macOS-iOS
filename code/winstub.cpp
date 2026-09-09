@@ -378,6 +378,7 @@ extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
 extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
 extern "C" BOOL Win32Compat_Preferred_Frame_Size(int * width, int * height);
+extern "C" BOOL Win32Compat_Log_Directory(char * buffer, int size);
 bool Win32_Pointer_Can_Warp(void);
 bool Win32_Touch_Take_Scroll(int * x, int * y);
 void Win32_Touch_Set_Movie_Mode(bool playing);
@@ -434,6 +435,26 @@ bool Win_Preferred_Frame_Size(int & width, int & height)
 	width = hostwidth;
 	height = hostheight;
 	return(true);
+#endif
+}
+
+
+/// <summary>
+/// Asks the host where the files the game writes about itself belong.
+/// A host whose program directory cannot be written to has somewhere else for them, and a
+/// log written where it cannot be read is the same as no log at all.
+/// </summary>
+/// <param name="path">Receives the directory, untouched on a false return.</param>
+/// <param name="size">The size of the buffer.</param>
+/// <returns>bool; Did the host name a directory?</returns>
+bool Win_Log_Directory(char * path, int size)
+{
+#ifdef _WIN32
+	(void)path;
+	(void)size;
+	return(false);
+#else
+	return(Win32Compat_Log_Directory(path, size) != FALSE);
 #endif
 }
 
