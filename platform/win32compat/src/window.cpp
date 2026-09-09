@@ -726,12 +726,51 @@ extern "C" BOOL GetMonitorInfo(HMONITOR monitor, LPMONITORINFO info)
 }
 
 
+// The host states a display mode in logical points and reports the pixel density beside
+// it, which is the unit the engine sizes its frame in on this platform; the density belongs
+// to the presentation and the shell's scale information already carries it. A mode is
+// therefore reported at the size the caller would ask the display for, not at its pixel
+// count, which is what EnumDisplaySettings means on the platform this shim stands in for.
 extern "C" BOOL EnumDisplaySettings(LPCSTR device, DWORD mode, DEVMODE * settings)
 {
 	(void)device;
-	(void)mode;
-	(void)settings;
-	return(FALSE);
+
+	if (settings == NULL) {
+		return(FALSE);
+	}
+
+	SDL_DisplayID const display = SDL_GetPrimaryDisplay();
+	SDL_DisplayMode const * found = NULL;
+	SDL_DisplayMode ** modes = NULL;
+
+	// ENUM_CURRENT_SETTINGS asks for the mode in force rather than for one of the list.
+	if (mode == (DWORD)-1 || mode == (DWORD)-2) {
+		found = SDL_GetDesktopDisplayMode(display);
+	} else {
+		int count = 0;
+		modes = SDL_GetFullscreenDisplayModes(display, &count);
+
+		if (modes != NULL && (int)mode < count) {
+			found = modes[mode];
+		}
+	}
+
+	if (found == NULL) {
+		SDL_free(modes);
+		return(FALSE);
+	}
+
+	SDL_PixelFormatDetails const * const format = SDL_GetPixelFormatDetails(found->format);
+
+	std::memset(settings, 0, sizeof(*settings));
+	settings->dmSize = (WORD)sizeof(*settings);
+	settings->dmPelsWidth = (DWORD)found->w;
+	settings->dmPelsHeight = (DWORD)found->h;
+	settings->dmBitsPerPel = (format != NULL) ? (DWORD)format->bits_per_pixel : 32;
+	settings->dmDisplayFrequency = (DWORD)(found->refresh_rate + 0.5f);
+
+	SDL_free(modes);
+	return(TRUE);
 }
 
 

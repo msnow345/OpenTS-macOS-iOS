@@ -354,12 +354,6 @@ static int __cdecl Compare_Modes(void const * left, void const * right)
 /// when nothing matched.</returns>
 int * EnumDisplayModes(int minwidth, int minheight, int maxwidth, int maxheight)
 {
-#ifndef _WIN32
-	// No host mode enumeration on this platform yet. Reporting nothing is already a supported
-	// answer, and the caller falls back to the sizes it knows.
-	(void)minwidth; (void)minheight; (void)maxwidth; (void)maxheight;
-	return(NULL);
-#else
 	DEVMODE devmode;
 	int count = 0;
 	int capacity = 0;
@@ -423,5 +417,4 @@ int * EnumDisplayModes(int minwidth, int minheight, int maxwidth, int maxheight)
 	modes[unique * 2] = 0;
 	modes[unique * 2 + 1] = 0;
 	return(modes);
-#endif
 }
