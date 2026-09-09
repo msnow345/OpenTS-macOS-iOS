@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 3 of the migration plan have landed; nothing
-from step 4 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 4 of the migration plan have landed; nothing
+from step 5 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -14,9 +14,8 @@ shader, whose vertex stage multiplies by `u_viewProj` alone and so ignores the
 per-draw model transform; a program with a model transform restores the static
 vertex buffer the renderer table describes. `uitexture.cpp` reads PNG and
 TGA only, so PCX, SHP and the `<surface>` element wait for the first screen
-that shows game art; `uisystem.cpp` carries the `[[NAME]]` syntax but no name
-table, which arrives with the UTF-8 transition; and the cursor and clipboard
-requests are recorded rather than acted on.
+that shows game art, and the cursor and clipboard requests are recorded rather
+than acted on.
 
 Step 3 exercised the rest. `UI_Run_Modal` now runs a screen, and the input hook
 gained the modal scope its rules always described: while an exclusive document
@@ -25,9 +24,19 @@ legacy dialog, and the keyboard queue is cleared as the scope opens and closes.
 The version screen needed no name table, because it composes its own text and
 takes its one string-table entry through `Fetch_String`, which already yields
 UTF-8 on a build whose active code page is 65001; a document that writes
-`[[TXT_OK]]` still waits for the UTF-8 change. The screen draws its panel rather
-than blitting `dbak6440.pcx`, which waits for PCX decoding with the rest of the
+`[[TXT_OK]]` waited for the name table step 4 brought. The screen draws its
+panel rather than blitting `dbak6440.pcx`, which waits for PCX decoding with the rest of the
 game art.
+
+Step 4 put the runner under load. `UI_Run_Modal` runs the game as well as a
+screen: in a network session it steps `Main_Loop` between passes and reports a
+session that ended underneath the box, which is what `WWMessageBox::Process`
+has always had through `OwnerDraw::Dialog_Message_Handler`. A presenter gained
+`Service`, the maintenance a dialog driver ran on every pass of its own loop,
+and the shell drops the tick that `Main_Loop` and `Call_Back` make from inside
+a runner, so a pass updates the context once. The `[[NAME]]` table arrived with
+it, generated from `language.rc` by the script that already builds the portable
+string table.
 
 ## Where the UI stands today
 
@@ -568,9 +577,11 @@ byte, which bounds in-game text to the range the transition supports.
 
 Documents reference strings by name: `[[TXT_OK]]`. RmlUi passes every text
 node through `SystemInterface::TranslateString`, where the shell maps the
-name to its identifier. The names are `#define`s in `language.h`, so a CMake
-script generates the name table into the build's generated directory; no
-hand-maintained list. Dynamic text, including player and map names and error
+name to its identifier. `cmake/StringTable.cmake` writes that table into the
+build's generated directory from the same `language.rc` it reads for the
+portable string table, so the resource script stays the only place a name and a
+number are paired and no list is hand-maintained. A name the table does not
+carry is left in the text rather than replaced with nothing. Dynamic text, including player and map names and error
 strings, is inserted as text, never as markup.
 
 ## Configuration
@@ -583,7 +594,7 @@ by default when its evidence is in without a key per family. The key is
 deleted with OwnerDraw. There is no build option: RmlUi and ImGui are always
 compiled and linked, so one configuration matrix carries the evidence.
 `Options` reads and writes the key where it handles `[Video]` today, and the
-key gets a manual page. A sidebar view key follows the sidebar view.
+key has its manual page. A sidebar view key follows the sidebar view.
 
 ## Dear ImGui
 
@@ -726,7 +737,12 @@ text beyond an ASCII test document.
    `OwnerDraw::Custom_Message_Box` behind the kill switch, preserving button
    order, default button, Escape, the no-button case, return mappings, and
    session-end interruption. Evidence includes the multiplayer cases where
-   `Main_Loop` runs under the box.
+   `Main_Loop` runs under the box. Landed: `code/ui/uimessagebox.cpp` with
+   `ui/messagebox.rml` and `ui/waitbox.rml`, the geometry converted from the
+   `IDD_MSGBOX_3` and `IDD_MSGBOX_1` templates. The wait box is not modal and
+   answers to a handle no window can have, because its callers hold one and
+   hand it back to `Display_Dialog`, `Set_Custom_Message_Box_Text` and
+   `End_Dialog`; the handle goes with OwnerDraw.
 5. **Sound** (M, two changes). The behavior pilot: volumes, eligible themes,
    selection, availability, shuffle and repeat, immediate previews, play and
    stop, both templates, frontend and in-game service paths.
