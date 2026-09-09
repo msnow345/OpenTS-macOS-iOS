@@ -1,0 +1,27 @@
+/* The in-game options a local session shows: three buttons and no saving. Geometry from the
+   IDD_OPT_CTRL_MP template, converted at 1.5 pixels across and 1.625 down. */
+
+/* 209 x 75 dialog units, so 313.5 x 121.875 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -156.75dp;
+	margin-top: -60.9375dp;
+
+	width: 309.5dp;
+	height: 117.875dp;
+}
+
+/* Three buttons, all 99 x 14 dialog units at x 55. */
+.button
+{
+	left: 80.5dp;
+	width: 148.5dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}
+
+#settings { top: 17.5dp; }
+#abort    { top: 46.75dp; }
+#resume   { top: 76dp; }

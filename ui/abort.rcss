@@ -1,0 +1,41 @@
+/* The abort and surrender box. Geometry from the IDD_MISSION_ABORT template, converted from
+   dialog units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625
+   down, with a child's offset taken from the panel's content box and the panel's declared
+   size taken inside its own border. */
+
+/* 256 x 63 dialog units, so 384 x 102.375 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -192dp;
+	margin-top: -51.1875dp;
+
+	width: 380dp;
+	height: 98.375dp;
+}
+
+/* CTEXT with SS_CENTERIMAGE, 212 x 19 dialog units at 22, 12: centred both ways within its
+   own extents. */
+#question
+{
+	left: 31dp;
+	top: 17.5dp;
+	width: 318dp;
+	height: 30.875dp;
+	line-height: 30.875dp;
+	text-align: center;
+}
+
+/* Three buttons, all 60 x 14 dialog units on the same row. */
+.button
+{
+	top: 58.125dp;
+	width: 90dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}
+
+#quit    { left: 31dp; }
+#restart { left: 145dp; }
+#cancel  { left: 259dp; }

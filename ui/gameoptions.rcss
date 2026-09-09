@@ -1,0 +1,33 @@
+/* The in-game options a solo mission or a skirmish shows. Geometry from the IDD_OPT_CTRL_SP
+   template, converted from dialog units at the 8 point MS Sans Serif the template names:
+   1.5 pixels across and 1.625 down, with a child's offset taken from the panel's content
+   box and the panel's declared size taken inside its own border. */
+
+/* 209 x 140 dialog units, so 313.5 x 227.5 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -156.75dp;
+	margin-top: -113.75dp;
+
+	width: 309.5dp;
+	height: 223.5dp;
+}
+
+/* Seven buttons, all 115 x 14 dialog units at x 47. */
+.button
+{
+	left: 68.5dp;
+	width: 172.5dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}
+
+#settings { top: 17.5dp; }
+#briefing { top: 45.125dp; }
+#load     { top: 72.75dp; }
+#save     { top: 100.375dp; }
+#delete   { top: 128dp; }
+#abort    { top: 155.625dp; }
+#resume   { top: 183.25dp; }

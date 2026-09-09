@@ -1,0 +1,18 @@
+<rml>
+<head>
+	<title>In-game options</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="gameoptions.rcss"/>
+</head>
+<body data-model="gameoptions" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="button" id="settings" data-event-click="press('settings')">Game Controls</div>
+		<div class="button" id="briefing" data-class-disabled="!canbrief" data-event-click="press('briefing')">Restate Briefing</div>
+		<div class="button" id="load" data-class-disabled="!canload" data-event-click="press('load')">Load Game</div>
+		<div class="button" id="save" data-class-disabled="!cansave" data-event-click="press('save')">Save Game</div>
+		<div class="button" id="delete" data-class-disabled="!candelete" data-event-click="press('delete')">Delete Game</div>
+		<div class="button" id="abort" data-event-click="press('abort')">Abort Mission</div>
+		<div class="button" id="resume" data-event-click="press('resume')">[[TXT_RESUME_MISSION]]</div>
+	</div>
+</body>
+</rml>

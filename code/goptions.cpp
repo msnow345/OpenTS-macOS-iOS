@@ -50,6 +50,7 @@
 #include "stats.h"
 #include "ui/uiabort.h"
 #include "ui/uigameoptions.h"
+#include "ui/uishell.h"
 
 #include "special.hh"
 
@@ -115,6 +116,30 @@ static void Game_Options_Sync_Controls(HWND window, UIGameOptionsPresenterClass 
 	}
 }
 
+// What the driver does on the way out, whichever view was shown. The briefing is restated
+// after the screen has gone, which is where the dialog driver restated it.
+static void Game_Options_Finish(UIGameOptionsPresenterClass const & screen)
+{
+	Keyboard->Clear();
+
+	if (screen.Choice == UIGameOptionsPresenterClass::CHOICE_BRIEFING) {
+		Restate_Mission(Scen);
+	}
+
+	IgnoreInput = Scen->IsInputLocked;
+
+	if (screen.Choice == UIGameOptionsPresenterClass::CHOICE_LOADED) {
+		if (MouseCursor->Is_Hidden() == false && Scen->IsInputLocked == 1) {
+			Hide_Mouse();
+		} else if (MouseCursor->Is_Hidden() == true && Scen->IsInputLocked == 0) {
+			Show_Mouse();
+		}
+	}
+
+	Map.Flag_To_Redraw(GS_REDRAW_ALL);
+}
+
+
 /// <summary>
 /// Displays the in game options dialog.
 /// This routine is used by the special dialog handler when the player calls up the options
@@ -127,6 +152,21 @@ void Game_Options_Dialog(void)
 	UIGameOptionsPresenterClass screen;
 	screen.Refresh();
 
+	IgnoreInput = true;
+	Keyboard->Clear();
+
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Game_Options_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			Game_Options_Finish(screen);
+			return;
+		}
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
+
 	_Screen = &screen;
 
 	HWND dialog;
@@ -137,9 +177,6 @@ void Game_Options_Dialog(void)
 	} else {
 		dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CTRL_MP, Game_Options_Dialog_Proc);
 	}
-
-	IgnoreInput = true;
-	Keyboard->Clear();
 
 	if (dialog) {
 
@@ -181,23 +218,7 @@ void Game_Options_Dialog(void)
 
 	_Screen = nullptr;
 
-	Keyboard->Clear();
-
-	if (screen.Choice == UIGameOptionsPresenterClass::CHOICE_BRIEFING) {
-		Restate_Mission(Scen);
-	}
-
-	IgnoreInput = Scen->IsInputLocked;
-
-	if (screen.Choice == UIGameOptionsPresenterClass::CHOICE_LOADED) {
-		if (MouseCursor->Is_Hidden() == false && Scen->IsInputLocked == 1) {
-			Hide_Mouse();
-		} else if (MouseCursor->Is_Hidden() == true && Scen->IsInputLocked == 0) {
-			Show_Mouse();
-		}
-	}
-
-	Map.Flag_To_Redraw(GS_REDRAW_ALL);
+	Game_Options_Finish(screen);
 }
 
 
@@ -349,6 +370,26 @@ void Game_Options_On_INITDIALOG(HWND window, UIGameOptionsPresenterClass const &
 }
 
 
+// Maps the screen's choice onto the value the special dialog handler expects. A screen that
+// never opened answers zero, which is what the driver's own result was left at.
+static int Abort_Choice_Result(UIAbortPresenterClass const & screen)
+{
+	switch (screen.Choice) {
+		case UIAbortPresenterClass::CHOICE_QUIT:
+			return(IDOK);
+
+		case UIAbortPresenterClass::CHOICE_RESTART:
+			return(IDABORT);
+
+		case UIAbortPresenterClass::CHOICE_CANCEL:
+			return(IDCANCEL);
+
+		default:
+			return(0);
+	}
+}
+
+
 /// <summary>
 /// Displays the abort mission dialog and waits for an answer.
 /// This routine is used by the special dialog handler when the player asks to abandon or
@@ -361,6 +402,17 @@ int Abort_Dialog(void)
 {
 	UIAbortPresenterClass screen;
 	screen.Refresh();
+
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Abort_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			return(Abort_Choice_Result(screen));
+		}
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
 
 	_Abort = &screen;
 
@@ -390,22 +442,7 @@ int Abort_Dialog(void)
 
 	_Abort = NULL;
 
-	switch (screen.Choice) {
-		case UIAbortPresenterClass::CHOICE_QUIT:
-			return(IDOK);
-
-		case UIAbortPresenterClass::CHOICE_RESTART:
-			return(IDABORT);
-
-		case UIAbortPresenterClass::CHOICE_CANCEL:
-			return(IDCANCEL);
-
-		default:
-			break;
-	}
-
-	// The dialog could not be created, which left its driver's result at zero.
-	return(0);
+	return(Abort_Choice_Result(screen));
 }
 
 

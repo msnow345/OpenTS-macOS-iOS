@@ -24,6 +24,8 @@
 
 #include "uigameoptions.h"
 
+#include "uirmlview.h"
+
 #include "data.h"
 #include "dbgprint.h"
 #include "event.h"
@@ -39,6 +41,10 @@
 #include "stats.h"
 
 #include "special.hh"
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
 
 #include <cstring>
 
@@ -225,4 +231,175 @@ void UIGameOptionsPresenterClass::Run_Pending(void)
 		default:
 			break;
 	}
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view. One document per dialog template, because the three templates differ by
+// which controls exist rather than by how one is arranged.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the in-game options screen.
+/// </summary>
+class GameOptionsViewClass : public UIRmlViewClass
+{
+	public:
+		GameOptionsViewClass(UIGameOptionsPresenterClass & presenter, char const * document) :
+			UIRmlViewClass(presenter, document),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+		// A slider takes its position from the model as the document loads, and that raises
+		// a change event of its own. Nothing is queued until this is set.
+		void Settle(void) { Settled = true; }
+
+	private:
+		void Move(char const * which, int step);
+		void Update_Labels(void);
+
+		UIGameOptionsPresenterClass & Screen;
+		bool Settled = false;
+
+		// The caption beside each slider. Held here because the labels the presenter
+		// carries are indexed by step and a document binds a value, not a lookup.
+		Rml::String SpeedLabel;
+		Rml::String ConnectionLabel;
+};
+
+
+void GameOptionsViewClass::Update_Labels(void)
+{
+	SpeedLabel.clear();
+	if (Screen.SpeedStep >= 0 && Screen.SpeedStep < (int)Screen.SpeedLabels.size()) {
+		SpeedLabel = Screen.SpeedLabels[Screen.SpeedStep];
+	}
+
+	ConnectionLabel.clear();
+	if (Screen.ConnectionStep >= 0 && Screen.ConnectionStep < (int)Screen.ConnectionLabels.size()) {
+		ConnectionLabel = Screen.ConnectionLabels[Screen.ConnectionStep];
+	}
+}
+
+
+void GameOptionsViewClass::Move(char const * which, int step)
+{
+	if (!Settled) return;
+
+	// A position the screen already holds raises no intent, so setting a slider from the
+	// model cannot look like a move the player did not make.
+	if (which == UI_GAMEOPT_SPEED && step == Screen.SpeedStep) return;
+	if (which == UI_GAMEOPT_CONNECTION && step == Screen.ConnectionStep) return;
+
+	Screen.Queue(UIIntent{which, "", step});
+}
+
+
+void GameOptionsViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	Update_Labels();
+
+	model.Bind("cansave", &Screen.CanSave);
+	model.Bind("canload", &Screen.CanLoad);
+	model.Bind("candelete", &Screen.CanDelete);
+	model.Bind("canbrief", &Screen.CanBrief);
+	model.Bind("speed", &Screen.SpeedStep);
+	model.Bind("connection", &Screen.ConnectionStep);
+	model.Bind("speedlabel", &SpeedLabel);
+	model.Bind("connectionlabel", &ConnectionLabel);
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	model.BindEventCallback("move",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const which = arguments[0].Get<Rml::String>();
+			int const step = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
+
+			if (which == UI_GAMEOPT_SPEED) Move(UI_GAMEOPT_SPEED, step);
+			else if (which == UI_GAMEOPT_CONNECTION) Move(UI_GAMEOPT_CONNECTION, step);
+		});
+
+	// Escape resumes, which is the IDCANCEL the dialog answered with its resume arm. Enter
+	// resumes too: the template names no default push button, so Windows sent IDOK, and the
+	// dialog treated that as the resume button.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE || key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_GAMEOPT_RESUME, "", 0});
+			}
+		});
+}
+
+
+void GameOptionsViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Update_Labels();
+
+	// The slider positions are not dirtied, because a slider already carries the position
+	// its own change event reported.
+	Model.DirtyVariable("cansave");
+	Model.DirtyVariable("canload");
+	Model.DirtyVariable("candelete");
+	Model.DirtyVariable("canbrief");
+	Model.DirtyVariable("speedlabel");
+	Model.DirtyVariable("connectionlabel");
+}
+
+
+/// <summary>
+/// Shows the in-game options and waits for the player to choose.
+/// </summary>
+UIResult UI_Game_Options_Screen(UIGameOptionsPresenterClass & presenter)
+{
+	char const * document = "gameoptionsmp.rml";
+	if (!presenter.IsMultiplayer) {
+		document = "gameoptions.rml";
+	} else if (presenter.HasSliders) {
+		document = "gameoptionswol.rml";
+	}
+
+	GameOptionsViewClass view(presenter, document);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	view.Settle();
+
+	// A browser this screen opens is a screen of a different kind, so it nests; getting out
+	// of the way of it is hiding this document, which is what the dialog's ShowWindow did.
+	while (!presenter.Result.has_value()) {
+		UI_Run_Modal(presenter, view);
+
+		if (presenter.Pending == UIGameOptionsPresenterClass::SUB_NONE) {
+			break;
+		}
+
+		view.Hide();
+		presenter.Run_Pending();
+		if (presenter.Result.has_value()) {
+			break;
+		}
+		view.Show();
+		view.Sync();
+	}
+
+	UIResult const result = presenter.Result.value_or(UIResult{});
+	view.Close();
+	return(result);
 }

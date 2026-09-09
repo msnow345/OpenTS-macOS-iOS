@@ -97,3 +97,8 @@ class UIGameOptionsPresenterClass : public UIPresenterClass
 	private:
 		void Finish(ChoiceType choice, UIResult::OutcomeType outcome);
 };
+
+
+// Shows the screen through its RmlUi view. FAILED_TO_OPEN leaves nothing shown and the
+// caller falls through to the legacy dialog.
+UIResult UI_Game_Options_Screen(UIGameOptionsPresenterClass & presenter);
