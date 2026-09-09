@@ -330,6 +330,7 @@ namespace {
 			seat.RegisterMember("hex", &SeatViewType::Hex);
 		}
 		model.RegisterArray<std::vector<SeatViewType>>();
+		model.RegisterArray<std::vector<std::string>>();
 
 		model.Bind("seats", &Seats);
 		model.Bind("messages", &Screen.Messages);

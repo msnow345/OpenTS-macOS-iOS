@@ -493,6 +493,7 @@ namespace {
 			row.RegisterMember("mark", &PlayerViewType::Mark);
 		}
 		model.RegisterArray<std::vector<PlayerViewType>>();
+		model.RegisterArray<std::vector<std::string>>();
 
 		model.Bind("players", &PlayerRows);
 		model.Bind("messages", &Screen.Messages);
