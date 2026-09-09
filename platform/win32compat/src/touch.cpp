@@ -75,9 +75,14 @@ constexpr Uint64 TOUCH_VELOCITY_WINDOW_NS = 60ULL * 1000000ULL;
 constexpr int TOUCH_VELOCITY_SAMPLES = 16;
 
 // UIScrollView's own deceleration rate, applied per millisecond so that the same flick
-// travels the same distance whatever the frame rate.
+// travels the same distance whatever the frame rate. The two speeds below are in render
+// pixels per millisecond, and the speed arming a coast sits marginally above the speed
+// stopping one, so arming always buys at least one real step and there is no cliff between
+// a finger that drifted to a stop and one that flicked. All three are CorsixTH's shipped
+// values, which a player has used and preferred.
 constexpr double TOUCH_DECAY_PER_MS = 0.998;
-constexpr double TOUCH_COAST_STOP_POINTS_PER_MS = 0.02;
+constexpr double TOUCH_FLICK_ARM_PIXELS_PER_MS = 0.06;
+constexpr double TOUCH_COAST_STOP_PIXELS_PER_MS = 0.05;
 
 enum PhaseType
 {
@@ -501,15 +506,19 @@ void Begin_Coast(Uint64 now)
 	_CoastX = (double)(last.X - first.X) / span;
 	_CoastY = (double)(last.Y - first.Y) / span;
 
-	double const speed = std::sqrt(_CoastX * _CoastX + _CoastY * _CoastY);
+	// The samples are in window points and the two speeds are in render pixels, so the
+	// comparison is made in pixels and the thresholds stay the same physical speed on any
+	// display.
+	double const density = (double)Win32_Pixel_Density();
+	double const speed = std::sqrt(_CoastX * _CoastX + _CoastY * _CoastY) * density;
 
-	if (speed < TOUCH_COAST_STOP_POINTS_PER_MS) {
-		Log("no coast: released at %.3f points per ms over %.1f ms", speed, span);
+	if (speed < TOUCH_FLICK_ARM_PIXELS_PER_MS) {
+		Log("no coast: released at %.3f pixels per ms over %.1f ms", speed, span);
 		Stop_Coast();
 		return;
 	}
 
-	Log("coast at %.3f points per ms measured over %.1f ms", speed, span);
+	Log("coast at %.3f pixels per ms measured over %.1f ms", speed, span);
 	_CoastTime = now;
 	_Coasting = true;
 }
@@ -534,7 +543,8 @@ void Advance_Coast(Uint64 now)
 	_CoastX *= decay;
 	_CoastY *= decay;
 
-	if (std::sqrt(_CoastX * _CoastX + _CoastY * _CoastY) < TOUCH_COAST_STOP_POINTS_PER_MS) {
+	if (std::sqrt(_CoastX * _CoastX + _CoastY * _CoastY) * (double)Win32_Pixel_Density() < TOUCH_COAST_STOP_PIXELS_PER_MS) {
+		Log("coast spent");
 		Stop_Coast();
 	}
 }
