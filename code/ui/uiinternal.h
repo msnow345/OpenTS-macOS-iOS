@@ -62,6 +62,12 @@ void UI_Surface_Element_Shutdown(void);
 // cannot afford to be skipped by.
 void UI_Paint_Now(bool immediate);
 
+// Turns an identifier RmlUi reports back into the Win32 virtual key it came from. A screen
+// that records a keypress needs it, because an RmlUi key event carries the identifier and
+// the game's own key encoding is a virtual key with its modifier bits above it. Zero for an
+// identifier no key produces.
+int UI_Virtual_Key(int identifier);
+
 // uisystem.cpp
 Rml::SystemInterface * UI_System_Interface(void);
 

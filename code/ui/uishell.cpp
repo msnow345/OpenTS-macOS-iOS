@@ -73,45 +73,199 @@ static Rml::ElementDocument * _TestDocument = nullptr;
 #endif
 
 
+// The keys RmlUi names that are not part of one of the four runs above. The pairing is
+// read in both directions, so an entry's order matters where two virtual keys share an
+// identifier or two identifiers share a virtual key: the first entry naming a virtual key
+// is the identifier that key produces, and the first entry naming an identifier is the
+// virtual key it converts back to.
+//
+// Where a modifier has both a general and a sided code the general one comes first, because
+// that is what this engine's keyboard queue is written against: keyboard.h has no name for
+// 0xA0 to 0xA5 at all, and platform/win32compat reports 0x10, 0x11 and 0x12 for both sides.
+struct KeyPairType
+{
+	unsigned short VirtualKey;
+	Rml::Input::KeyIdentifier Identifier;
+};
+
+static KeyPairType const _KeyPairs[] = {
+	{ 0x08, Rml::Input::KI_BACK },
+	{ 0x09, Rml::Input::KI_TAB },
+	{ 0x0C, Rml::Input::KI_CLEAR },
+	{ 0x0D, Rml::Input::KI_RETURN },
+	{ 0x10, Rml::Input::KI_LSHIFT },
+	{ 0x11, Rml::Input::KI_LCONTROL },
+	{ 0x12, Rml::Input::KI_LMENU },
+	{ 0x13, Rml::Input::KI_PAUSE },
+	{ 0x14, Rml::Input::KI_CAPITAL },
+	{ 0x15, Rml::Input::KI_KANA },
+	{ 0x15, Rml::Input::KI_HANGUL },
+	{ 0x17, Rml::Input::KI_JUNJA },
+	{ 0x18, Rml::Input::KI_FINAL },
+	{ 0x19, Rml::Input::KI_HANJA },
+	{ 0x19, Rml::Input::KI_KANJI },
+	{ 0x1B, Rml::Input::KI_ESCAPE },
+	{ 0x1C, Rml::Input::KI_CONVERT },
+	{ 0x1D, Rml::Input::KI_NONCONVERT },
+	{ 0x1E, Rml::Input::KI_ACCEPT },
+	{ 0x1F, Rml::Input::KI_MODECHANGE },
+	{ 0x20, Rml::Input::KI_SPACE },
+	{ 0x21, Rml::Input::KI_PRIOR },
+	{ 0x22, Rml::Input::KI_NEXT },
+	{ 0x23, Rml::Input::KI_END },
+	{ 0x24, Rml::Input::KI_HOME },
+	{ 0x25, Rml::Input::KI_LEFT },
+	{ 0x26, Rml::Input::KI_UP },
+	{ 0x27, Rml::Input::KI_RIGHT },
+	{ 0x28, Rml::Input::KI_DOWN },
+	{ 0x29, Rml::Input::KI_SELECT },
+	{ 0x2A, Rml::Input::KI_PRINT },
+	{ 0x2B, Rml::Input::KI_EXECUTE },
+	{ 0x2C, Rml::Input::KI_SNAPSHOT },
+	{ 0x2D, Rml::Input::KI_INSERT },
+	{ 0x2E, Rml::Input::KI_DELETE },
+	{ 0x2F, Rml::Input::KI_HELP },
+	{ 0x5B, Rml::Input::KI_LWIN },
+	{ 0x5C, Rml::Input::KI_RWIN },
+	{ 0x5D, Rml::Input::KI_APPS },
+	{ 0x5F, Rml::Input::KI_SLEEP },
+	{ 0x6A, Rml::Input::KI_MULTIPLY },
+	{ 0x6B, Rml::Input::KI_ADD },
+	{ 0x6C, Rml::Input::KI_SEPARATOR },
+	{ 0x6D, Rml::Input::KI_SUBTRACT },
+	{ 0x6E, Rml::Input::KI_DECIMAL },
+	{ 0x6F, Rml::Input::KI_DIVIDE },
+	{ 0x90, Rml::Input::KI_NUMLOCK },
+	{ 0x91, Rml::Input::KI_SCROLL },
+	{ 0x92, Rml::Input::KI_OEM_NEC_EQUAL },
+	{ 0x92, Rml::Input::KI_OEM_FJ_JISHO },
+	{ 0x93, Rml::Input::KI_OEM_FJ_MASSHOU },
+	{ 0x94, Rml::Input::KI_OEM_FJ_TOUROKU },
+	{ 0x95, Rml::Input::KI_OEM_FJ_LOYA },
+	{ 0x96, Rml::Input::KI_OEM_FJ_ROYA },
+	{ 0xA0, Rml::Input::KI_LSHIFT },
+	{ 0xA1, Rml::Input::KI_RSHIFT },
+	{ 0xA2, Rml::Input::KI_LCONTROL },
+	{ 0xA3, Rml::Input::KI_RCONTROL },
+	{ 0xA4, Rml::Input::KI_LMENU },
+	{ 0xA5, Rml::Input::KI_RMENU },
+	{ 0xA6, Rml::Input::KI_BROWSER_BACK },
+	{ 0xA7, Rml::Input::KI_BROWSER_FORWARD },
+	{ 0xA8, Rml::Input::KI_BROWSER_REFRESH },
+	{ 0xA9, Rml::Input::KI_BROWSER_STOP },
+	{ 0xAA, Rml::Input::KI_BROWSER_SEARCH },
+	{ 0xAB, Rml::Input::KI_BROWSER_FAVORITES },
+	{ 0xAC, Rml::Input::KI_BROWSER_HOME },
+	{ 0xAD, Rml::Input::KI_VOLUME_MUTE },
+	{ 0xAE, Rml::Input::KI_VOLUME_DOWN },
+	{ 0xAF, Rml::Input::KI_VOLUME_UP },
+	{ 0xB0, Rml::Input::KI_MEDIA_NEXT_TRACK },
+	{ 0xB1, Rml::Input::KI_MEDIA_PREV_TRACK },
+	{ 0xB2, Rml::Input::KI_MEDIA_STOP },
+	{ 0xB3, Rml::Input::KI_MEDIA_PLAY_PAUSE },
+	{ 0xB4, Rml::Input::KI_LAUNCH_MAIL },
+	{ 0xB5, Rml::Input::KI_LAUNCH_MEDIA_SELECT },
+	{ 0xB6, Rml::Input::KI_LAUNCH_APP1 },
+	{ 0xB7, Rml::Input::KI_LAUNCH_APP2 },
+	{ 0xBA, Rml::Input::KI_OEM_1 },
+	{ 0xBB, Rml::Input::KI_OEM_PLUS },
+	{ 0xBC, Rml::Input::KI_OEM_COMMA },
+	{ 0xBD, Rml::Input::KI_OEM_MINUS },
+	{ 0xBE, Rml::Input::KI_OEM_PERIOD },
+	{ 0xBF, Rml::Input::KI_OEM_2 },
+	{ 0xC0, Rml::Input::KI_OEM_3 },
+	{ 0xDB, Rml::Input::KI_OEM_4 },
+	{ 0xDC, Rml::Input::KI_OEM_5 },
+	{ 0xDD, Rml::Input::KI_OEM_6 },
+	{ 0xDE, Rml::Input::KI_OEM_7 },
+	{ 0xDF, Rml::Input::KI_OEM_8 },
+	{ 0xE1, Rml::Input::KI_OEM_AX },
+	{ 0xE2, Rml::Input::KI_OEM_102 },
+	{ 0xE3, Rml::Input::KI_ICO_HELP },
+	{ 0xE4, Rml::Input::KI_ICO_00 },
+	{ 0xE5, Rml::Input::KI_PROCESSKEY },
+	{ 0xE6, Rml::Input::KI_ICO_CLEAR },
+	{ 0xF6, Rml::Input::KI_ATTN },
+	{ 0xF7, Rml::Input::KI_CRSEL },
+	{ 0xF8, Rml::Input::KI_EXSEL },
+	{ 0xF9, Rml::Input::KI_EREOF },
+	{ 0xFA, Rml::Input::KI_PLAY },
+	{ 0xFB, Rml::Input::KI_ZOOM },
+	{ 0xFD, Rml::Input::KI_PA1 },
+	{ 0xFE, Rml::Input::KI_OEM_CLEAR },
+};
+
+
 /// <summary>
 /// Turns a Win32 virtual key into the identifier RmlUi names it by.
-/// Only the keys a document can act on are mapped; an unmapped key is left to the game.
+/// Every key RmlUi has a name for is mapped, because a key nothing maps is never delivered
+/// to a document at all and a screen that binds a shortcut has to see the whole keyboard.
 /// </summary>
 static Rml::Input::KeyIdentifier Key_Identifier(WPARAM key)
 {
 	using namespace Rml::Input;
 
+	// The four runs where the two enumerations march in step.
 	if (key >= 'A' && key <= 'Z') {
 		return((KeyIdentifier)(KI_A + (int)(key - 'A')));
 	}
 	if (key >= '0' && key <= '9') {
 		return((KeyIdentifier)(KI_0 + (int)(key - '0')));
 	}
-	if (key >= VK_F1 && key <= VK_F12) {
+	if (key >= 0x60 && key <= 0x69) {
+		return((KeyIdentifier)(KI_NUMPAD0 + (int)(key - 0x60)));
+	}
+	if (key >= VK_F1 && key <= VK_F24) {
 		return((KeyIdentifier)(KI_F1 + (int)(key - VK_F1)));
 	}
 
-	switch (key) {
-		case VK_BACK: return(KI_BACK);
-		case VK_TAB: return(KI_TAB);
-		case VK_RETURN: return(KI_RETURN);
-		case VK_ESCAPE: return(KI_ESCAPE);
-		case VK_SPACE: return(KI_SPACE);
-		case VK_PRIOR: return(KI_PRIOR);
-		case VK_NEXT: return(KI_NEXT);
-		case VK_END: return(KI_END);
-		case VK_HOME: return(KI_HOME);
-		case VK_LEFT: return(KI_LEFT);
-		case VK_UP: return(KI_UP);
-		case VK_RIGHT: return(KI_RIGHT);
-		case VK_DOWN: return(KI_DOWN);
-		case VK_INSERT: return(KI_INSERT);
-		case VK_DELETE: return(KI_DELETE);
-		case VK_SHIFT: return(KI_LSHIFT);
-		case VK_CONTROL: return(KI_LCONTROL);
-		case VK_MENU: return(KI_LMENU);
-		default: return(KI_UNKNOWN);
+	for (KeyPairType const & pair : _KeyPairs) {
+		if (pair.VirtualKey == key) {
+			return(pair.Identifier);
+		}
 	}
+
+	return(KI_UNKNOWN);
+}
+
+
+/// <summary>
+/// Turns an identifier RmlUi reports back into the Win32 virtual key it came from.
+/// A screen that records a keypress needs this, because an RmlUi key event carries the
+/// identifier and the game's own encoding is a virtual key.
+/// </summary>
+/// <returns>int; The virtual key, or zero for an identifier no key produces.</returns>
+int UI_Virtual_Key(int identifier)
+{
+	using namespace Rml::Input;
+
+	if (identifier >= KI_A && identifier <= KI_Z) {
+		return('A' + (identifier - KI_A));
+	}
+	if (identifier >= KI_0 && identifier <= KI_9) {
+		return('0' + (identifier - KI_0));
+	}
+	if (identifier >= KI_NUMPAD0 && identifier <= KI_NUMPAD9) {
+		return(0x60 + (identifier - KI_NUMPAD0));
+	}
+	if (identifier >= KI_F1 && identifier <= KI_F24) {
+		return(VK_F1 + (identifier - KI_F1));
+	}
+
+	// The numeric keypad's Enter is a Return as far as Win32 is concerned; only the
+	// extended-key bit in a message's own parameters tells them apart, and that bit is
+	// gone by the time RmlUi has named the key.
+	if (identifier == KI_NUMPADENTER) {
+		return(VK_RETURN);
+	}
+
+	for (KeyPairType const & pair : _KeyPairs) {
+		if (pair.Identifier == identifier) {
+			return(pair.VirtualKey);
+		}
+	}
+
+	return(0);
 }
 
 
