@@ -189,6 +189,45 @@ extern "C" DWORD GetModuleFileName(HMODULE module, LPSTR name, DWORD size)
 static std::vector<std::wstring> _Arguments;
 static std::wstring _CommandLine;
 
+#ifdef OPENTS_IOS
+/*
+ * The folder the game reads its data from and writes the player's own files into. A host
+ * that starts a process from an icon hands it no arguments, so the two directories the game
+ * would otherwise be told about are named here in the form the command line carries them
+ * and everything downstream of the parser stays identical.
+ *
+ * Documents/OpenTS is chosen because Documents is the one folder in the container the
+ * player can reach, so a Tiberian Sun installation can be dropped in and a saved game
+ * copied out without a cable. The container path holds an identifier that changes on every
+ * reinstall, which is why it is read at run time rather than built in.
+ */
+static char const * const _ContainerFolder = "/Documents/OpenTS";
+
+
+static void Append_Container_Directories(std::vector<std::wstring> & arguments)
+{
+	char const * const home = getenv("HOME");
+
+	if (home == NULL || home[0] == '\0') {
+		return;
+	}
+
+	std::string const folder = std::string(home) + _ContainerFolder;
+
+	// Made here rather than left to the game, which treats a missing data directory as
+	// fatal. An empty folder lets the game start and say which files it could not find,
+	// and gives the player somewhere to put them.
+	std::error_code error;
+	std::filesystem::create_directories(folder, error);
+
+	for (char const * option : { "-DATADIR=", "-USERDIR=" }) {
+		std::string const argument = std::string(option) + folder;
+		arguments.push_back(std::wstring(argument.begin(), argument.end()));
+	}
+}
+#endif
+
+
 void Win32_Record_Arguments(int argc, char ** argv)
 {
 	_Arguments.clear();
@@ -197,11 +236,17 @@ void Win32_Record_Arguments(int argc, char ** argv)
 	for (int index = 0; index < argc; index++) {
 		std::string const argument(argv[index] != NULL ? argv[index] : "");
 		_Arguments.push_back(std::wstring(argument.begin(), argument.end()));
+	}
 
+#ifdef OPENTS_IOS
+	Append_Container_Directories(_Arguments);
+#endif
+
+	for (std::size_t index = 0; index < _Arguments.size(); index++) {
 		if (index > 0) {
 			_CommandLine += L' ';
 		}
-		_CommandLine += _Arguments.back();
+		_CommandLine += _Arguments[index];
 	}
 }
 
