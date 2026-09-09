@@ -862,7 +862,7 @@ bool DecodePubGameopt(char * options, char * name)
 		if (stricmp(Session.ScenarioFileName, token) != 0) {
 			same_scenario = false;
 		}
-		strncpy(Session.ScenarioFileName, token, sizeof(Session.ScenarioFileName));
+		UTF8::Copy(Session.ScenarioFileName, sizeof(Session.ScenarioFileName), token);
 		strcpy(Scen->ScenarioName, Session.ScenarioFileName);
 	}
 
@@ -871,7 +871,7 @@ bool DecodePubGameopt(char * options, char * name)
 		if (strcmp(Session.ScenarioDigest, digest) != 0) {
 			same_scenario = false;
 		}
-		strncpy(Session.ScenarioDigest, digest, sizeof(Session.ScenarioDigest)-1);
+		UTF8::Copy(Session.ScenarioDigest, sizeof(Session.ScenarioDigest), digest);
 	}
 
 	if (!same_scenario || strlen(Session.Options.ScenarioDescription) == 0) {
@@ -886,7 +886,7 @@ bool DecodePubGameopt(char * options, char * name)
 			}
 		}
 		if (!found && scenario_description != NULL) {
-			strcpy(Session.Options.ScenarioDescription, scenario_description);
+			UTF8::Copy(Session.Options.ScenarioDescription, sizeof(Session.Options.ScenarioDescription), scenario_description);
 		}
 		if (stricmp(Session.ScenarioFileName, RANDOM_MAP_FILE_NAME) == 0) {
 			strcpy(Session.Options.ScenarioDescription, Fetch_String(TXT_RANDOM_MAP_DESCRIPTION));
