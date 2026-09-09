@@ -21,7 +21,7 @@
 		<div class="check" id="cameotext" data-class-ticked="cameotext" data-event-click="toggle('cameotext')">Sidebar Text</div>
 		<div class="check" id="actionlines" data-class-ticked="actionlines" data-event-click="toggle('actionlines')">Target Lines</div>
 		<div class="check" id="tooltips" data-class-ticked="tooltips" data-event-click="toggle('tooltips')">Tooltips</div>
-		<div class="check" id="coasting" data-class-ticked="coasting" data-event-click="toggle('coasting')">Scroll Coasting</div>
+		<div class="check" id="coasting" data-class-ticked="coasting" data-class-disabled="!coastingavailable" data-event-click="toggle('coasting')">Scroll Coasting</div>
 		<div class="check" id="edgescroll" data-class-ticked="edgescroll" data-event-click="toggle('edgescroll')">Edge Scrolling</div>
 
 		<div class="button" id="sound" data-class-disabled="!soundavailable" data-event-click="press('sound')">Sound</div>

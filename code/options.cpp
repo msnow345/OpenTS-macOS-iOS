@@ -83,6 +83,7 @@
 #include "vector.h"
 #include "video.h"
 #include "vox.h"
+#include "winstub.h"
 #include "ui/uikeyboard.h"
 
 #include "diff.hh"
@@ -370,6 +371,12 @@ void OptionsClass::Load_Settings(void)
 	DebugString("Difficulty = %d\n", Difficulty);
 
 	ScrollMethod = ConfigINI.Get_Int("Options", "ScrollMethod", ScrollMethod);
+	// Methods 1 and 2 drag the pointer along with the map, so a host that cannot move a
+	// pointer scrolls nowhere. A file carried over from a machine that could would
+	// otherwise arrive setting one of them.
+	if (!Win_Pointer_Can_Warp()) {
+		ScrollMethod = 0;
+	}
 	DebugString("ScrollMethod = %d\n", ScrollMethod);
 
 	ScrollRate = ConfigINI.Get_Int("Options", "ScrollRate", ScrollRate);

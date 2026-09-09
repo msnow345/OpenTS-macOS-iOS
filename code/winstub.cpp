@@ -377,6 +377,7 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
 extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
+bool Win32_Pointer_Can_Warp(void);
 #endif
 
 
@@ -415,6 +416,22 @@ bool Win_Set_Window_Fullscreen(HWND window, bool fullscreen)
 	return(true);
 #else
 	return(Win32Compat_Set_Window_Fullscreen(window, fullscreen ? TRUE : FALSE) != FALSE);
+#endif
+}
+
+
+/// <summary>
+/// Answers whether the pointer can be moved to a position the game chooses.
+/// The dragging scroll methods pull the pointer back to the press point every frame, so
+/// they need a pointer that something can move. A host driven by touch has none, and the
+/// game has to offer the player something else.
+/// </summary>
+bool Win_Pointer_Can_Warp(void)
+{
+#ifdef _WIN32
+	return(true);
+#else
+	return(Win32_Pointer_Can_Warp());
 #endif
 }
 

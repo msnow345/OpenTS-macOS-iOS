@@ -38,6 +38,7 @@
 #include "options.h"
 #include "session.h"
 #include "techno.h"
+#include "winstub.h"
 
 #include "special.hh"
 
@@ -75,6 +76,7 @@ void UIGameControlsPresenterClass::Refresh(void)
 	EdgeScroll = Options.AutoScroll;
 
 	SoundAvailable = AudioEngine.Is_Available();
+	CoastingAvailable = Win_Pointer_Can_Warp();
 
 	Fill_Labels(SpeedLabels, GameSpeedNames, OptionsClass::MAX_SPEED_SETTING);
 	Fill_Labels(ScrollLabels, GameScrollSpeedNames, OptionsClass::MAX_SCROLL_SETTING);
@@ -131,7 +133,9 @@ void UIGameControlsPresenterClass::Execute(UIIntent const & intent)
 		return;
 	}
 	if (intent.Action == UI_GAMECTRL_COASTING) {
-		Coasting = (intent.Value != 0);
+		if (CoastingAvailable) {
+			Coasting = (intent.Value != 0);
+		}
 		return;
 	}
 	if (intent.Action == UI_GAMECTRL_EDGE_SCROLL) {
@@ -202,7 +206,9 @@ void UIGameControlsPresenterClass::Apply(void)
 		ToolTips->Activate(Options.ToolTips);
 	}
 
-	Options.ScrollMethod = Coasting ? 0 : 1;
+	if (CoastingAvailable) {
+		Options.ScrollMethod = Coasting ? 0 : 1;
+	}
 	Options.AutoScroll = EdgeScroll;
 
 	if (Has_Difficulty()) {
@@ -299,6 +305,7 @@ void GameControlsViewClass::Bind(Rml::DataModelConstructor & model)
 	model.Bind("coasting", &Screen.Coasting);
 	model.Bind("edgescroll", &Screen.EdgeScroll);
 	model.Bind("soundavailable", &Screen.SoundAvailable);
+	model.Bind("coastingavailable", &Screen.CoastingAvailable);
 
 	model.BindEventCallback("move",
 		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const & arguments) {

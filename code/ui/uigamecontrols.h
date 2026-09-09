@@ -95,6 +95,11 @@ class UIGameControlsPresenterClass : public UIPresenterClass
 		// the dialog disabled it.
 		bool SoundAvailable = false;
 
+		// Can the pointer be moved to a position the game chooses? Without that the only
+		// scroll method left is the coasting one, so the choice is shown and locked rather
+		// than removed.
+		bool CoastingAvailable = false;
+
 		std::vector<std::string> SpeedLabels;
 		std::vector<std::string> ScrollLabels;
 		std::vector<std::string> DetailLabels;
