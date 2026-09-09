@@ -175,6 +175,21 @@ RawFileClass::RawFileClass(char const * filename) :
  * HISTORY:                                                                                    *
  *   10/17/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
+// Where the name begins in a path, which is the whole of it when no directory is attached.
+static char * File_Name_Part(char * path)
+{
+	char * name = path;
+
+	for (char * cursor = path; *cursor != '\0'; cursor++) {
+		if (*cursor == '/' || *cursor == '\\' || *cursor == ':') {
+			name = cursor + 1;
+		}
+	}
+
+	return(name);
+}
+
+
 char const * RawFileClass::Set_Name(char const * filename)
 {
 	if (Filename != NULL) {
@@ -195,9 +210,12 @@ char const * RawFileClass::Set_Name(char const * filename)
 	/*
 	** If we ever save this file, make sure we save it in lowercase but
 	** if Resolve_File finds an actual file on-disk we use the real name
-	** instead.
+	** instead. Only the name is lowered: a directory in front of it was
+	** chosen by whoever named the file and may sit on a file system that
+	** tells the cases apart, where Resolve_File cannot always read the
+	** directory back to restore it.
 	*/
-	_strlwr(Filename);
+	_strlwr(File_Name_Part(Filename));
 
 	/*
 	** Try to locate an existing file ignoring case, updates Filename
