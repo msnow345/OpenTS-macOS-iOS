@@ -69,6 +69,10 @@ class FileEntryClass {
 
 class LoadOptionsClass
 {
+	// The screen's behavior, which reads the file list, the suggested description and the
+	// save confirmation this class owns.
+	friend class UISaveBrowserPresenterClass;
+
 	public:
 		/*
 		**	This defines the style of the dialog
@@ -102,6 +106,10 @@ class LoadOptionsClass
 		void Pick_Filename(char * file_name);
 		bool Files_Present(void);
 
+		// Reads the folder into Files, newest first. The control the list is shown in is a
+		// view's business, so it is not touched here.
+		void Build_List(void);
+
 		virtual bool Load_File(const char * file_name);
 		virtual bool Save_File(const char * file_name, const char * descr);
 		virtual bool Delete_File(const char * file_name);
@@ -112,7 +120,8 @@ class LoadOptionsClass
 		**	Internal routines
 		*/
 		void Clear_List (void);                                     // clears the list & game # array
-		void Fill_List (HWND window);                               // fills the list & game # array
+		void Fill_List (HWND window, int selected);                  // puts the list on the control
+		void Sync_List (HWND list, HWND dialog, class UISaveBrowserPresenterClass & screen);
 		int Num_From_Ext (char *fname);                             // translates filename to file #
 		static int __cdecl Compare(const void *p1, const void *p2); // for qsort()
 

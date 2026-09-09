@@ -58,6 +58,8 @@
 #include "savever.h"
 #include "scenario.h"
 #include "session.h"
+#include "ui/uisavebrowser.h"
+#include "ui/uishell.h"
 #include "win.h"
 
 #include <algorithm>
@@ -173,18 +175,29 @@ bool LoadOptionsClass::Delete(void)
 /// <param name="id">The notification code that accompanied the control.</param>
 void LoadOptionsClass::Load_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
 {
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
+	UISaveBrowserPresenterClass * screen = (UISaveBrowserPresenterClass *)GetWindowLongPtr(window, DWLP_USER);
+	if (screen == NULL) {
+		return;
+	}
+
 	switch ((int)wparam) {
 		case IDC_MISSION_LOAD_LIST:
 			if (id == 2 && ListBox_GetCount((HWND)lparam) > 0) {
-				_this->State = STATE_OK;
+				screen->Queue(UIIntent{UI_SAVEBROWSER_SELECT, "", ListBox_GetCurSel((HWND)lparam)});
+				screen->Queue(UIIntent{UI_SAVEBROWSER_ACCEPT, "", 0});
 			}
 			break;
 
 		case IDOK:
+			if (id == 0) {
+				screen->Queue(UIIntent{UI_SAVEBROWSER_SELECT, "", ListBox_GetCurSel(GetDlgItem(window, IDC_MISSION_LOAD_LIST))});
+				screen->Queue(UIIntent{UI_SAVEBROWSER_ACCEPT, "", 0});
+			}
+			break;
+
 		case IDCANCEL:
 			if (id == 0) {
-				_this->State = (LoadDialogState)wparam;
+				screen->Queue(UIIntent{UI_SAVEBROWSER_CANCEL, "", 0});
 			}
 			break;
 	}
@@ -202,39 +215,35 @@ void LoadOptionsClass::Load_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPA
 /// <param name="id">The notification code that accompanied the control.</param>
 void LoadOptionsClass::Save_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
 {
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
+	UISaveBrowserPresenterClass * screen = (UISaveBrowserPresenterClass *)GetWindowLongPtr(window, DWLP_USER);
+	if (screen == NULL) {
+		return;
+	}
+
 	switch ((int)wparam) {
 		case IDC_MISSION_SAVE_LIST:
-
-			/*
-			**	If the user clicks on the list, see if the there is a new current
-			**	item; if so, and if we're in SAVE mode, copy the list item into
-			**	the save-game description field.
-			*/
 			if (id == 1 && ListBox_GetCount((HWND)lparam) > 0) {
-				int row = ListBox_GetCurSel((HWND)lparam);
+				int const row = ListBox_GetCurSel((HWND)lparam);
 				if (row != LB_ERR) {
-
-					/*
-					**	Copy the game's description, UNLESS it's the empty slot; if
-					**	it is, set the edit buffer to empty.
-					*/
-					FileEntryClass * fdata = (FileEntryClass *)ListBox_GetItemData((HWND)lparam, row);
-					if (fdata->Valid) {
-						SetWindowText(GetDlgItem(window, IDC_MISSION_SAVE_DESC), fdata->Descr);
-					} else if (_this->Description != NULL) {
-						SetWindowText(GetDlgItem(window, IDC_MISSION_SAVE_DESC), _this->Description);
-					}
-					SetFocus(GetDlgItem(window, IDC_MISSION_SAVE_DESC));
-					Edit_SetSel(GetDlgItem(window, IDC_MISSION_SAVE_DESC), 0, -1);
+					screen->Queue(UIIntent{UI_SAVEBROWSER_SELECT, "", row});
 				}
 			}
 			break;
 
 		case IDOK:
+			if (id == 0) {
+				// The field is read here rather than tracked, because the description the
+				// player typed is only ever wanted at the moment the button is pressed.
+				char buffer[256];
+				GetWindowText(GetDlgItem(window, IDC_MISSION_SAVE_DESC), buffer, DESCRIP_MAX+36);
+				screen->Queue(UIIntent{UI_SAVEBROWSER_DESCRIBE, buffer, 0});
+				screen->Queue(UIIntent{UI_SAVEBROWSER_ACCEPT, "", 0});
+			}
+			break;
+
 		case IDCANCEL:
 			if (id == 0) {
-				_this->State = (LoadDialogState)wparam;
+				screen->Queue(UIIntent{UI_SAVEBROWSER_CANCEL, "", 0});
 			}
 			break;
 	}
@@ -250,12 +259,22 @@ void LoadOptionsClass::Save_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPA
 /// <param name="id">The notification code that accompanied the control.</param>
 void LoadOptionsClass::Delete_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
 {
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
+	UISaveBrowserPresenterClass * screen = (UISaveBrowserPresenterClass *)GetWindowLongPtr(window, DWLP_USER);
+	if (screen == NULL) {
+		return;
+	}
+
 	switch ((int)wparam) {
 		case IDOK:
+			if (id == 0) {
+				screen->Queue(UIIntent{UI_SAVEBROWSER_SELECT, "", ListBox_GetCurSel(GetDlgItem(window, IDC_MISSION_DELETE_LIST))});
+				screen->Queue(UIIntent{UI_SAVEBROWSER_ACCEPT, "", 0});
+			}
+			break;
+
 		case IDCANCEL:
 			if (id == 0) {
-				_this->State = (LoadDialogState)wparam;
+				screen->Queue(UIIntent{UI_SAVEBROWSER_CANCEL, "", 0});
 			}
 			break;
 	}
@@ -390,15 +409,69 @@ static bool Saved_Game_Exists(char const * name)
  * HISTORY:                                                                                    *
  *   02/14/1995 BR : Created.                                                                  *
  *=============================================================================================*/
+/// <summary>
+/// Puts the view-model on the dialog's own controls.
+/// </summary>
+static void Save_Browser_Sync_Controls(HWND window, UISaveBrowserPresenterClass & screen)
+{
+	if (screen.Style != UISaveBrowserPresenterClass::STYLE_SAVE) {
+		return;
+	}
+
+	HWND const field = GetDlgItem(window, IDC_MISSION_SAVE_DESC);
+	if (field == NULL) {
+		return;
+	}
+
+	char current[256];
+	GetWindowText(field, current, sizeof(current));
+
+	if (strcmp(current, screen.Description.c_str()) != 0) {
+		SetWindowText(field, screen.Description.c_str());
+	}
+
+	if (screen.FocusDescription) {
+		screen.FocusDescription = false;
+		SetFocus(field);
+		Edit_SetSel(field, 0, -1);
+	}
+}
+
+
+/// <summary>
+/// Rebuilds the list control when the view-model's list has moved.
+/// </summary>
+void LoadOptionsClass::Sync_List(HWND list, HWND dialog, UISaveBrowserPresenterClass & screen)
+{
+	if (list == 0 || !screen.ListChanged) {
+		return;
+	}
+
+	screen.ListChanged = false;
+	Fill_List(list, screen.Selected);
+	EnableWindow(GetDlgItem(dialog, 1), screen.CanAct ? TRUE : FALSE);
+}
+
+
 bool LoadOptionsClass::Dialog(void)
 {
-	/*
-	**	Dialog variables
-	*/
+	UISaveBrowserPresenterClass::StyleType style = UISaveBrowserPresenterClass::STYLE_LOAD;
+	if (Style == SAVE) {
+		style = UISaveBrowserPresenterClass::STYLE_SAVE;
+	} else if (Style == WWDELETE) {
+		style = UISaveBrowserPresenterClass::STYLE_DELETE;
+	}
+
+	UISaveBrowserPresenterClass screen(*this, style);
+
+	if (!screen.Can_Open()) {
+		return(false);
+	}
+
+	screen.Refresh();
+
 	HWND dialog = 0;
 	HWND list = 0;
-
-	char buffer[256];
 
 	switch (Style) {
 		case LOAD:
@@ -407,10 +480,6 @@ bool LoadOptionsClass::Dialog(void)
 			break;
 
 		case SAVE:
-			if (Disk_Space_Available() < MinSpaceRequired) {
-				WWMessageBox().Process(TXT_DISKFULL, TXT_OK, TXT_NONE, TXT_NONE);
-				return(false);
-			}
 			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_SAVE, Save_Dialog_Proc);
 			list = GetDlgItem(dialog, IDC_MISSION_SAVE_LIST);
 			break;
@@ -419,156 +488,57 @@ bool LoadOptionsClass::Dialog(void)
 			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_DELETE, Delete_Dialog_Proc);
 			list = GetDlgItem(dialog, IDC_MISSION_DELETE_LIST);
 			break;
+
+		default:
+			break;
 	}
 
 	State = STATE_PENDING;
 
 	if (dialog) {
 
-		/*
-		**	Initialize.
-		*/
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)this);
+		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&screen);
 
-		if (list != 0) {
-			Fill_List(list);
-			EnableWindow(GetDlgItem(dialog, 1), bool(ListBox_GetCount(list) > 0));
-		}
+		Sync_List(list, dialog, screen);
+		Save_Browser_Sync_Controls(dialog, screen);
 
 		OwnerDraw::Display_Dialog(dialog);
 
-		/*
-		**	Main Processing Loop.
-		*/
-		do {
-			while (State == STATE_PENDING) {
-				if (OwnerDraw::Dialog_Message_Handler() == true) {
-					State = STATE_CLOSE;
-				}
+		while (!screen.Result.has_value()) {
+			if (OwnerDraw::Dialog_Message_Handler() == true) {
+				screen.Queue(UIIntent{UI_SAVEBROWSER_CANCEL, "", 0});
+			}
 
-				/*
-				**	Invoke game callback.
-				*/
-				if (Callback) {
-					Callback();
-				}
+			// A control handler queues rather than acts, so the queue is executed here,
+			// after the pump has returned.
+			screen.Drain();
 
-				/*
-				**	If we have just received input focus again after running in the background then
-				**	we need to redraw.
-				*/
-				if (!GameActive) {
-					Title_Screen_Restore(0);
+			// A load draws where this screen is, so the dialog gets out of its way, which
+			// is what its own ShowWindow did.
+			if (screen.Pending != UISaveBrowserPresenterClass::SUB_NONE) {
+				ShowWindow(dialog, SW_HIDE);
+				UpdateWindow(MainWindow);
+				screen.Run_Pending();
+				if (!screen.Result.has_value()) {
+					ShowWindow(dialog, SW_SHOW);
+					UpdateWindow(dialog);
 				}
 			}
 
-			if (State == STATE_OK) {
-				LRESULT row = ListBox_GetCurSel(list);
+			Sync_List(list, dialog, screen);
+			Save_Browser_Sync_Controls(dialog, screen);
 
-				if (row != LB_ERR) {
-					FileEntryClass * entry = (FileEntryClass *)ListBox_GetItemData(list, row);
-
-					/*
-					**	Process input.
-					*/
-					switch (Style) {
-						/*
-						**	Load: if load fails, present a message, and stay in the dialog
-						**	to allow the user to try another game
-						*/
-						case LOAD: {
-							if (entry->Num != -1) {
-								Init_Campaigns();
-							}
-
-							ShowWindow(dialog, SW_HIDE);
-							UpdateWindow(MainWindow);
-
-							if (!Load_File(entry->Filename)) {
-								WWMessageBox().Process(TXT_ERROR_LOADING_GAME, TXT_OK, TXT_NONE, TXT_NONE);
-								ShowWindow(dialog, SW_SHOW);
-								State = STATE_PENDING;
-							}
-							break;
-						}
-
-						/*
-						**	Save: Save the game & exit the dialog
-						*/
-						case SAVE: {
-							GetWindowText(GetDlgItem(dialog, IDC_MISSION_SAVE_DESC), buffer, DESCRIP_MAX+36);
-
-							if (strlen(buffer) == 0) {
-								WWMessageBox().Process(TXT_MUSTENTER_DESCRIPTION, TXT_OK, TXT_NONE, TXT_NONE);
-								SetFocus(GetDlgItem(dialog, IDC_MISSION_SAVE_DESC));
-								Edit_SetSel(GetDlgItem(dialog, IDC_MISSION_SAVE_DESC), -1, -1);
-								State = STATE_PENDING;
-								break;
-							}
-
-							const char * filename = NULL;
-							char test_filename[256];
-
-							if (entry && entry->Valid) {
-								filename = entry->Filename;
-							} else {
-								Pick_Filename(test_filename);
-								filename = test_filename;
-							}
-
-							if (filename != NULL) {
-								bool exists = Saved_Game_Exists(filename);
-								if (exists && WWMessageBox()._Process(TXT_CONFIRM_SAVE, 1, TXT_YES, TXT_NO, TXT_NONE))
-									State = STATE_PENDING;
-								else {
-									if (!Save_File(filename, buffer)) {
-										WWMessageBox().Process(TXT_ERROR_SAVING_GAME, TXT_OK, TXT_NONE, TXT_NONE);
-										State = STATE_PENDING;
-									} else {
-										int confirmation = Save_Confirmation();
-										if (confirmation != TXT_NONE) {
-											WWMessageBox().Process(confirmation, TXT_OK, TXT_NONE, TXT_NONE);
-										}
-										if (Description) {
-											strcpy(Description, buffer);
-										}
-									}
-								}
-							}
-							break;
-						}
-
-						/*
-						**	Delete: delete the file & stay in the dialog, to allow the user
-						**	to delete multiple files.
-						*/
-						case WWDELETE: {
-							sprintf(buffer, "%s\n%s", Fetch_String(TXT_DELETE_FILE_QUERY), entry->Descr);
-
-							if (!WWMessageBox()._Process(buffer, 1, TXT_YES, TXT_NO, TXT_NONE)) {
-								Delete_File(entry->Filename);
-								ListBox_DeleteString(list, row);
-								ListBox_SetCurSel(list, 0);
-								if (ListBox_GetCount(list) > 0) {
-									State = STATE_PENDING;
-									break;
-								}
-							} else {
-								State = STATE_PENDING;
-							}
-							break;
-						}
-					}
-				}
-			}
-		} while (State == STATE_PENDING);
+			screen.Service();
+		}
 
 		Clear_List();
 
 		OwnerDraw::End_Dialog(dialog);
 	}
 
-	return(State == STATE_OK ? true : false);
+	State = screen.Accepted() ? STATE_OK : STATE_CLOSE;
+
+	return(screen.Accepted());
 }
 
 
@@ -617,7 +587,7 @@ void LoadOptionsClass::Clear_List(void)
 
 
 /***********************************************************************************************
- * LoadOptionsClass::Fill_List -- fills the list box & GameNum arrays                          *
+ * LoadOptionsClass::Build_List -- reads the folder into the file list                         *
  *                                                                                             *
  * INPUT:                                                                                      *
  *      none.                                                                                  *
@@ -632,9 +602,8 @@ void LoadOptionsClass::Clear_List(void)
  *   02/14/1995 BR : Created.                                                                  *
  *   06/25/1995 JLB : Shows which saved games are "(old)".                                     *
  *=============================================================================================*/
-void LoadOptionsClass::Fill_List(HWND window)
+void LoadOptionsClass::Build_List(void)
 {
-	OwnerDraw::CellData thecell;
 	FileEntryClass * fdata = NULL;  // for adding entries to 'Files'
 	WIN32_FIND_DATAA ff;            // for FindFirstFile
 
@@ -722,6 +691,33 @@ void LoadOptionsClass::Fill_List(HWND window)
 		**	Now sort the list in order of Date/Time (newest first, oldest last)
 		*/
 		qsort((void *)(&Files[0]), Files.Count(), sizeof(class FileEntryClass *), LoadOptionsClass::Compare);
+	}
+}
+
+
+/***********************************************************************************************
+ * LoadOptionsClass::Fill_List -- fills the list box & GameNum arrays                          *
+ *                                                                                             *
+ * INPUT:                                                                                      *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * WARNINGS:                                                                                   *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   02/14/1995 BR : Created.                                                                  *
+ *   06/25/1995 JLB : Shows which saved games are "(old)".                                     *
+ *=============================================================================================*/
+void LoadOptionsClass::Fill_List(HWND window, int selected)
+{
+	OwnerDraw::CellData thecell;
+	FileEntryClass * fdata = NULL;
+	char buffer[128];
+
+	if (Files.Count() > 0) {
 
 		ListBox_ResetContent(window);
 
@@ -757,25 +753,8 @@ void LoadOptionsClass::Fill_List(HWND window)
 			ListBox_SetItemData(window, row, (LPARAM)fdata);
 		}
 
-		switch (Style) {
-			case LOAD: {
-					for (int i = 0; i < Files.Count(); i++) {
-						if (Files[i]->Valid) {
-							ListBox_SetCurSel(window, i);
-							ListBox_SetTopIndex(window, i);
-							break;
-						}
-					}
-				}
-				break;
-
-			case SAVE:
-			case WWDELETE:
-				ListBox_SetCurSel(window, 0);
-				ListBox_SetTopIndex(window, 0);
-				break;
-		}
-
+		ListBox_SetCurSel(window, selected);
+		ListBox_SetTopIndex(window, selected);
 	}
 }
 
