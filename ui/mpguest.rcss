@@ -103,3 +103,7 @@
 
 #cancel { left: 416.5dp; top: 347.375dp; }
 #accept { left: 523dp;   top: 347.375dp; }
+
+/* The map name comes from the scenario, not from a template, so this one keeps the clip
+   optionsbase.rcss drops for a static caption. At 16.25dp a dlgsys cell is not clipped. */
+#scenarioname { overflow: hidden; }

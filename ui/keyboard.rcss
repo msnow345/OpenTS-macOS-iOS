@@ -180,3 +180,12 @@
 #reset  { left: 31dp;    top: 292.125dp; width: 81dp; }
 #ok     { left: 278.5dp; top: 292.125dp; width: 75dp; }
 #cancel { left: 394dp;   top: 292.125dp; width: 75dp; }
+
+/* Both statics. #capture stands where msctls_hotkey32 stood and keeps the system face.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#descriptionbox,
+#description
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

@@ -72,3 +72,11 @@ surface
 	display: inline-block;
 	vertical-align: middle;
 }
+
+/* The caption, a static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#text
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

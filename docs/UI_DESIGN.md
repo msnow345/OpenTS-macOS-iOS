@@ -644,8 +644,18 @@ whole glyph as ascent and nothing as descent, which makes RmlUi's half
 leading centre the ink on the line box the way
 `OD_DRAW_CHAR_FLAG_VERTICAL_CENTER` centred it on a control.
 
-`ui/campaign.rcss` is the only document that asks for it. Whether it spreads
-is an open decision. In-game text that must match the `WWFontClass` faces, needed only by the
+`ui/optionsbase.rcss` names which controls draw from it, and every shipped
+document links that sheet, so the split is stated once: a push button, a check
+box, a static caption, a tab, a combo box and a track bar's value take
+`dlgsys`; a list box and its rows, an edit field, a message log and the hotkey
+capture control keep the shipped face, which is what the dialogs did. Eight
+documents add a rule of their own for a static the templates left without a
+class. A static caption does not clip, because a glyph cell is 18dp and the
+templates give a static as little as 13dp, while `StaticCtrlProc` had no such
+limit; the two captions whose text comes from the game rather than from a
+template ask for the clip back.
+
+In-game text that must match the `WWFontClass` faces, needed only by the
 post-migration sidebar view, is a separate problem: those are a different
 format and this engine does not read them.
 

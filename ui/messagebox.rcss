@@ -66,4 +66,10 @@ body
 /* A lone button takes the middle slot, as the dialog moved it there. */
 .first.centred { left: 148dp; }
 
-
+/* The message, a static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#text
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

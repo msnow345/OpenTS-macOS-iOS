@@ -129,13 +129,21 @@ body
 	pointer-events: none;
 }
 
-/* A static caption. A document says where it sits and how it is aligned. */
+/* A static caption. A document says where it sits and how it is aligned.
+
+   It does not clip. A dlgsys glyph cell is 18dp and the templates give a static as little
+   as 13dp, so a clipping caption would cut the shadow row off a capital and the tail off a
+   descender; StaticCtrlProc had no such limit, because ODDrawCharRemap blits without
+   clipping to the control. RmlUi clips both axes together or neither, and no static caption
+   in any shipped document is wider than its control -- the tightest has 4.5dp to spare --
+   so there is nothing for a clip to protect here. A caption whose text comes from the game
+   rather than the templates asks for the clip back in its own stylesheet. */
 .caption
 {
 	display: block;
 	position: absolute;
 	white-space: nowrap;
-	overflow: hidden;
+	overflow: visible;
 }
 
 /* A TBS_NOTICKS track bar. The original drew no groove: the control is the wallpaper
@@ -240,3 +248,28 @@ body
 .list scrollbarvertical sliderarrowinc { decorator: image(dnarrowr.pcx); }
 .list scrollbarvertical sliderarrowdec:active { decorator: image(uparrowp.pcx); }
 .list scrollbarvertical sliderarrowinc:active { decorator: image(dnarrowp.pcx); }
+
+/* Which face a control draws with.
+
+   The dialogs drew a push button, a check box, a static caption, a tab, a combo box and a
+   track bar's value from the dlgsys remap sheets, and reached for the system face only for
+   a list box, a tooltip and the hotkey control; an edit box went through that face too.
+   That split is not decoration -- it is most of why the screens read as the original -- so
+   it is reproduced here rather than applied to everything.
+
+   font-size names the height of a glyph cell. The sheets carry 14 by 18 cells, so 18dp
+   draws one sheet pixel per authored pixel and the text follows the frame scale exactly as
+   the artwork around it does. docs/UI_DESIGN.md, "Fonts", owns the split.
+
+   Everything not named here keeps the shipped face body declares: the lists and their rows,
+   the edit fields, the message logs and the hotkey capture control. */
+.button,
+.check,
+.caption,
+.label,
+.prose,
+select
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

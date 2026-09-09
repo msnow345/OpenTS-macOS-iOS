@@ -55,4 +55,10 @@ body
 	text-align: center;
 }
 
-
+/* The message, a static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#text
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

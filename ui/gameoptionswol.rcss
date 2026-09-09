@@ -83,3 +83,11 @@
 
 #connectionlabel, #connectionvalue { top: 176.75dp; }
 #speedlabel, #speedvalue { top: 212.5dp; }
+
+/* The group box caption, a static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#group
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

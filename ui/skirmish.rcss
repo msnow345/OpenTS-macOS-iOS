@@ -241,3 +241,15 @@
 #multimap { left: 439dp; top: 318.125dp; width: 165dp; }
 #accept   { left: 439dp; top: 345.75dp;  width: 75dp; }
 #cancel   { left: 529dp; top: 345.75dp;  width: 75dp; }
+
+/* The preview frame's caption, a static.
+   The dlgsys sheets, as optionsbase.rcss gives every other static. */
+#previewtext
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}
+
+/* The map name comes from the scenario, not from a template, so this one keeps the clip
+   optionsbase.rcss drops for a static caption. At 16.25dp a dlgsys cell is not clipped. */
+#scenarioname { overflow: hidden; }
