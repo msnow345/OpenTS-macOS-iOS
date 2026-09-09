@@ -36,6 +36,11 @@ class UIRmlViewClass
 		// model is removed while its storage still lives.
 		void Close(void);
 
+		// Takes the document off the screen without releasing it, and puts it back, so a
+		// screen opened on top of this one has the region and the input scope to itself.
+		void Hide(void);
+		void Show(void);
+
 		bool Is_Visible(void) const;
 
 		// Fills in the view-model's fields and events. Called once, before the document is

@@ -293,6 +293,7 @@ void UI_On_Resize(void)
 /// </summary>
 void UI_Tick(void)
 {
+
 	// The service points nest: a dialog driver's Call_Back runs inside a loop that already
 	// ticked. A nested request is dropped rather than updating the context twice, which is
 	// what keeps a pump reached from inside an update out of it.
@@ -701,6 +702,47 @@ bool UIRmlViewClass::Prepare(bool modal)
 
 	Mark_Overlay_Dirty();
 	return(true);
+}
+
+
+/// <summary>
+/// Takes the document off the screen without releasing it.
+/// A screen this one opens draws where this one is, and the coexistence rule in
+/// docs/UI_DESIGN.md wants only one presentation over a region; the modal scope goes with
+/// it, so the screen underneath takes input while it is away.
+/// </summary>
+void UIRmlViewClass::Hide(void)
+{
+	if (Element == nullptr || !Element->IsVisible()) {
+		return;
+	}
+
+	Element->Hide();
+
+	if (IsModal) {
+		Leave_Modal_Scope();
+	}
+
+	Mark_Overlay_Dirty();
+}
+
+
+/// <summary>
+/// Puts the document back on the screen with the scope it had.
+/// </summary>
+void UIRmlViewClass::Show(void)
+{
+	if (Element == nullptr || Element->IsVisible()) {
+		return;
+	}
+
+	Element->Show(IsModal ? Rml::ModalFlag::Modal : Rml::ModalFlag::None);
+
+	if (IsModal) {
+		Enter_Modal_Scope();
+	}
+
+	Mark_Overlay_Dirty();
 }
 
 
