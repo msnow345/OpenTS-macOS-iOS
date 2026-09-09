@@ -48,8 +48,12 @@
 #include "queue.h"
 #include "session.h"
 #include "techno.h"
+#include "ui/uigamecontrols.h"
 
 #include "special.hh"
+
+#include <string>
+#include <vector>
 
 int GameSpeedNames[OptionsClass::MAX_SPEED_SETTING] = {
 	TXT_SLOWEST,
@@ -87,6 +91,62 @@ int GameDifficultyNames[OptionsClass::MAX_DIFFICULTY_SETTING] = {
 INT_PTR CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 void Game_Controls_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
+
+// The screen the dialog procedure reads and writes. The driver owns it for the whole life
+// of the dialog, which is the lifetime DWLP_USER gave the result pointer it replaces.
+static UIGameControlsPresenterClass * _Screen = NULL;
+
+
+static void Game_Controls_Queue(UIGameControlsPresenterClass & screen, char const * action, int value = 0)
+{
+	UIIntent intent;
+	intent.Action = action;
+	intent.Value = value;
+	screen.Queue(intent);
+}
+
+
+// Reads every control back into the view-model. The dialog read them at IDOK rather than
+// tracking them, because a keyboard or page move changes a track bar without raising the
+// thumb notification the label follows.
+static void Game_Controls_Read_Back(HWND window, UIGameControlsPresenterClass & screen)
+{
+	static struct {
+		int Control;
+		char const * Action;
+	} const _sliders[] = {
+		{ IDC_GAME_SPEED_SLIDER, UI_GAMECTRL_SPEED },
+		{ IDC_SCROLL_SPEED_SLIDER, UI_GAMECTRL_SCROLL },
+		{ IDC_DETAIL_LEVEL_SLIDER, UI_GAMECTRL_DETAIL },
+		{ IDC_DIFFICULTY_SLIDER, UI_GAMECTRL_DIFFICULTY },
+	};
+
+	static struct {
+		int Control;
+		char const * Action;
+	} const _checks[] = {
+		{ IDC_SIDEBAR_TEXT, UI_GAMECTRL_CAMEO_TEXT },
+		{ IDC_TARGET_LINES, UI_GAMECTRL_ACTION_LINES },
+		{ IDC_TOOLTIPS, UI_GAMECTRL_TOOLTIPS },
+		{ IDC_SCROLL_COASTING, UI_GAMECTRL_COASTING },
+		{ IDC_EDGE_SCROLL, UI_GAMECTRL_EDGE_SCROLL },
+	};
+
+	for (auto const & slider : _sliders) {
+		HWND handle = GetDlgItem(window, slider.Control);
+		if (handle) {
+			Game_Controls_Queue(screen, slider.Action, Slider_GetPos(handle));
+		}
+	}
+
+	for (auto const & check : _checks) {
+		HWND handle = GetDlgItem(window, check.Control);
+		if (handle) {
+			Game_Controls_Queue(screen, check.Action, Button_GetCheck(handle) == TRUE ? 1 : 0);
+		}
+	}
+}
+
 /***********************************************************************************************
  * OptionsClass::Process -- Handles all the options graphic interface.                         *
  *                                                                                             *
@@ -101,9 +161,12 @@ void Game_Controls_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, L
  *=============================================================================================*/
 void GameControlsClass::Dialog(void)
 {
-	int res = -1;
-
 	DebugString("GameControls: GameSpeed = %d, ScrollRate = %d, Detail = %d\n", Options.GameSpeed, Options.ScrollRate, Options.DetailLevel);
+
+	UIGameControlsPresenterClass screen;
+	screen.Refresh();
+
+	_Screen = &screen;
 
 	if (GameActive == true) {
 		if (Session.Type == GAME_INTERNET) {
@@ -117,116 +180,42 @@ void GameControlsClass::Dialog(void)
 
 	if (_Dialog) {
 
-		SetWindowLongPtr(_Dialog, DWLP_USER, (LONG_PTR)&res);
-
 		OwnerDraw::Display_Dialog(_Dialog);
 
-		while (res == -1) {
+		while (!screen.Result.has_value()) {
 			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				res = 2;
+				// A session that ended underneath the screen leaves the settings alone,
+				// which is what the driver's own result of two did.
+				UIResult ended;
+				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
+				ended.GameEnded = true;
+				screen.Result = ended;
+				break;
 			}
-			if (!GameActive) {
-				Title_Screen_Restore();
-			}
+
+			screen.Drain();
+			screen.Service();
 		}
-		if (res == 1) {
-			Set();
+
+		if (screen.Commits()) {
+			screen.Apply();
 			Options.Save_Settings();
 		}
 
 		OwnerDraw::End_Dialog(_Dialog);
 	}
 
+	_Screen = NULL;
+
 	DebugString("GameControls: GameSpeed = %d, ScrollRate = %d, Detail = %d\n", Options.GameSpeed, Options.ScrollRate, Options.DetailLevel);
 }
 
 
 /// <summary>
-/// Sets the game options from the game controls dialog.
-/// This routine is called when the player accepts the dialog. Each control is asked for
-/// its current value and the answer is handed to the option it governs, along with any
-/// notification the rest of the game needs -- the map is told to rebuild its cell drawers
-/// when the detail level changes, and a game speed change during a network game is issued
-/// as an event so that every player stays in step.
-/// </summary>
-void GameControlsClass::Set(void)
-{
-	HWND handle;
-
-	handle = GetDlgItem(_Dialog, IDC_GAME_SPEED_SLIDER);
-	if (handle) {
-		int gamespeed = (OptionsClass::MAX_SPEED_SETTING-1) - Slider_GetPos(handle);
-		if (Options.GameSpeed != gamespeed) {
-			if (GameActive == true && Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH) {
-				OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::GAMESPEED, gamespeed));
-			} else {
-				Options.GameSpeed = gamespeed;
-			}
-		}
-	}
-
-	handle = GetDlgItem(_Dialog, IDC_SCROLL_SPEED_SLIDER);
-	if (handle) {
-		Options.ScrollRate = (OptionsClass::MAX_SCROLL_SETTING-1) - Slider_GetPos(handle);
-	}
-
-	handle = GetDlgItem(_Dialog, IDC_DETAIL_LEVEL_SLIDER);
-	if (handle) {
-		int detailevel = Slider_GetPos(handle);
-		if (Options.DetailLevel != detailevel) {
-			Options.DetailLevel = detailevel;
-			Map.Reinit_Cell_Drawers();
-		}
-	}
-
-	handle = GetDlgItem(_Dialog, IDC_SIDEBAR_TEXT);
-	if (handle) {
-		bool cameotext = Button_GetCheck(handle) == TRUE;
-		if (Options.SidebarCameoText != cameotext) {
-			Options.SidebarCameoText = cameotext;
-			Map.Toggle_Cameo_Text(cameotext);
-		}
-	}
-
-	handle = GetDlgItem(_Dialog, IDC_TARGET_LINES);
-	if (handle) {
-		Options.ActionLines = Button_GetCheck(handle) == TRUE;
-		TechnoClass::Set_Action_Lines(Options.ActionLines);
-	}
-
-	handle = GetDlgItem(_Dialog, IDC_TOOLTIPS);
-	if (handle) {
-		Options.ToolTips = Button_GetCheck(handle) == TRUE;
-		if (ToolTips != NULL && GameActive == true) {
-			ToolTips->Activate(Options.ToolTips);
-		}
-	}
-
-	handle = GetDlgItem(_Dialog, IDC_SCROLL_COASTING);
-	if (handle) {
-		Options.ScrollMethod = Button_GetCheck(handle) == TRUE ? 0 : 1;
-	}
-
-	handle = GetDlgItem(_Dialog, IDC_EDGE_SCROLL);
-	if (handle) {
-		Options.AutoScroll = Button_GetCheck(handle) == TRUE;
-	}
-
-	if (GameActive == false) {
-		handle = GetDlgItem(_Dialog, IDC_DIFFICULTY_SLIDER);
-		if (handle) {
-			Options.Difficulty = Slider_GetPos(handle);
-		}
-	}
-}
-
-
-/// <summary>
 /// Handles the messages sent to the game controls dialog.
-/// This routine gives the ownerdraw layer first refusal on every message. Anything it
-/// leaves alone is used to prime the sliders and check boxes from the current options, to
-/// track the label alongside a slider the player is dragging, and to route commands on to
-/// Game_Controls_Dialog_On_COMMAND.
+/// The procedure primes its controls from the view-model, tracks the label alongside a
+/// slider the player is dragging, and queues what the player pressed for the driver to
+/// execute after the pump.
 /// </summary>
 /// <returns>Returns with a non-zero value if the message was consumed by the ownerdraw
 /// layer.</returns>
@@ -237,65 +226,71 @@ INT_PTR CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wpa
 
 	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (rc == 0) {
+		if (_Screen == NULL) {
+			return(0);
+		}
+
+		UIGameControlsPresenterClass & screen = *_Screen;
+
 		switch (message) {
 			case WM_INITDIALOG:
 				handle = GetDlgItem(window, IDC_GAME_SPEED_SLIDER);
 				if (handle) {
 					SendMessage(handle, OD_TRACKNUMBERS, 0, 0);
 					Slider_SetRange(handle, 0, (OptionsClass::MAX_SPEED_SETTING-1));
-					Slider_SetPos(handle, (OptionsClass::MAX_SPEED_SETTING-1) - Options.GameSpeed);
+					Slider_SetPos(handle, screen.SpeedStep);
 				}
 
 				handle = GetDlgItem(window, IDC_SCROLL_SPEED_SLIDER);
 				if (handle) {
 					SendMessage(handle, OD_TRACKNUMBERS, 0, 0);
 					Slider_SetRange(handle, 0, (OptionsClass::MAX_SCROLL_SETTING-1));
-					Slider_SetPos(handle, (OptionsClass::MAX_SCROLL_SETTING-1) - Options.ScrollRate);
+					Slider_SetPos(handle, screen.ScrollStep);
 				}
 
 				handle = GetDlgItem(window, IDC_DETAIL_LEVEL_SLIDER);
 				if (handle) {
 					SendMessage(handle, OD_TRACKNUMBERS, 0, 0);
 					Slider_SetRange(handle, 0, (OptionsClass::MAX_DETAIL_SETTING-1));
-					Slider_SetPos(handle, Options.DetailLevel);
+					Slider_SetPos(handle, screen.DetailStep);
 				}
 
 				handle = GetDlgItem(window, IDC_SIDEBAR_TEXT);
 				if (handle) {
-					Button_SetCheck(handle, Options.SidebarCameoText != false);
+					Button_SetCheck(handle, screen.CameoText);
 				}
 
 				handle = GetDlgItem(window, IDC_TARGET_LINES);
 				if (handle) {
-					Button_SetCheck(handle, Options.ActionLines != false);
+					Button_SetCheck(handle, screen.ActionLines);
 				}
 
 				handle = GetDlgItem(window, IDC_TOOLTIPS);
 				if (handle) {
-					Button_SetCheck(handle, Options.ToolTips != false);
+					Button_SetCheck(handle, screen.ShowToolTips);
 				}
 
 				handle = GetDlgItem(window, IDC_SCROLL_COASTING);
 				if (handle) {
-					Button_SetCheck(handle, Options.ScrollMethod == 0);
+					Button_SetCheck(handle, screen.Coasting);
 				}
 
 				handle = GetDlgItem(window, IDC_EDGE_SCROLL);
 				if (handle) {
-					Button_SetCheck(handle, Options.AutoScroll != false);
+					Button_SetCheck(handle, screen.EdgeScroll);
 				}
 
-				if (GameActive == true) {
+				if (screen.Has_Sub_Screens()) {
 					handle = GetDlgItem(window, IDC_OPT_SOUND_BTN);
 					if (handle) {
-						EnableWindow(handle, AudioEngine.Is_Available());
+						EnableWindow(handle, screen.SoundAvailable);
 					}
 				} else {
 					handle = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
 					if (handle) {
 						SendMessage(handle, OD_TRACKNUMBERS, 0, 0);
 						Slider_SetRange(handle, 0, (OptionsClass::MAX_DIFFICULTY_SETTING-1));
-						Slider_SetPos(handle, Options.Difficulty);
+						Slider_SetPos(handle, screen.DifficultyStep);
 					}
 				}
 				break;
@@ -307,24 +302,24 @@ INT_PTR CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wpa
 			case WM_HSCROLL:
 				if (LOWORD(wparam) == SB_THUMBTRACK) {
 					index = HIWORD(wparam);
-					int name;
+					std::vector<std::string> const * labels = NULL;
 
 					handle = 0;
 					if ((HWND)lparam == GetDlgItem(window, IDC_GAME_SPEED_SLIDER)) {
-						name = GameSpeedNames[index];
+						labels = &screen.SpeedLabels;
 						handle = GetDlgItem(window, IDC_GAME_SPEED_LABEL);
 					} else if ((HWND)lparam == GetDlgItem(window, IDC_SCROLL_SPEED_SLIDER)) {
-						name = GameScrollSpeedNames[index];
+						labels = &screen.ScrollLabels;
 						handle = GetDlgItem(window, IDC_SCROLL_SPEED_LABEL);
 					} else if ((HWND)lparam == GetDlgItem(window, IDC_DETAIL_LEVEL_SLIDER)) {
-						name = GameDetailLevelNames[index];
+						labels = &screen.DetailLabels;
 						handle = GetDlgItem(window, IDC_DETAIL_LEVEL_LABEL);
-					} else if (GameActive == false && (HWND)lparam == GetDlgItem(window, IDC_DIFFICULTY_SLIDER)) {
-						name = GameDifficultyNames[index];
+					} else if (!screen.Has_Sub_Screens() && (HWND)lparam == GetDlgItem(window, IDC_DIFFICULTY_SLIDER)) {
+						labels = &screen.DifficultyLabels;
 						handle = GetDlgItem(window, IDC_DIFFICULTY_LABEL);
 					}
-					if (handle) {
-						SetWindowText(handle, Fetch_String(name));
+					if (handle && labels != NULL && index >= 0 && index < (int)labels->size()) {
+						SetWindowText(handle, (*labels)[index].c_str());
 					}
 				}
 				break;
@@ -336,41 +331,45 @@ INT_PTR CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wpa
 
 
 /// <summary>
-/// Handles the button presses of the game controls dialog.
-/// This routine is called by the dialog procedure whenever a control notifies it. The
-/// answer is stored back through the result pointer the dialog was created with, which is
-/// what releases GameControlsClass::Dialog from its message loop.
+/// Queues what the player pressed in the game controls dialog.
+/// Leaving through the sound or the keyboard button reads the controls back as the accept
+/// button does, because the dialog answered with the same IDOK for all three.
 /// </summary>
 /// <param name="window">The game controls dialog window.</param>
 /// <param name="message">The identifier of the control that was activated.</param>
 /// <param name="lparam">The notification code the control sent.</param>
 void Game_Controls_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int* retval = (int *)GetWindowLongPtr(window, DWLP_USER);
+	if (_Screen == NULL) {
+		return;
+	}
+
+	UIGameControlsPresenterClass & screen = *_Screen;
 
 	switch ((INT)message) {
 		case IDC_OPT_KEYBOARD_BTN:
-			if (lparam == 0 && GameActive == true) {
-				SpecialDialog = SDLG_KEYBOARD;
-				*retval = IDOK;
+			if (lparam == 0 && screen.Has_Sub_Screens()) {
+				Game_Controls_Read_Back(window, screen);
+				Game_Controls_Queue(screen, UI_GAMECTRL_KEYBOARD);
 			}
 			break;
 
 		case IDC_OPT_SOUND_BTN:
-			if (lparam == 0 && GameActive == true) {
-				SpecialDialog = SDLG_SOUND;
-				*retval = IDOK;
+			if (lparam == 0 && screen.Has_Sub_Screens()) {
+				Game_Controls_Read_Back(window, screen);
+				Game_Controls_Queue(screen, UI_GAMECTRL_SOUND);
 			}
 			break;
 
 		case IDOK:
 			if (lparam == 0) {
-				*retval = IDOK;
+				Game_Controls_Read_Back(window, screen);
+				Game_Controls_Queue(screen, UI_GAMECTRL_ACCEPT);
 			}
 			break;
 
 		case IDCANCEL:
-			*retval = IDCANCEL;
+			Game_Controls_Queue(screen, UI_GAMECTRL_CANCEL);
 			break;
 	}
 }
