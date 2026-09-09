@@ -12,6 +12,8 @@
 #include "surface.h"
 #include "win.h"
 
+#include <vector>
+
 /*
  * Drawing and window helpers shared by the screens that draw into the game's own
  * surfaces. The OD_ and WS_ names are inherited from the owner-draw dialogs these
@@ -27,9 +29,25 @@
 #define OD_DRAW_CHAR_ALIGN_FLAG_RIGHT 2
 #define OD_DRAW_CHAR_FLAG_VERTICAL_CENTER 4
 
+/*
+ * Measurements of one of the remap fonts, derived from its own artwork. The sheets carry no
+ * metrics table, so every figure here is probed out of the ink.
+ */
+struct ODFontMetrics {
+	int charWidths[256];	/// inked width of each character, indexed by character code
+	int glyphWidth;			/// width of the inked part of a glyph cell
+	int glyphHeight;		/// height of the inked part of a glyph cell
+	int topMargin;			/// blank rows above each row of glyphs
+	int leftMargin;			/// blank columns before each glyph
+};
+
 int OD_Draw_Text_Remap(Surface & surface, const char * string, Rect const & rect, char const * name, COLORREF color, int flags, int char_spacing);
 
 Surface * OD_Fetch_Image(char const * name);
+
+bool OD_Font_Metrics(char const * font_name, ODFontMetrics & metrics);
+bool OD_Font_Sheet(char const * font_name, COLORREF color, int & width, int & height, std::vector<unsigned char> & pixels);
+unsigned char OD_Font_Glyph(char32_t code);
 int OD_Draw_Text(COLORREF color, HFONT font, Rect const & rect, const char * text, int len, int x_alignment, int y_alignment, Surface * surface);
 
 HFONT WS_Get_Font(HDC hdc, const char * face_name, int decipt_width, int decipt_height, int attributes);

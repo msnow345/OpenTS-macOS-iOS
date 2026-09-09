@@ -22,6 +22,7 @@ namespace Rml {
 	class RenderInterface;
 	class SystemInterface;
 	class FileInterface;
+	class FontEngineInterface;
 }
 
 
@@ -36,6 +37,10 @@ struct UIImageData
 
 // uitexture.cpp
 bool UI_Decode_Image(char const * source, UIImageData & image);
+
+// uifont.cpp
+Rml::FontEngineInterface * UI_Font_Interface(void);
+void UI_Font_Shutdown(void);
 
 // uirender.cpp
 Rml::RenderInterface * UI_Render_Interface(void);

@@ -265,6 +265,7 @@ today.
 | `uirender.cpp` | RmlUi render interface and the ImGui renderer on bgfx; the only UI file that includes bgfx |
 | `uisystem.cpp` | RmlUi system interface: time, logging to `DebugString`, cursor, clipboard, string translation |
 | `uifile.cpp` | RmlUi file interface over `CCFileClass` |
+| `uifont.cpp` | RmlUi font engine: the `dlgsys` bitmap sheets, delegating every other family to RmlUi's own engine |
 | `uitexture.cpp` | image decoding, SHP and PCX conversion, surface-backed textures |
 | `uiscreen.h`, `uirmlview.h` | presenter, intent, and result contracts; the RmlUi view base |
 | `uidev.cpp` | ImGui context and developer overlays |
@@ -616,15 +617,32 @@ pointers, and a presenter never holds a provider.
 
 ### Fonts
 
-Fonts use RmlUi's FreeType engine with an OFL sans-serif shipped in `ui/`.
-The legacy dialogs already draw with a system TrueType face, so this changes
-nothing about their look. RmlUi uses one font engine per process, installed
-with `SetFontEngineInterface` before `Rml::Initialise`, and the built-in
-engine is not reachable from a custom one. In-game text that must match the
-bitmap fonts, needed only by the post-migration sidebar view, has two routes:
-convert the game's `.fnt` faces to TrueType at build time, or write a bitmap
-engine over `WWFontClass` data as RmlUi's `bitmap_font` sample does and
-commit every document to bitmap faces. That choice waits for that view.
+Documents use RmlUi's FreeType engine with an OFL sans-serif shipped in
+`ui/`. RmlUi installs one font engine per process, with
+`SetFontEngineInterface` before `Rml::Initialise`, so `uifont.cpp` derives
+from `FontEngineInterfaceDefault` rather than replacing it: it answers for
+one family and hands every other one to the FreeType engine untouched. That
+header lives in RmlUi's `Source` tree rather than its `Include` tree, so the
+build puts that one path on that one file.
+
+The family it answers for is `dlgsys`, the remap sheets the dialogs drew
+their buttons, statics, tabs, check boxes, combo boxes and track bar values
+from. `drawhelp.cpp` owns the sheets: `OD_Font_Metrics` probes the cell size
+and every character's inked width out of the artwork, and `OD_Font_Sheet`
+composes the coverage sheet and the palette-shifted index sheet into
+premultiplied RGBA for one text colour. `uifont.cpp` uploads that as one
+texture per colour and emits a quad per glyph. A document states the height
+of a glyph cell as its `font-size`, so `font-size: 18dp` against the 14 by
+18 cells of `dlgsys` draws one sheet pixel per authored pixel. The sheets
+give inked extents rather than typographic ones, so the face reports the
+whole glyph as ascent and nothing as descent, which makes RmlUi's half
+leading centre the ink on the line box the way
+`OD_DRAW_CHAR_FLAG_VERTICAL_CENTER` centred it on a control.
+
+`ui/campaign.rcss` is the only document that asks for it. Whether it spreads
+is an open decision. In-game text that must match the `WWFontClass` faces,
+needed only by the post-migration sidebar view, is a separate problem: those
+are a different format and this engine does not read them.
 
 ### Strings
 

@@ -186,6 +186,12 @@ set_source_files_properties(${OPENTS_UI_SOURCES} PROPERTIES
     COMPILE_OPTIONS "$<$<BOOL:${MSVC}>:/Zc:preprocessor>"
 )
 
+# The bitmap font engine derives from RmlUi's own engine, whose header sits in the library's
+# Source tree rather than its Include tree, so that one path goes on that one file.
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uifont.cpp" APPEND PROPERTY
+    INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/thirdparty/RmlUi/Source"
+)
+
 set_property(SOURCE
     "${CMAKE_CURRENT_SOURCE_DIR}/ui/uirender.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/ui/uitexture.cpp"

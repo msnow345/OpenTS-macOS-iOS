@@ -376,6 +376,10 @@ bool UI_Init(void)
 	Rml::SetFileInterface(UI_File_Interface());
 	Rml::SetRenderInterface(UI_Render_Interface());
 
+	// One font engine serves the whole process. This one answers for the game's own bitmap
+	// sheets and hands every other family to RmlUi's FreeType engine unchanged.
+	Rml::SetFontEngineInterface(UI_Font_Interface());
+
 	if (!Rml::Initialise()) {
 		DebugString("[UI] RmlUi could not be started.\n");
 		UI_Render_Shutdown();
@@ -428,6 +432,7 @@ void UI_Shutdown(void)
 
 	_Context = nullptr;
 	Rml::Shutdown();
+	UI_Font_Shutdown();
 	UI_Render_Shutdown();
 
 	_Initialized = false;

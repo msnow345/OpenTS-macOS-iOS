@@ -76,3 +76,20 @@
 
 #ok     { left: 179.5dp; }
 #cancel { left: 265dp; }
+
+
+/* A trial of the dialog system's own bitmap font, scoped to this document.
+
+   The dialogs drew a push button's caption, a static and a track bar's value from the
+   dlgsys remap sheets, not from a scalable face; a list box was the control that used the
+   system face, so #campaignlist keeps the shipped one. font-size names the height of a
+   glyph cell in dp. The sheets are 640 by 160 with 14 by 18 cells, so 18dp draws one sheet
+   pixel per authored pixel and the text follows the frame scale exactly as the artwork
+   around it does. The selectors are held under #dialog so nothing here can reach another
+   document. */
+#dialog .caption,
+#dialog .button
+{
+	font-family: dlgsys;
+	font-size: 18dp;
+}

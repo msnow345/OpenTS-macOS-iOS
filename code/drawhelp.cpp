@@ -40,21 +40,10 @@ unsigned short ODGComponentMask;
 unsigned short ODBComponentMask;
 
 
-/*
- * Measurements of one of the remap fonts, cached by ODGetFontMetrics.
- */
-struct FontMetrics {
-	int charWidths[256];	/// inked width of each character, indexed by character code
-	int glyphWidth;			/// width of the inked part of a glyph cell
-	int glyphHeight;		/// height of the inked part of a glyph cell
-	int topMargin;			/// blank rows above each row of glyphs
-	int leftMargin;			/// blank columns before each glyph
-};
-
-
-static bool ODGetFontMetrics(char const * font_name, FontMetrics * metrics);
+static bool ODGetFontMetrics(char const * font_name, ODFontMetrics * metrics);
 static void ODDrawCharRemap(Surface & dst_surf, const char * text, int max_chars, Rect const & rect, char const * font_name, COLORREF color, char flags, int char_spacing);
 static int ODColorToHiColor(COLORREF color);
+static void ODBuildRemapColors(COLORREF color, unsigned char const * palette, RGBClass * out);
 
 
 /// <summary>
@@ -116,13 +105,24 @@ Surface * OD_Fetch_Image(char const * name)
 }
 
 
-static unsigned char OD_Glyph(char32_t code)
+/// <summary>
+/// Maps a decoded code point onto the glyph the remap sheets index by.
+/// </summary>
+/// <returns>Returns with the Windows-1252 code of the glyph, or that of '?' for a code
+/// point the sheets do not carry.</returns>
+unsigned char OD_Font_Glyph(char32_t code)
 {
 	if (code < ' ') {
 		return((unsigned char)code);
 	}
 	int index = UTF8::Windows_1252_Glyph(code);
 	return((unsigned char)(index < 0 ? '?' : index));
+}
+
+
+static unsigned char OD_Glyph(char32_t code)
+{
+	return(OD_Font_Glyph(code));
 }
 
 
@@ -193,7 +193,7 @@ int OD_Draw_Text_Remap(Surface & surface, const char * text, Rect const & rect, 
 	char const * line_ptr = text;
 	Rect draw_rect = rect;
 
-	FontMetrics data;
+	ODFontMetrics data;
 	if (!ODGetFontMetrics(name, &data)) {
 		return(0);
 	}
@@ -290,6 +290,53 @@ static float ODCalcTextRemapFactor(int hue)
 
 
 /// <summary>
+/// Shifts a font sheet's palette toward the color text is asked to be drawn in.
+/// The sheets hold an intensity ramp of their own hue, so each entry keeps its own
+/// saturation and value and is pulled around to the requested hue rather than replaced
+/// by it.
+/// </summary>
+/// <param name="palette">The 768-byte palette of the font's index sheet.</param>
+/// <param name="out">Receives one remapped color for each of the 256 palette entries.</param>
+static void ODBuildRemapColors(COLORREF color, unsigned char const * palette, RGBClass * out)
+{
+	RGBClass remap_rgb((unsigned char)color, (unsigned char)(color >> 8), (unsigned char)(color >> 16));
+	HSVClass remap_hsv = remap_rgb;
+
+	int hue = remap_hsv.Get_Hue();
+
+	int end = int(hue + 15.0);
+	float min_factor = 1.0f;
+	for (int i = int(hue - 15.0); i <= end; ++i) {
+		float factor = ODCalcTextRemapFactor(i);
+		if (factor < min_factor) {
+			min_factor = factor;
+		}
+	}
+
+	unsigned char sat = (unsigned char)remap_hsv.Get_Saturation();
+	unsigned char val = (unsigned char)remap_hsv.Get_Value();
+
+	float hue_float = (float)hue;
+	unsigned char const * pal = palette;
+	for (int i = 0; i < 256; ++i) {
+		RGBClass pal_rgb;
+		pal_rgb.Set_Red(pal[0]);
+		pal_rgb.Set_Green(pal[1]);
+		pal_rgb.Set_Blue(pal[2]);
+		HSVClass pal_hsv = pal_rgb;
+
+		HSVClass out_hsv = pal_hsv;
+		out_hsv.Set_Hue((unsigned char)(int)(hue_float - (int)(68.0f - pal_hsv.Get_Hue()) * min_factor));
+		out_hsv.Set_Saturation((unsigned char)((sat * out_hsv.Get_Saturation()) >> 8));
+		out_hsv.Set_Value((unsigned char)((val * out_hsv.Get_Value()) >> 8));
+
+		out[i] = out_hsv;
+		pal += 3;
+	}
+}
+
+
+/// <summary>
 /// Draws a line of text with a remapped bitmap font.
 /// This routine builds a table that shifts the font's own palette toward the color asked
 /// for and then alpha blends each character onto the destination surface. It is the low
@@ -326,52 +373,16 @@ static void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars,
 		return;
 	}
 
-	RGBClass remap_rgb((unsigned char)color, (unsigned char)(color >> 8), (unsigned char)(color >> 16));
-	HSVClass remap_hsv = remap_rgb;
-	RGBClass pal_rgb;
-	HSVClass out_hsv;
-
-	int hue = remap_hsv.Get_Hue();
-
-	int end = int(hue + 15.0);
-	float min_factor = 1.0f;
-	for (i = int(hue - 15.0); i <= end; ++i) {
-		float factor = ODCalcTextRemapFactor(i);
-		if (factor < min_factor) {
-			min_factor = factor;
-		}
-	}
-
-	unsigned char sat = (unsigned char)remap_hsv.Get_Saturation();
-	unsigned char val = (unsigned char)remap_hsv.Get_Value();
+	RGBClass remap_colors[256];
+	ODBuildRemapColors(color, (unsigned char *)palette, remap_colors);
 
 	unsigned short remap_table[256];
-	float hue_float = (float)hue;
-	unsigned char *pal = (unsigned char *)&palette;
 	for (i = 0; i < 256; ++i) {
-		pal_rgb.Set_Red(pal[0]);
-		pal_rgb.Set_Green(pal[1]);
-		pal_rgb.Set_Blue(pal[2]);
-		HSVClass pal_hsv = pal_rgb;
-
-		/*
-		 * Start from the palette entry's HSV and adjust each channel. The
-		 * wholesale copy is fully overwritten below.
-		 */
-		out_hsv = pal_hsv;
-		out_hsv.Set_Hue((unsigned char)(int)(hue_float - (int)(68.0f - pal_hsv.Get_Hue()) * min_factor));
-		out_hsv.Set_Saturation((unsigned char)((sat * out_hsv.Get_Saturation()) >> 8));
-		out_hsv.Set_Value((unsigned char)((val * out_hsv.Get_Value()) >> 8));
-
-		RGBClass out_rgb = out_hsv;
-		pal_rgb = out_rgb;
-
-		int packed = (((out_rgb.Get_Blue() << 8) | out_rgb.Get_Green()) << 8) | out_rgb.Get_Red();
+		int packed = (((remap_colors[i].Get_Blue() << 8) | remap_colors[i].Get_Green()) << 8) | remap_colors[i].Get_Red();
 		remap_table[i] = (unsigned short)ODColorToHiColor(packed);
-		pal += 3;
 	}
 
-	FontMetrics font_data;
+	ODFontMetrics font_data;
 	if (!ODGetFontMetrics(font_name, &font_data)) {
 		return;
 	}
@@ -480,9 +491,9 @@ static void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars,
 /// <param name="font_name">The base name of the font, without the sheet suffix.</param>
 /// <param name="metrics">Buffer to fill in with the measurements.</param>
 /// <returns>bool; Were the metrics available?</returns>
-static bool ODGetFontMetrics(char const * font_name, FontMetrics * metrics)
+static bool ODGetFontMetrics(char const * font_name, ODFontMetrics * metrics)
 {
-	static Dictionary<Wstring, FontMetrics> metricsDict(Wstring_Hash);
+	static Dictionary<Wstring, ODFontMetrics> metricsDict(Wstring_Hash);
 
 	char buf[64];
 	strcpy(buf, font_name);
@@ -492,7 +503,7 @@ static bool ODGetFontMetrics(char const * font_name, FontMetrics * metrics)
 	name = (char *)font_name;
 	name.toLower();
 
-	FontMetrics * found = NULL;
+	ODFontMetrics * found = NULL;
 	if (metricsDict.getPointer(name, &found)) {
 		if (metrics != NULL) {
 			*metrics = *found;
@@ -502,7 +513,7 @@ static bool ODGetFontMetrics(char const * font_name, FontMetrics * metrics)
 
 	DebugString("TS: Computing font metrics....\n");
 
-	FontMetrics temp;
+	ODFontMetrics temp;
 	memset(&temp, 0, sizeof(temp));
 
 	ODCacheFontSheets(font_name);
@@ -600,10 +611,101 @@ static bool ODGetFontMetrics(char const * font_name, FontMetrics * metrics)
 	 * Store result in caller's buffer
 	 * ----------------------------------------------------------------
 	 */
-	memcpy(metrics, &temp, sizeof(FontMetrics));
+	memcpy(metrics, &temp, sizeof(ODFontMetrics));
 
 	metricsDict.add(name, temp);
 
+	return(true);
+}
+
+
+/// <summary>
+/// Measures a remap font.
+/// </summary>
+/// <param name="font_name">The base name of the font, without the sheet suffix.</param>
+/// <returns>bool; Could the font's sheets be read?</returns>
+bool OD_Font_Metrics(char const * font_name, ODFontMetrics & metrics)
+{
+	return(ODGetFontMetrics(font_name, &metrics));
+}
+
+
+/// <summary>
+/// Composes a remap font's glyph sheet into premultiplied RGBA pixels.
+/// The sheets are combined the way ODDrawCharRemap combines them per pixel: the coverage
+/// sheet supplies alpha and the index sheet a palette entry shifted toward the color asked
+/// for. The result is what that blend produces over black, so a caller can hand it to a
+/// renderer that blends premultiplied source over what is already there.
+/// </summary>
+/// <param name="pixels">Receives width * height * 4 bytes in RGBA order.</param>
+/// <returns>bool; Could the font's sheets be read?</returns>
+bool OD_Font_Sheet(char const * font_name, COLORREF color, int & width, int & height, std::vector<unsigned char> & pixels)
+{
+	ODCacheFontSheets(font_name);
+
+	char name_i[64];
+	snprintf(name_i, sizeof(name_i), "%si.pcx", font_name);
+
+	char palette[768];
+	Surface * sheet_i = SurfaceCache.GetSurface(name_i, palette);
+	if (sheet_i == NULL) {
+		return(false);
+	}
+
+	char name_a[64];
+	snprintf(name_a, sizeof(name_a), "%sa.pcx", font_name);
+
+	Surface * sheet_a = SurfaceCache.GetSurface(name_a, NULL);
+	if (sheet_a == NULL) {
+		return(false);
+	}
+
+	width = sheet_i->Get_Width();
+	height = sheet_i->Get_Height();
+	if (width <= 0 || height <= 0 || sheet_a->Get_Width() < width || sheet_a->Get_Height() < height) {
+		return(false);
+	}
+
+	RGBClass remap_colors[256];
+	ODBuildRemapColors(color, (unsigned char *)palette, remap_colors);
+
+	unsigned char * src_i = (unsigned char *)sheet_i->Lock();
+	unsigned char * src_a = (unsigned char *)sheet_a->Lock();
+	if (src_i == NULL || src_a == NULL) {
+		if (src_i != NULL) {
+			sheet_i->Unlock();
+		}
+		if (src_a != NULL) {
+			sheet_a->Unlock();
+		}
+		return(false);
+	}
+
+	int index_stride = sheet_i->Stride();
+	int alpha_stride = sheet_a->Stride();
+
+	pixels.assign((std::size_t)width * height * 4, 0);
+
+	for (int y = 0; y < height; ++y) {
+		unsigned char const * row_i = src_i + (std::size_t)index_stride * y;
+		unsigned char const * row_a = src_a + (std::size_t)alpha_stride * y;
+		unsigned char * out = pixels.data() + (std::size_t)width * y * 4;
+
+		for (int x = 0; x < width; ++x) {
+			unsigned char alpha = row_a[x];
+			if (alpha != 0) {
+				RGBClass const & rgb = remap_colors[row_i[x]];
+				out[0] = (unsigned char)((rgb.Get_Red() * alpha + 127) / 255);
+				out[1] = (unsigned char)((rgb.Get_Green() * alpha + 127) / 255);
+				out[2] = (unsigned char)((rgb.Get_Blue() * alpha + 127) / 255);
+				out[3] = alpha;
+			}
+			out += 4;
+		}
+	}
+
+	sheet_a->Unlock();
+	sheet_i->Unlock();
 	return(true);
 }
 
