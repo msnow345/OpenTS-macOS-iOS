@@ -9,11 +9,19 @@
 # Run with:
 #   cmake -DRC_FILE=<language.rc> -DHEADER_FILE=<language.h> -DOUTPUT=<file> -P StringTable.cmake
 #
+# NAME_TABLE names a second output, the table that turns a string's symbolic name back into
+# its identifier. UI documents reference a string by name, and this keeps the resource script
+# the only place a name and a number are paired.
+#
 # Encoding: the resource script carries "#pragma code_page(65001)", so its bytes are already
 # UTF-8 and are copied through unchanged. The data file is UTF-8 for the same reason.
 
-if(NOT DEFINED RC_FILE OR NOT DEFINED HEADER_FILE OR NOT DEFINED OUTPUT)
-    message(FATAL_ERROR "StringTable.cmake needs RC_FILE, HEADER_FILE and OUTPUT")
+if(NOT DEFINED RC_FILE OR NOT DEFINED HEADER_FILE)
+    message(FATAL_ERROR "StringTable.cmake needs RC_FILE and HEADER_FILE")
+endif()
+
+if(NOT DEFINED OUTPUT AND NOT DEFINED NAME_TABLE)
+    message(FATAL_ERROR "StringTable.cmake needs OUTPUT, NAME_TABLE, or both")
 endif()
 
 # A semicolon separates list elements everywhere in this language, and at least one string
@@ -53,6 +61,7 @@ set(IN_BODY FALSE)
 set(PENDING_NAME "")
 set(RECORD_COUNT 0)
 set(RECORDS "")
+set(NAMES "")
 set(MISSING "")
 
 foreach(line IN LISTS RC_LINES)
@@ -127,6 +136,7 @@ foreach(line IN LISTS RC_LINES)
 
     # Length-prefixed, so a string that contains a newline needs no escaping of its own.
     string(APPEND RECORDS "${ID_${name}} ${length}\n${raw}\n")
+    string(APPEND NAMES "OPENTS_STRING_NAME(\"${name}\", ${ID_${name}})\n")
     math(EXPR RECORD_COUNT "${RECORD_COUNT} + 1")
 endforeach()
 
@@ -144,11 +154,30 @@ if(RECORD_COUNT EQUAL 0)
     message(FATAL_ERROR "StringTable.cmake found no strings in ${RC_FILE}")
 endif()
 
-get_filename_component(OUTPUT_DIR "${OUTPUT}" DIRECTORY)
-if(OUTPUT_DIR)
-    file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+if(DEFINED OUTPUT)
+    get_filename_component(OUTPUT_DIR "${OUTPUT}" DIRECTORY)
+    if(OUTPUT_DIR)
+        file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+    endif()
+
+    file(WRITE "${OUTPUT}" "OPENTS-STRINGS 1\n${RECORD_COUNT}\n${RECORDS}")
+
+    message(STATUS "String table: ${RECORD_COUNT} strings from ${DEFINE_COUNT} identifiers -> ${OUTPUT}")
 endif()
 
-file(WRITE "${OUTPUT}" "OPENTS-STRINGS 1\n${RECORD_COUNT}\n${RECORDS}")
+# The name table is a list of invocations rather than a declaration, so the including file
+# decides what a pair becomes and the header carries no storage of its own.
+if(DEFINED NAME_TABLE)
+    get_filename_component(NAME_TABLE_DIR "${NAME_TABLE}" DIRECTORY)
+    if(NAME_TABLE_DIR)
+        file(MAKE_DIRECTORY "${NAME_TABLE_DIR}")
+    endif()
 
-message(STATUS "String table: ${RECORD_COUNT} strings from ${DEFINE_COUNT} identifiers -> ${OUTPUT}")
+    file(WRITE "${NAME_TABLE}"
+        "// Generated from language.rc by cmake/StringTable.cmake. Do not edit.\n"
+        "// Each line pairs a string resource's symbolic name with its identifier.\n"
+        "\n"
+        "${NAMES}")
+
+    message(STATUS "String names: ${RECORD_COUNT} names -> ${NAME_TABLE}")
+endif()

@@ -16,6 +16,7 @@
 
 #include "uiinternal.h"
 
+#include "data.h"
 #include "dbgprint.h"
 #include "hostclock.h"
 
@@ -24,6 +25,7 @@
 #include <windows.h>
 
 #include <string>
+#include <unordered_map>
 
 
 static unsigned int _StartTime = 0;
@@ -32,16 +34,29 @@ static std::string _CursorName;
 
 /// <summary>
 /// Looks a document's string name up in the engine's string table.
-/// The generated name table arrives with the UTF-8 transition, which docs/UI_DESIGN.md
-/// makes a prerequisite of the first screen that shows text. Until then every name is
-/// unknown and the document's own text is what appears.
+/// The name table is generated from language.rc by the script that also builds the portable
+/// string table, so the resource script stays the only place a name and a number are paired.
+/// An unknown name leaves the reference in the text, which is what makes a missing string
+/// visible rather than silent.
 /// </summary>
 /// <returns>bool; Was the name resolved?</returns>
 static bool Lookup_String(std::string const & name, std::string & text)
 {
-	(void)name;
-	(void)text;
-	return(false);
+	static std::unordered_map<std::string, int> const _names = {
+#define OPENTS_STRING_NAME(symbol, id) { symbol, id },
+#include "stringnames.hh"
+#undef OPENTS_STRING_NAME
+	};
+
+	auto const found = _names.find(name);
+	if (found == _names.end()) {
+		return(false);
+	}
+
+	// Fetch_String already yields UTF-8, so the shell copies the bytes out of its cache and
+	// hands them to RmlUi unchanged.
+	text = Fetch_String(found->second);
+	return(true);
 }
 
 
