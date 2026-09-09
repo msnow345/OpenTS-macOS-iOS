@@ -279,6 +279,7 @@ namespace NetGlobal
 			case DecodeError::UNTERMINATED_SERIAL: return("unterminated serial number");
 			case DecodeError::UNTERMINATED_OPTIONS: return("unterminated game options");
 			case DecodeError::INVALID_COLOR: return("invalid session-member color");
+			case DecodeError::INVALID_HOUSE: return("invalid session-member house");
 			case DecodeError::INVALID_PROGRESS: return("invalid progress value");
 			case DecodeError::INVALID_KICK_PLAYER: return("invalid kick player");
 			case DecodeError::SELF_KICK: return("self kick proposal");

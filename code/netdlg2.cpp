@@ -59,6 +59,7 @@
 static int Request_To_Join(int join_index);
 static void Unjoin_Game(int game_index);
 static void Get_Join_Responses(void);
+static bool Lobby_Seat_Is_Valid(int house, int color);
 
 INT_PTR CALLBACK MPlayer_Guest_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 INT_PTR CALLBACK MPlayer_Game_List_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
@@ -267,9 +268,27 @@ void Select_Country_In_Box(HWND combo, int country)
 /// <param name="index">The player doing the asking, so that its own color is not counted
 /// against it.</param>
 /// <returns>Returns with the color the player should use.</returns>
+/// <summary>
+/// Is a seat a peer asked for one the game can actually give it?
+/// The house indexes the house type list and the color indexes the color table when the
+/// scenario starts, and both arrive from another machine.
+/// </summary>
+static bool Lobby_Seat_Is_Valid(int house, int color)
+{
+	return(house >= 0 && house < HouseTypes.Count() && color >= 0 && color < MAX_MPLAYER_COLORS);
+}
+
+
 int Net2FirstFreeColor(int reqcolor, int index)
 {
 	int color;
+
+	// The requested color may have come off the network, and every later step of this
+	// routine keeps a color in range only because the first one is.
+	if (reqcolor < 0 || reqcolor >= MAX_MPLAYER_COLORS) {
+		reqcolor = 0;
+	}
+
 	while (1) {
 		int taken = 0;
 		color = reqcolor;
@@ -646,6 +665,10 @@ int Net2SetHouseAndColor(char *who, int house, int color)
 {
 	int offset = -1;
 	int retval = 0;
+
+	if (!Lobby_Seat_Is_Valid(house, color)) {
+		return(0);
+	}
 
 	for (int i = 0; i < Session.Players.Count(); i++) {
 		if (strcmp(Session.Players[i]->Name, who) == 0) {
@@ -2130,6 +2153,14 @@ static void Get_Join_Responses(void)
 			continue;
 		}
 
+		if (Session.GPacket.Command == NET_QUERY_JOIN || Session.GPacket.Command == NET_ANSWER_PLAYER
+			|| Session.GPacket.Command == NET_CONFIRM_JOIN) {
+			if (!Lobby_Seat_Is_Valid(Session.GPacket.PlayerInfo.House, Session.GPacket.PlayerInfo.Color)) {
+				Record_Lobby_Packet_Rejection(NetGlobal::DecodeError::INVALID_HOUSE);
+				continue;
+			}
+		}
+
 		//------------------------------------------------------------------------
 		//	If we're joined in a game, handle the packet in a standard way; otherwise,
 		// don't answer standard queries.
@@ -2493,6 +2524,9 @@ static void Get_Join_Responses(void)
 						tok = strtok(opts, ",");
 						if (tok) {
 							newhouse = atol(tok);
+							if (newhouse < 0 || newhouse >= HouseTypes.Count()) {
+								newhouse = oldhouse;
+							}
 							Session.Players[i]->Player.House = newhouse;
 						}
 
