@@ -407,7 +407,15 @@ static void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars,
 		int cell_h = font_data.glyphHeight + font_data.topMargin;
 		int chars_per_row = sheet_i->Get_Width() / (font_data.glyphWidth + font_data.leftMargin);
 		int dst_stride = dst_surf.Stride() / 2;
-		int src_stride = sheet_i->Stride();
+
+		/*
+		 * The two sheets are separate allocations, so the coverage sheet cannot be indexed
+		 * by an offset from the color sheet: the difference between two unrelated pointers
+		 * does not fit an int on a 64-bit host, which is what the inherited code stored it
+		 * in. Each sheet is walked through its own pointer and its own stride instead.
+		 */
+		int index_stride = sheet_i->Stride();
+		int alpha_stride = sheet_a->Stride();
 
 		int x = draw_rect.X;
 		for (char const * cursor = text; cursor - text < max_chars; ) {
@@ -421,30 +429,32 @@ static void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars,
 				int src_y = (glyph / chars_per_row) * cell_h;
 
 				int src_y_end = src_y + cell_h;
-				int src_delta = src_i - src_a;
-				unsigned char *alpha_col = src_a + (src_y * src_stride + src_x);
+				unsigned char *alpha_col = src_a + (src_y * alpha_stride + src_x);
+				unsigned char *index_col = src_i + (src_y * index_stride + src_x);
 				unsigned char *dst_col = dst + 2 * (dst_stride * draw_rect.Y + x);
 
 				for (int sx = src_x; sx < src_x + cell_w; ++sx) {
 					if (src_y < src_y_end) {
 						unsigned short *dst_px = (unsigned short *)dst_col;
 						unsigned char *alpha_px = alpha_col;
+						unsigned char *index_px = index_col;
 
 						int sy = src_y_end - src_y;
 						do {
 							unsigned char alpha = *alpha_px;
 							if (alpha != 0) {
-								unsigned char index = alpha_px[src_delta];
-								*dst_px = OD_Blend_Color(*dst_px, remap_table[index], alpha);
+								*dst_px = OD_Blend_Color(*dst_px, remap_table[*index_px], alpha);
 							}
 
 							dst_px += dst_stride;
-							alpha_px += src_stride;
+							alpha_px += alpha_stride;
+							index_px += index_stride;
 							--sy;
 						} while (sy != 0);
 					}
 
 					++alpha_col;
+					++index_col;
 					dst_col += 2;
 				}
 
