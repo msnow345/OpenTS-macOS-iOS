@@ -225,6 +225,24 @@ fixed_controls:
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_LBUTTON }
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_ESCAPE }
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_SPACE }
+  - id: fixed:main-menu-version
+    title: Open version information
+    description: Opens the version dialog from the classic main menu.
+    audience: player
+    bindings: [Ctrl+V]
+    context: Classic main menu
+    availability: *all
+    sites:
+      - { file: code/ui/uimainmenu.cpp, function: BindEventCallback, expression: KI_V }
+  - id: fixed:main-menu-credits
+    title: Open credits
+    description: Opens the credits from the classic main menu.
+    audience: player
+    bindings: [Ctrl+Alt+C]
+    context: Classic main menu
+    availability: *all
+    sites:
+      - { file: code/ui/uimainmenu.cpp, function: BindEventCallback, expression: KI_C }
   - id: fixed:skip-credits
     title: Exit credits
     description: Stops the credits and returns to the menu.
@@ -423,6 +441,86 @@ fixed_exclusions:
     reason: >-
       Reads the modifiers that qualify the shell's Debug-only developer keys. The keys those
       modifiers qualify are the controls; this test is not one of them.
+  - sites:
+      - { file: code/ui/uiabort.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uicampaign.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uicampaign.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uicampaign.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uidisplayconfirm.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uidisplayconfirm.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uidisplayconfirm.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uidisplayoptions.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uidisplayoptions.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uidisplayoptions.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uigamecontrols.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uigamecontrols.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uigamecontrols.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uigameoptions.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uigameoptions.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uigameoptions.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uigametype.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uigametype.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uigametype.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uilobby.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimainoptions.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimainoptions.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uimainoptions.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uimapgen.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimessagebox.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimessagebox.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uimessagebox.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uimpselect.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uimpselect.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uimpselect.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uireconnect.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uisavebrowser.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uisavebrowser.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uisavebrowser.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uiscenariopick.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uiscenariopick.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uiscenariopick.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uiskirmish.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uiskirmish.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uiskirmish.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uisound.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uisound.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uiversion.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uiversion.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uiversion.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+    reason: >-
+      A screen's own cancel and accept keys. Escape answers as the template's IDCANCEL did
+      and Enter as the arm Windows sent IDOK to, so each key presses a button the screen
+      already shows rather than dispatching a control of its own.
+  - sites:
+      - { file: code/ui/uidesync.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uidesync.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uilobby.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uilobby.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+    reason: Sends the line typed in a chat field, which the edit control's own return handling did.
+  - sites:
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_ESCAPE }
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_RETURN }
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_NUMPADENTER }
+      - { file: code/ui/uikeyboard.cpp, function: BindEventCallback, expression: KI_TAB }
+    reason: >-
+      Keys the hotkey capture control refuses so they still leave the screen or move the
+      focus, which is what the control it stands in for left to the dialog manager.
+  - sites:
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_A }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_Z }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_0 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_9 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_NUMPAD0 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_NUMPAD9 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_F1 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_F24 }
+      - { file: code/ui/uishell.cpp, function: UI_Virtual_Key, expression: KI_NUMPADENTER }
+    reason: >-
+      Bounds of the letter, digit, keypad and function-key runs, and the keypad Enter that
+      folds onto Return, in the translation from a toolkit identifier back to a virtual key.
+      It names a key for a screen to record; it dispatches nothing.
+  - site: { file: code/ui/uishell.cpp, function: UI_Handle_Window_Message, expression: KI_UNKNOWN }
+    reason: Sentinel for a key the toolkit does not name, which the shell drops before any document sees it.
   - sites:
       - { file: code/wdtsel.cpp, function: Selection::Pick_Territory, expression: KN_NONE }
       - { file: code/wdtsel.cpp, function: Selection::Pick_Territory, expression: KN_LMOUSE }

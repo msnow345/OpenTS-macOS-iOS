@@ -301,7 +301,10 @@ def _guard_map(text):
 
 
 def _key_expression(value):
-    tokens = re.findall(r"\b(?:KN|VK)_[A-Z0-9_]+\b", value)
+    # A screen names a key the way the layer that delivers it does. The game's own
+    # handlers use KN_ and VK_; a screen driven by the UI toolkit sees its KI_
+    # identifiers, and discovery has to reach both or a whole screen's keys go unseen.
+    tokens = re.findall(r"\b(?:KN|VK|KI)_[A-Z0-9_]+\b", value)
     return "+".join(dict.fromkeys(tokens)) if tokens else None
 
 
