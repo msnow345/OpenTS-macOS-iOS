@@ -56,6 +56,13 @@ static int _OriginY = 0;
 static int _Width = 0;
 static int _Height = 0;
 
+// The documents draw the game's own 640x400-era artwork and its bitmap font, magnified by
+// whatever the frame scale is. Linear filtering softens both; point sampling keeps the
+// pixels the artists drew. Art and text share this so they never disagree.
+static const uint64_t _SamplerFlags =
+	BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP
+	| BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT;
+
 static const uint64_t _BlendState =
 	BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_MSAA
 	| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_INV_SRC_ALPHA);
@@ -188,7 +195,7 @@ void UIRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::
 
 	bgfx::TextureHandle bound = Texture_From_Handle((uintptr_t)texture);
 	bgfx::setTexture(0, _TextureSampler, bgfx::isValid(bound) ? bound : _WhiteTexture,
-		BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+		_SamplerFlags);
 
 	if (ScissorEnabled) {
 		// RmlUi reports the region relative to the context, which sits at the frame's top
@@ -249,7 +256,7 @@ Rml::TextureHandle UIRenderInterface::GenerateTexture(Rml::Span<const Rml::byte>
 
 	bgfx::TextureHandle texture = bgfx::createTexture2D(
 		(uint16_t)dimensions.x, (uint16_t)dimensions.y, false, 1, bgfx::TextureFormat::RGBA8,
-		BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP,
+		_SamplerFlags,
 		bgfx::copy(source.data(), (uint32_t)source.size()));
 
 	return((Rml::TextureHandle)Handle_From_Texture(texture));
@@ -323,7 +330,7 @@ bool UI_Render_Init(void)
 	// pixel and takes its colour from the vertices alone.
 	const uint32_t white = 0xFFFFFFFF;
 	_WhiteTexture = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::RGBA8,
-		BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP, bgfx::copy(&white, sizeof(white)));
+		_SamplerFlags, bgfx::copy(&white, sizeof(white)));
 
 	if (!bgfx::isValid(_Program) || !bgfx::isValid(_TextureSampler) || !bgfx::isValid(_WhiteTexture)) {
 		UI_Render_Shutdown();
@@ -404,7 +411,7 @@ void UI_Render_ImGui(ImDrawData * data)
 		if (texture->Status == ImTextureStatus_WantCreate) {
 			bgfx::TextureHandle created = bgfx::createTexture2D(
 				(uint16_t)texture->Width, (uint16_t)texture->Height, false, 1, bgfx::TextureFormat::RGBA8,
-				BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP,
+				_SamplerFlags,
 				bgfx::copy(texture->GetPixels(), (uint32_t)(texture->Width * texture->Height * 4)));
 
 			texture->SetTexID((ImTextureID)Handle_From_Texture(created));
@@ -465,7 +472,7 @@ void UI_Render_ImGui(ImDrawData * data)
 
 			bgfx::TextureHandle texture = Texture_From_Handle((uintptr_t)command.GetTexID());
 			bgfx::setTexture(0, _TextureSampler, bgfx::isValid(texture) ? texture : _WhiteTexture,
-				BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+				_SamplerFlags);
 
 			bgfx::setState(_BlendState);
 			bgfx::setVertexBuffer(0, &vertices, command.VtxOffset, vertexcount - command.VtxOffset);

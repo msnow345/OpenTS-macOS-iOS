@@ -298,6 +298,11 @@ frame's top-left corner. Draw order is the software frame and its scaling
 passes, RmlUi documents in the context's document order, ImGui, then the
 hardware cursor.
 
+Every overlay texture is point sampled. The documents draw the game's own
+640x400-era artwork and its bitmap font magnified by the frame scale, which at
+a 640x400 frame in a 3456x2160 window is 5.4x; linear filtering softens both.
+The art and the text share one sampler state so they cannot disagree.
+
 One RmlUi context holds every document. A second context is justified only by
 an independent coordinate space or lifetime. Data-model names are unique
 among live screens, binding storage is owned by the view and outlives the
@@ -640,9 +645,9 @@ leading centre the ink on the line box the way
 `OD_DRAW_CHAR_FLAG_VERTICAL_CENTER` centred it on a control.
 
 `ui/campaign.rcss` is the only document that asks for it. Whether it spreads
-is an open decision. In-game text that must match the `WWFontClass` faces,
-needed only by the post-migration sidebar view, is a separate problem: those
-are a different format and this engine does not read them.
+is an open decision. In-game text that must match the `WWFontClass` faces, needed only by the
+post-migration sidebar view, is a separate problem: those are a different
+format and this engine does not read them.
 
 ### Strings
 
