@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 5 of the migration plan have landed; nothing
-from step 6 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 6 of the migration plan have landed; nothing
+from step 7 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -13,9 +13,10 @@ transient one, because the program the overlays share is bgfx's embedded imgui
 shader, whose vertex stage multiplies by `u_viewProj` alone and so ignores the
 per-draw model transform; a program with a model transform restores the static
 vertex buffer the renderer table describes. `uitexture.cpp` reads PNG and
-TGA only, so PCX, SHP and the `<surface>` element wait for the first screen
-that shows game art, and the cursor and clipboard requests are recorded rather
-than acted on.
+TGA only, so PCX and SHP files wait for the first screen that shows game art,
+and the cursor and clipboard requests are recorded rather than acted on. Step 6
+brought the `<surface>` element, which is the other route to game art: pixels
+the engine draws rather than a file a document names.
 
 Step 3 exercised the rest. `UI_Run_Modal` now runs a screen, and the input hook
 gained the modal scope its rules always described: while an exclusive document
@@ -51,6 +52,18 @@ from the model cannot preview a volume the player did not move; that is what
 `DialogInitialized` did for `WM_HSCROLL`. Two live documents may not share a
 data-model name, which `Context::CreateDataModel` refuses; a second screen of
 the same kind therefore fails preparation rather than opening.
+
+Step 6 put engine-drawn pixels in a document. The `<surface>` element resolves
+a provider by name at render time, takes its intrinsic size from that provider
+scaled by the document's density-independent pixel ratio, and uploads only
+when the provider's generation moves, so a document holding a surface costs a
+quad per present while nothing changes. Two boxes without a loop of their own
+gained the paint the dialogs got from `SendMessage(WM_PAINT)`: the wait box and
+the progress box are presented as they open, unpaced, because the operation
+they stand over may never pump again. Screens of different kinds do coexist,
+which the progress box opening over the wait box shows; only a second screen of
+the same kind is refused, and the coexistence rule still forbids a legacy
+dialog underneath either.
 
 ## Where the UI stands today
 
@@ -137,8 +150,10 @@ Facts elsewhere in the tree that bind the design:
   `Slid`, and `LastSlid` beside `TopIndex` and `Buildables`.
 - `SidebarClass::Reposition_Sidebar` registers the cameo tooltips itself,
   independent of gadget registration; `CCToolTip` paints into game surfaces.
-- `ProgressScreenClass::Set_Progress_Percent` sends `WM_PAINT` synchronously,
-  and `Display_Progress` plays the milestone sound from the draw path.
+- `ProgressScreenClass::Set_Progress_Percent` sends `WM_PAINT` synchronously.
+  `Display_Progress` used to print the loading message, play its sound and
+  clamp the gauge from inside the draw path; step 6 moved all three onto the
+  progress-changed path.
 
 Three consequences shape the design. A new UI must fit the blocking-loop
 shape, or every driver has to be rewritten in the same change; the loop shape
@@ -560,9 +575,18 @@ with the palette named in the source string. SHP frames use a
 zero transparent. Surfaces the engine draws at runtime (the map preview, the
 desync host icons, a progress bar) reach a document through a `<surface>`
 custom element bound to a named provider; the shell re-uploads the texture
-when the provider marks it dirty. Original game art stays local runtime data
+when the provider marks it dirty. A document writes `<surface src="name"/>`
+and the name is resolved at render time, so a document may be shown before the
+screen that owns its pixels registers them and an element whose provider went
+away draws nothing rather than failing to lay out. An element with no width or
+height of its own takes the provider's extents, scaled by the document's
+density-independent pixel ratio, because a provider's pixels are game logical
+units. `UISurfaceBufferClass` is the provider a screen wants when the engine
+already knows how to draw the thing: it owns a 16-bit surface the screen draws
+into with the engine's ordinary calls, and converts it to premultiplied RGBA
+with a color key for the mask. Original game art stays local runtime data
 outside version control; documents receive artwork identities, never engine
-pointers.
+pointers, and a presenter never holds a provider.
 
 ### Fonts
 
@@ -676,7 +700,11 @@ Invariants the split preserves:
 Progress tracking, clamping, milestone text and sound, and the readiness
 queries that `scenario.cpp` consumes move out of the draw path into shared
 behavior, so a repaint cannot repeat a milestone sound and a hidden
-presentation cannot lose one. The screen exposes phase, progress, status, and
+presentation cannot lose one. Step 6 did the move:
+`ProgressScreenClass::Progress_Changed` runs the clamp and
+`Announce_Milestones` where the gauge moves, `Display_Progress` draws and
+nothing else, and the loading screen announces its first message itself rather
+than getting it from a repaint. The screen exposes phase, progress, status, and
 the operations the loader supports; no cancellation is added to a loader that
 cannot cancel. Loading stays on its thread with explicit cooperative service
 points that drain nothing unrelated while scenario objects are being
@@ -767,7 +795,13 @@ text beyond an ASCII test document.
    children no width to be a proportion of.
 6. **Progress and wait** (S, leaf). `IDD_PROGRESS_WAIT`, the saving and
    loading boxes in `savemgr.cpp`, the `<surface>` element, milestone effects
-   moved out of drawing.
+   moved out of drawing. Landed: `code/ui/uiprogress.{h,cpp}` with
+   `ui/progresswait.rml` and `ui/progresswait.rcss`, the geometry converted
+   from the `IDD_PROGRESS_WAIT` template; `code/ui/uisurface.{h,cpp}` with the
+   element and the provider contract; and the milestone move in
+   `code/progress.cpp`. The saving and loading boxes reach the wait box step 4
+   built, through `OwnerDraw::Custom_Message_Box`, and needed the paint at open
+   rather than a screen of their own.
 7. **Options family** (L, two changes each). Main options, display with its
    timed rollback, game controls (three variants), keyboard with the hotkey
    capture control, the display-mode confirmation, abort and surrender.
