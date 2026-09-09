@@ -423,6 +423,43 @@ fixed_exclusions:
   - site: { file: code/tab.cpp, function: TabClass::AI, expression: KN_LMOUSE }
     reason: Tactical-tab hit-testing handled as pointer input.
   - sites:
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_F1 }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_F12 }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_BACK }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_TAB }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_RETURN }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_ESCAPE }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_SPACE }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_PRIOR }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_NEXT }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_END }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_HOME }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_LEFT }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_UP }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_RIGHT }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_DOWN }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_INSERT }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_DELETE }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_SHIFT }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_CONTROL }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_MENU }
+    reason: >-
+      Translates a Windows virtual key into the identifier the UI toolkit names it by. The
+      shell hands the key to whichever document has the input scope; the key's meaning is the
+      document's, so no site here is a game command.
+  - sites:
+      - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_CONTROL }
+      - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_SHIFT }
+      - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_MENU }
+    reason: Reads the modifier keys held while a UI message is delivered. It reports state and dispatches nothing.
+  - sites:
+      - { file: code/ui/uishell.cpp, function: Handle_Developer_Key, expression: VK_CONTROL, guard: "!NDEBUG" }
+      - { file: code/ui/uishell.cpp, function: Handle_Developer_Key, expression: VK_SHIFT, guard: "!NDEBUG" }
+      - { file: code/ui/uishell.cpp, function: Handle_Developer_Key, expression: VK_CONTROL+VK_SHIFT, guard: "!NDEBUG" }
+    reason: >-
+      Reads the modifiers that qualify the shell's Debug-only developer keys. The keys those
+      modifiers qualify are the controls; this test is not one of them.
+  - sites:
       - { file: code/wdtsel.cpp, function: Selection::Pick_Territory, expression: KN_NONE }
       - { file: code/wdtsel.cpp, function: Selection::Pick_Territory, expression: KN_LMOUSE }
     reason: World Domination Tour territory-screen polling and hit-testing.
