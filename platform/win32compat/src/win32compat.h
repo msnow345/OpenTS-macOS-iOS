@@ -98,3 +98,7 @@ extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 // answers FALSE and leaves the values alone.
 extern "C" BOOL Win32Compat_Preferred_Frame_Size(int * width, int * height);
 extern "C" BOOL Win32Compat_Window_Safe_Area(HWND window, LPRECT rect);
+
+// Where this host keeps the files the program writes about itself, when it does not keep
+// them beside the executable. The buffer is left alone on a FALSE return.
+extern "C" BOOL Win32Compat_Log_Directory(char * buffer, int size);

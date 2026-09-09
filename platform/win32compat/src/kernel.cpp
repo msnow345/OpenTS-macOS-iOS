@@ -228,6 +228,39 @@ static void Append_Container_Directories(std::vector<std::wstring> & arguments)
 #endif
 
 
+/// <summary>
+/// Reports where this host keeps the files the program writes about itself.
+/// </summary>
+/// <returns>BOOL; Did the host name a directory? A host that keeps them beside the
+/// executable answers FALSE and leaves the buffer alone.</returns>
+extern "C" BOOL Win32Compat_Log_Directory(char * buffer, int size)
+{
+#ifdef OPENTS_IOS
+	char const * const home = getenv("HOME");
+
+	if (buffer == NULL || size <= 0 || home == NULL || home[0] == '\0') {
+		return(FALSE);
+	}
+
+	std::string const folder = std::string(home) + _ContainerFolder;
+
+	if ((int)folder.length() >= size) {
+		return(FALSE);
+	}
+
+	std::error_code error;
+	std::filesystem::create_directories(folder, error);
+
+	strcpy(buffer, folder.c_str());
+	return(TRUE);
+#else
+	(void)buffer;
+	(void)size;
+	return(FALSE);
+#endif
+}
+
+
 void Win32_Record_Arguments(int argc, char ** argv)
 {
 	_Arguments.clear();
