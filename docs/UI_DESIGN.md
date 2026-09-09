@@ -1,7 +1,7 @@
 # UI system design
 
-Status: in progress. Steps 1 to 6 of the migration plan have landed; nothing
-from step 7 onward is implemented. Everything outside the migration plan
+Status: in progress. Steps 1 to 6 of the migration plan have landed and step 7
+is most of the way through; nothing from step 8 onward is implemented. Everything outside the migration plan
 remains a proposal informed by source inspection and upstream documentation.
 This page owns the UI architecture and migration; [Building
 OpenTS](BUILDING.md) owns build support and [Project
@@ -64,6 +64,14 @@ they stand over may never pump again. Screens of different kinds do coexist,
 which the progress box opening over the wait box shows; only a second screen of
 the same kind is refused, and the coexistence rule still forbids a legacy
 dialog underneath either.
+
+Step 7 gave a view the ability to step aside. `UIRmlViewClass` gained `Hide`
+and `Show`, which take a document off the screen and put it back with the modal
+scope it had, because the in-game options screen opens the save and load
+browsers where it is drawn and the legacy dialog got out of their way with
+`ShowWindow`. A screen family whose members are opened one after another
+resets `IsClosing` and the held result before each pass, since a close marks
+the presenter closing and a marked presenter drains nothing.
 
 ## Where the UI stands today
 
@@ -805,13 +813,28 @@ text beyond an ASCII test document.
 7. **Options family** (L, two changes each). Main options, display with its
    timed rollback, game controls (three variants), keyboard with the hotkey
    capture control, the display-mode confirmation, abort and surrender.
-   Evidence: settings round-trip through `SUN.INI` unchanged. Started: the
-   first change of three of them has landed, classified preserved, with the
-   legacy view still selected --- `code/ui/uigameoptions.{h,cpp}` for the
-   in-game options screen, `code/ui/uiabort.{h,cpp}` for abort and surrender,
-   and `code/ui/uigamecontrols.{h,cpp}` for the game controls. Main options,
-   display with its rollback, the display-mode confirmation and the keyboard
-   screen are not extracted, and no RmlUi view exists for any of them.
+   Evidence: settings round-trip through `SUN.INI` unchanged. Every screen in
+   the family is extracted: `code/ui/uigameoptions.{h,cpp}`,
+   `code/ui/uiabort.{h,cpp}`, `code/ui/uigamecontrols.{h,cpp}`,
+   `code/ui/uimainoptions.{h,cpp}`, `code/ui/uidisplayoptions.{h,cpp}`,
+   `code/ui/uidisplayconfirm.{h,cpp}` and `code/ui/uikeyboard.{h,cpp}`. Six of
+   the seven have their RmlUi view: `ui/options.rml`, `ui/gameoptions.rml` with
+   its `mp` and `wol` variants, `ui/abort.rml`, `ui/gamecontrols.rml` with its
+   `mp` and `wol` variants, `ui/display.rml` and `ui/modeconfirm.rml`, sharing
+   the family's look through `ui/optionsbase.rcss` and each carrying its own
+   geometry. The keyboard screen still has only its legacy view.
+
+   The mode trial's timeout is the presenter's, not a view's: the driver
+   expressed it as a posted `WM_COMMAND` carrying `WM_DESTROY`, which is two,
+   which its procedure recorded because `IDCANCEL` is also two, so the timeout
+   was a cancel spelled awkwardly. `UIDisplayConfirmPresenterClass::Service`
+   counts a `CDTimerClass<SystemTimerClass>` down from ten seconds and produces
+   the cancel itself, which is what takes an unreadable mode back.
+
+   The templates carry the button captions and the string table does not, so a
+   document repeats the template's caption where no `TXT_` name exists. That
+   leaves those captions untranslated until names are added to `language.rc`,
+   which is where the strings are owned.
 8. **Main menu family** (M). `IDD_MAIN_MENU`, campaign choice, game type,
    multiplayer game selection. The `NewMenuClass` drivers keep their loops.
 9. **Load, save, delete** (M, two changes).
