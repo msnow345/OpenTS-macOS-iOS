@@ -41,6 +41,8 @@
 #include "session.h"
 #include "srfcache.h"
 #include "theme.h"
+#include "ui/uimessagebox.h"
+#include "ui/uishell.h"
 #include "utf8.h"
 #include "voc.h"
 #include "vox.h"
@@ -118,6 +120,20 @@ LRESULT CALLBACK TrackBarCtrlProc(HWND window, UINT message, WPARAM wparam, LPAR
 LRESULT CALLBACK GroupBoxCtrlProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 LRESULT CALLBACK HotkeyCtrlProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 INT_PTR CALLBACK Custom_Message_Box_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+
+
+/// <summary>
+/// The handle that stands for the rebuilt wait box.
+/// That box is a document rather than a window, but its callers hold a handle and pass it
+/// back to Display_Dialog, Set_Custom_Message_Box_Text and End_Dialog, so it is given one
+/// no window can have. The handle and the three tests that answer to it go with OwnerDraw.
+/// </summary>
+static HWND Wait_Box_Handle(void)
+{
+	static HWND__ _token;
+	return(&_token);
+}
+
 
 BOOL CALLBACK ODRemoveFromDict(HWND window, LPARAM);
 int WINAPI ODUpdateWindowRect(HWND window, RECT *rect);
@@ -6777,6 +6793,12 @@ HWND OwnerDraw::Begin_Dialog(int id, DLGPROC proc)
 void OwnerDraw::End_Dialog(HWND window)
 {
 	Keyboard->Clear();
+
+	if (window == Wait_Box_Handle()) {
+		UI_Wait_Box_Close();
+		return;
+	}
+
 	DestroyWindow(window);
 
 	for (int index = 0; index < g_DialogCount; index++) {
@@ -6817,6 +6839,11 @@ void OwnerDraw::End_Dialog(HWND window)
 /// </summary>
 void OwnerDraw::Display_Dialog(HWND window)
 {
+	if (window == Wait_Box_Handle()) {
+		Keyboard->Clear();
+		return;
+	}
+
 	ShowWindow(window, SW_SHOWNORMAL);
 	SetForegroundWindow(window);
 	Keyboard->Clear();
@@ -6966,6 +6993,10 @@ int OwnerDraw::Move_Dialog(HWND window, int x, int y)
 /// created.</returns>
 HWND OwnerDraw::Custom_Message_Box(const char *btn1txt, const char *btn2txt, bool * cancelled)
 {
+	if (UI_Use_Rml() && UI_Wait_Box_Open(btn1txt, btn2txt, cancelled)) {
+		return(Wait_Box_Handle());
+	}
+
 	HWND dlg = OwnerDraw::Begin_Dialog(IDD_MSGBOX_1, Custom_Message_Box_Proc);
 
 	SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)cancelled);
@@ -7014,6 +7045,11 @@ INT_PTR CALLBACK Custom_Message_Box_Proc(HWND window, UINT message, WPARAM wpara
 /// </summary>
 void OwnerDraw::Set_Custom_Message_Box_Text(HWND window, LPCSTR text)
 {
+	if (window == Wait_Box_Handle()) {
+		UI_Wait_Box_Set_Text(text);
+		return;
+	}
+
 	SetDlgItemText(window, IDC_MSGBOX_TEXT, text);
 	UpdateWindow(window);
 }

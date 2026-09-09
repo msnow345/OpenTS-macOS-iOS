@@ -57,6 +57,11 @@ static bool _Changing = false;
 // than flags.
 static int _ModalDepth = 0;
 
+// How many modal runners are on the stack. A runner owns the context between its own
+// passes, so the tick that Main_Loop and Call_Back make from inside one is dropped rather
+// than updating the context a second time in the same pass.
+static int _RunningModal = 0;
+
 
 // The window holds the mouse capture while a gesture a toolkit consumed is in progress.
 // The owner of a press owns its release, so a press that crossed into the game or out of
@@ -291,7 +296,7 @@ void UI_Tick(void)
 	// what keeps a pump reached from inside an update out of it.
 	static bool ticking = false;
 
-	if (!_Initialized || _Context == nullptr || _Changing || ticking) {
+	if (!_Initialized || _Context == nullptr || _Changing || ticking || _RunningModal > 0) {
 		return;
 	}
 
@@ -302,6 +307,7 @@ void UI_Tick(void)
 	_LastTickTime = now;
 
 	_Context->Update();
+	UI_Message_Box_Service();
 
 	// RmlUi cannot say whether it needs redrawing, so anything on screen marks the overlay
 	// on every tick and the present pacing caps the rate.
@@ -730,7 +736,12 @@ UIResult UI_Run_Modal(UIPresenterClass & presenter, UIRmlViewClass & view)
 		return(result);
 	}
 
+	// Main_Loop can reach a screen of its own, and the guard is the one
+	// OwnerDraw::Dialog_Message_Handler keeps for the same reason: the inner driver services
+	// the game with a callback rather than stepping it twice.
 	static bool inmainloop = false;
+
+	_RunningModal++;
 
 	while (!presenter.Result.has_value()) {
 		Windows_Message_Handler();
@@ -742,6 +753,7 @@ UIResult UI_Run_Modal(UIPresenterClass & presenter, UIRmlViewClass & view)
 				inmainloop = false;
 
 				if (ended) {
+					_RunningModal--;
 					result.Outcome = UIResult::OUTCOME_SESSION_ENDED;
 					result.GameEnded = true;
 					return(result);
@@ -751,13 +763,17 @@ UIResult UI_Run_Modal(UIPresenterClass & presenter, UIRmlViewClass & view)
 			Call_Back();
 		}
 
+		presenter.Service();
+
 		_Context->Update();
 		presenter.Drain();
 		view.Sync();
+		UI_Message_Box_Service();
 
 		Mark_Overlay_Dirty();
 		Video_Present_If_Dirty();
 	}
 
+	_RunningModal--;
 	return(presenter.Result.value());
 }

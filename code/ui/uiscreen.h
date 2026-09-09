@@ -75,6 +75,10 @@ class UIPresenterClass
 		virtual void Execute(UIIntent const & intent) = 0;
 		virtual void Refresh(void) = 0;
 
+		// The maintenance a screen's own driver ran on every pass of its loop, kept where it
+		// was rather than moved into the runner.
+		virtual void Service(void) {}
+
 		std::optional<UIResult> Result;
 		bool IsClosing = false;
 

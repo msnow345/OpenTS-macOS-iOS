@@ -39,6 +39,8 @@
 #include "globals.h"
 #include "init.h"
 #include "ownrdraw.h"
+#include "ui/uimessagebox.h"
+#include "ui/uishell.h"
 #include "winfix.h"
 
 INT_PTR CALLBACK Message_Box_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
@@ -79,6 +81,20 @@ int WWMessageBox::_Process(const char * msg, int defresponse, const char * b1txt
 {
 	int retval = -1;
 	int numbuttons = 0;
+
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Message_Box_Screen(msg, defresponse, b1txt, b2txt, b3txt);
+
+		// A session that ended under the box is what the dialog driver reported by leaving
+		// the result unset, and the caller reads that as the -1 it started from.
+		if (result.Outcome == UIResult::OUTCOME_SESSION_ENDED) {
+			return(-1);
+		}
+
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			return(result.Value);
+		}
+	}
 
 	_default_response = defresponse;
 

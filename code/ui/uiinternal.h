@@ -48,6 +48,9 @@ void UI_Render_Begin(int destx, int desty, int width, int height);
 void UI_Render_End(void);
 void UI_Render_ImGui(ImDrawData * data);
 
+// uimessagebox.cpp
+void UI_Message_Box_Service(void);
+
 // uisystem.cpp
 Rml::SystemInterface * UI_System_Interface(void);
 

@@ -1,0 +1,12 @@
+<rml>
+<head>
+	<title>Please wait</title>
+	<link type="text/rcss" href="waitbox.rcss"/>
+</head>
+<body data-model="waitbox">
+	<div id="dialog">
+		<div id="text">{{ message }}</div>
+		<div id="cancel" data-if="cancancel" data-event-click="cancel()">{{ cancelcaption }}</div>
+	</div>
+</body>
+</rml>
