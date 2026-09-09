@@ -15,13 +15,7 @@
 #include "data.h"
 #include "init.h"
 #include "language/language.h"
-#include "ownrdraw.h"
 #include "ui/uigametype.h"
-#include "ui/uishell.h"
-
-INT_PTR CALLBACK Select_Game_Type_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-
-static UIGameTypePresenterClass * _GameTypeScreen = NULL;
 
 int AvailableAddOns = 1 << ADDON_BASE_GAME;
 int ActiveAddOns = 1 << ADDON_BASE_GAME;
@@ -65,91 +59,18 @@ bool Select_Game_Type_Dialog(AddonType &type)
 		UIGameTypePresenterClass screen;
 		screen.Refresh();
 
-		// The selection is latched here, at screen entry, and the legacy dialog opens only
-		// when the document could not be prepared.
-		if (UI_Use_Rml()) {
-			if (UI_Game_Type_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-				int addon = ADDON_BASE_GAME;
-				bool const carry_on = screen.Apply(addon);
-				type = (AddonType)addon;
-				return(carry_on);
-			}
-
-			screen.IsClosing = false;
-			screen.Result.reset();
-		}
-
-		_GameTypeScreen = &screen;
-
-		HWND dialog = OwnerDraw::Begin_Dialog(IDD_SELECT_GAME_TYPE, Select_Game_Type_Dialog_Proc);
-		if (dialog != 0) {
-
-			OwnerDraw::Display_Dialog(dialog);
-
-			while (!screen.Result.has_value()) {
-				if (OwnerDraw::Dialog_Message_Handler() == true) {
-					break;
-				}
-
-				screen.Drain();
-				screen.Service();
-			}
-
-			ShowWindow(dialog, SW_HIDE);
-			UpdateWindow(MainWindow);
-			OwnerDraw::End_Dialog(dialog);
-
-			int addon = ADDON_BASE_GAME;
-			bool const carry_on = screen.Apply(addon);
-			type = (AddonType)addon;
-
-			_GameTypeScreen = NULL;
-
-			if (!carry_on) {
-				return(false);
-			}
-
+		if (UI_Game_Type_Screen(screen).Outcome == UIResult::OUTCOME_FAILED_TO_OPEN) {
+			Set_Required_Addon(type);
 			return(true);
 		}
 
-		_GameTypeScreen = NULL;
-
-		Set_Required_Addon(type);
-		return(true);
+		int addon = ADDON_BASE_GAME;
+		bool const carry_on = screen.Apply(addon);
+		type = (AddonType)addon;
+		return(carry_on);
 	}
 
 	return(true);
-}
-
-
-/// <summary>
-/// Handles the messages for the game type selection dialog.
-/// This routine stashes the control that the player pressed into the caller's result
-/// variable, which is what lets the dialog loop know it can stop.
-/// </summary>
-INT_PTR CALLBACK Select_Game_Type_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc == 0 && _GameTypeScreen != NULL && message == WM_COMMAND) {
-		switch (LOWORD(wparam)) {
-			case IDC_GAMETYPE_FIRESTORM:
-				_GameTypeScreen->Queue(UIIntent{UI_GAMETYPE_FIRESTORM, "", 0});
-				break;
-
-			case IDCANCEL:
-				_GameTypeScreen->Queue(UIIntent{UI_GAMETYPE_BACK, "", 0});
-				break;
-
-			default:
-				// The dialog's own default arm: any identifier that was not Firestorm and
-				// not a cancel is the base game.
-				_GameTypeScreen->Queue(UIIntent{UI_GAMETYPE_ORIGINAL, "", 0});
-				break;
-		}
-	}
-
-	return(rc);
 }
 
 

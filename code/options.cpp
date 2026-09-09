@@ -76,7 +76,6 @@
 #include "language/language.h"
 #include "mouse.h"
 #include "msgbox.h"
-#include "ownrdraw.h"
 #include "rules.h"
 #include "session.h"
 #include "techno.h"
@@ -85,7 +84,6 @@
 #include "video.h"
 #include "vox.h"
 #include "ui/uikeyboard.h"
-#include "ui/uishell.h"
 
 #include "diff.hh"
 
@@ -595,212 +593,17 @@ int OptionsClass::Normalize_Volume(int volume) const
 }
 
 
-// The screen the hotkey dialog procedure reads and writes. The driver owns it for the whole
-// life of the dialog, which is the lifetime DWLP_USER gave the result pointer it replaces.
-static UIKeyboardPresenterClass * _KeyboardScreen = NULL;
-
-
-static void Hotkey_Queue(UIKeyboardPresenterClass & screen, char const * action, int value = 0)
-{
-	UIIntent intent;
-	intent.Action = action;
-	intent.Value = value;
-	screen.Queue(intent);
-}
-
-
-// Puts the view-model's text and lists back on the controls. The dialog did this from its
-// own private messages; the driver now does it after the queue has been executed, so a
-// handler that only queues still leaves the screen looking right.
-static void Hotkey_Sync_Controls(HWND window, UIKeyboardPresenterClass const & screen)
-{
-	HWND handle;
-
-	handle = GetDlgItem(window, IDC_KEY_COMMANDS);
-	if (handle && ListBox_GetCount(handle) != (int)screen.Commands.size()) {
-		ListBox_ResetContent(handle);
-		for (UIKeyboardPresenterClass::CommandType const & command : screen.Commands) {
-			ListBox_AddString(handle, command.Label.c_str());
-		}
-		ListBox_SetCurSel(handle, screen.SelectedCommand);
-	}
-
-	handle = GetDlgItem(window, IDC_KEY_DESCRIPTION);
-	if (handle) {
-		SetWindowText(handle, screen.Description.c_str());
-	}
-
-	handle = GetDlgItem(window, IDC_KEY_CURRENT_SHORTCUT);
-	if (handle) {
-		SetWindowText(handle, screen.CurrentShortcut.c_str());
-	}
-
-	handle = GetDlgItem(window, IDC_KEY_ASSIGNED_TO);
-	if (handle) {
-		SetWindowText(handle, screen.AssignedTo.c_str());
-	}
-
-	handle = GetDlgItem(window, IDC_KEY_HOTKEY);
-	if (handle && SendMessage(handle, HKM_GETHOTKEY, 0, 0) != screen.CapturedKey) {
-		SendMessage(handle, HKM_SETHOTKEY, screen.CapturedKey, 0);
-	}
-}
-
-
-/// <summary>
-/// Handles the messages for the keyboard configuration dialog.
-/// The procedure primes its controls from the view-model and queues what the player did for
-/// the driver to execute after the pump.
-/// </summary>
-/// <returns>Returns with TRUE if the message was consumed by this dialog.</returns>
-INT_PTR CALLBACK Hotkey_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR result = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-	if (result) {
-		return(result);
-	}
-
-	if (_KeyboardScreen == NULL) {
-		return(FALSE);
-	}
-
-	UIKeyboardPresenterClass & screen = *_KeyboardScreen;
-
-	switch (message) {
-		case WM_COMMAND:
-			switch (LOWORD(wparam)) {
-				case IDOK:
-					if (HIWORD(wparam) == BN_CLICKED) {
-						Hotkey_Queue(screen, UI_KEYBOARD_ACCEPT);
-						return(TRUE);
-					}
-					break;
-
-				case IDCANCEL:
-					if (HIWORD(wparam) == BN_CLICKED) {
-						Hotkey_Queue(screen, UI_KEYBOARD_CANCEL);
-						return(TRUE);
-					}
-					break;
-
-				case IDC_KEY_COMMANDS:
-					if (HIWORD(wparam) == LBN_SELCHANGE) {
-						HWND list = GetDlgItem(window, IDC_KEY_COMMANDS);
-						if (list) {
-							Hotkey_Queue(screen, UI_KEYBOARD_COMMAND, ListBox_GetCurSel(list));
-						}
-						HWND hotkey = GetDlgItem(window, IDC_KEY_HOTKEY);
-						if (hotkey != NULL) {
-							SetFocus(hotkey);
-							return(TRUE);
-						}
-					}
-					break;
-
-				case IDC_KEY_ASSIGN:
-					Hotkey_Queue(screen, UI_KEYBOARD_ASSIGN);
-					return(TRUE);
-
-				case IDC_KEY_HOTKEY:
-					if (HIWORD(wparam) == EN_CHANGE) {
-						Hotkey_Queue(screen, UI_KEYBOARD_CAPTURE, (int)SendMessage((HWND)lparam, HKM_GETHOTKEY, 0, 0));
-						return(TRUE);
-					}
-					break;
-
-				case IDC_KEY_RESET_ALL:
-					if (HIWORD(wparam) == BN_CLICKED) {
-						Hotkey_Queue(screen, UI_KEYBOARD_RESET);
-						return(TRUE);
-					}
-					break;
-
-				case IDC_KEY_CATEGORY:
-					if (HIWORD(wparam) == CBN_SELCHANGE) {
-						HWND combo = GetDlgItem(window, IDC_KEY_CATEGORY);
-						if (combo) {
-							Hotkey_Queue(screen, UI_KEYBOARD_CATEGORY, ComboBox_GetCurSel(combo));
-						}
-						return(TRUE);
-					}
-					break;
-			}
-			return(TRUE);
-
-		case WM_INITDIALOG: {
-			HWND combo = GetDlgItem(window, IDC_KEY_CATEGORY);
-			if (combo) {
-				ComboBox_ResetContent(combo);
-				for (std::string const & category : screen.Categories) {
-					ComboBox_AddString(combo, category.c_str());
-				}
-				ComboBox_SetCurSel(combo, screen.SelectedCategory);
-			}
-
-			HWND list = GetDlgItem(window, IDC_KEY_COMMANDS);
-			if (list) {
-				ListBox_ResetContent(list);
-				for (UIKeyboardPresenterClass::CommandType const & command : screen.Commands) {
-					ListBox_AddString(list, command.Label.c_str());
-				}
-				ListBox_SetCurSel(list, screen.SelectedCommand);
-			}
-			return(FALSE);
-		}
-	}
-
-	return(FALSE);
-}
-
-
 /// <summary>
 /// Displays the keyboard configuration dialog.
-/// This routine brings up the hotkey assignment dialog and does not return until the player
-/// dismisses it. The title screen is kept refreshed while the dialog is up outside of a
+/// This routine brings up the hotkey assignment screen and does not return until the player
+/// dismisses it. The title screen is kept refreshed while the screen is up outside of a
 /// game.
 /// </summary>
 bool OptionsClass::Hotkey_Dialog(void)
 {
 	UIKeyboardPresenterClass screen;
 	screen.Refresh();
-
-	// The selection is latched here, at screen entry, and the legacy dialog opens only when
-	// the document could not be prepared.
-	if (UI_Use_Rml()) {
-		UIResult const result = UI_Keyboard_Screen(screen);
-		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-			return(true);
-		}
-
-		screen.IsClosing = false;
-		screen.Result.reset();
-	}
-
-	_KeyboardScreen = &screen;
-
-	HWND handle = OwnerDraw::Begin_Dialog(IDD_OPT_KEYBOARD, Hotkey_Dialog_Proc);
-
-	if (handle != NULL) {
-		OwnerDraw::Display_Dialog(handle);
-
-		while (!screen.Result.has_value()) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				UIResult ended;
-				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
-				ended.GameEnded = true;
-				screen.Result = ended;
-				break;
-			}
-
-			screen.Drain();
-			Hotkey_Sync_Controls(handle, screen);
-			screen.Service();
-		}
-
-		OwnerDraw::End_Dialog(handle);
-	}
-
-	_KeyboardScreen = NULL;
+	UI_Keyboard_Screen(screen);
 
 	return(true);
 }

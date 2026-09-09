@@ -45,16 +45,10 @@
 #include "addon.h"
 #include "init.h"
 #include "msgbox.h"
-#include "ownrdraw.h"
 #include "session.h"
 #include "ui/uimpselect.h"
-#include "ui/uishell.h"
 
 class ListClass;
-
-INT_PTR CALLBACK Select_MPlayer_Game_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-
-static UIMPSelectPresenterClass * _MPSelectScreen = NULL;
 
 /// <summary>
 /// Prompts the player for which kind of multiplayer game to start.
@@ -71,110 +65,13 @@ GameType Select_MPlayer_Game (void)
 	UIMPSelectPresenterClass screen;
 	screen.Refresh();
 
-	// The selection is latched here, at screen entry, and the legacy dialog opens only when
-	// the document could not be prepared.
-	if (UI_Use_Rml()) {
-		if (UI_MPlayer_Select_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-			retval = (GameType)screen.Session_Type();
-			Session.Read_Scenario_Descriptions();
-			return(retval);
-		}
-
-		screen.IsClosing = false;
-		screen.Result.reset();
-	}
-
-	_MPSelectScreen = &screen;
-
-	HWND dialog;
-
-	if (screen.Variant == UIMPSelectPresenterClass::VARIANT_FIRESTORM) {
-		dialog = OwnerDraw::Begin_Dialog(IDD_MPLAYER_SELECT_GAME_FS, Select_MPlayer_Game_Dialog_Proc);
-	} else {
-		dialog = OwnerDraw::Begin_Dialog(IDD_MPLAYER_SELECT_GAME, Select_MPlayer_Game_Dialog_Proc);
-	}
-
-
-	if (dialog) {
-
-		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
-		OwnerDraw::Display_Dialog(dialog);
-
-		while (!screen.Result.has_value()) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				break;
-			}
-
-			screen.Drain();
-			screen.Service();
-		}
-
-		ShowWindow(dialog, SW_HIDE);
-		UpdateWindow(MainWindow);
-
+	if (UI_MPlayer_Select_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
 		retval = (GameType)screen.Session_Type();
-
-		OwnerDraw::End_Dialog(dialog);
 		Session.Read_Scenario_Descriptions();
 	}
 
-	_MPSelectScreen = NULL;
-
 	return(retval);
 }	/* end of Select_MPlayer_Game */
-
-
-/// <summary>
-/// Handles the messages for the multiplayer game type dialog.
-/// </summary>
-/// <returns>Returns with the result of the ownerdraw handler, or false when the message was
-/// left unhandled.</returns>
-INT_PTR CALLBACK Select_MPlayer_Game_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	HWND handle;
-
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (message == WM_INITDIALOG && _MPSelectScreen != NULL) {
-		handle = GetDlgItem(window, IDC_INTERNET);
-		if (handle) {
-			EnableWindow(handle, _MPSelectScreen->InternetAvailable ? TRUE : FALSE);
-		}
-		handle = GetDlgItem(window, IDC_WORLDDOM);
-		if (handle) {
-			EnableWindow(handle, _MPSelectScreen->WorldDominationAvailable ? TRUE : FALSE);
-		}
-	}
-
-	if (rc != 0) {
-		return(rc);
-	}
-
-	if (message == WM_COMMAND && _MPSelectScreen != NULL) {
-		switch (LOWORD(wparam)) {
-			case IDC_NETWORK:
-				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_NETWORK, "", 0});
-				break;
-
-			case IDC_SKIRMISH:
-				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_SKIRMISH, "", 0});
-				break;
-
-			case IDC_INTERNET:
-				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_INTERNET, "", 0});
-				break;
-
-			case IDC_WORLDDOM:
-				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_WORLDDOM, "", 0});
-				break;
-
-			default:
-				_MPSelectScreen->Queue(UIIntent{UI_MPSELECT_BACK, "", 0});
-				break;
-		}
-	}
-	return(false);
-}
 
 
 /***************************************************************************

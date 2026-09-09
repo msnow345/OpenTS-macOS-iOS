@@ -29,7 +29,6 @@
 #include "mixfile.h"
 #include "msgbox.h"
 #include "newmenu.h"
-#include "ownrdraw.h"
 #include "sidebar.h"
 #include "sounddlg.h"
 #include "stimer.h"
@@ -38,32 +37,12 @@
 #include "ui/uidisplayconfirm.h"
 #include "ui/uidisplayoptions.h"
 #include "ui/uimainoptions.h"
-#include "ui/uishell.h"
 
 #include "color.hh"
 
 
-INT_PTR CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-INT_PTR CALLBACK Display_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 bool Change_Display_Mode(int width, int height);
 bool Test_Display_Mode_Dialog(int width, int height);
-INT_PTR CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-
-
-// The screens the dialog procedures read and write. A driver owns one for the whole life of
-// its dialog, which is the lifetime DWLP_USER gave the result pointer each replaces.
-static UIMainOptionsPresenterClass * _MainScreen = NULL;
-static UIDisplayOptionsPresenterClass * _DisplayScreen = NULL;
-static UIDisplayConfirmPresenterClass * _ConfirmScreen = NULL;
-
-
-static void Options_Queue(UIPresenterClass & screen, char const * action, int value = 0)
-{
-	UIIntent intent;
-	intent.Action = action;
-	intent.Value = value;
-	screen.Queue(intent);
-}
 
 
 /// <summary>
@@ -79,8 +58,6 @@ void Main_Options_Dialog(void)
 	screen.Begin();
 	screen.Refresh();
 
-	_MainScreen = &screen;
-
 	while (true) {
 		// The screen is opened again on each pass round the family, so what the last close
 		// left behind is cleared first.
@@ -88,57 +65,18 @@ void Main_Options_Dialog(void)
 		screen.IsClosing = false;
 		screen.Choice = UIMainOptionsPresenterClass::CHOICE_NONE;
 
-		// The selection is latched here, at screen entry, and the legacy dialog opens only
-		// when the document could not be prepared.
-		if (UI_Use_Rml()) {
-			UIResult const result = UI_Main_Options_Screen(screen);
-			if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-				if (screen.Exits()) {
-					break;
-				}
-				screen.Run_Pending();
-				continue;
-			}
-			screen.IsClosing = false;
-			screen.Result.reset();
+		if (UI_Main_Options_Screen(screen).Outcome == UIResult::OUTCOME_FAILED_TO_OPEN) {
+			break;
 		}
-
-		HWND main_handle;
-		do {
-			main_handle = OwnerDraw::Begin_Dialog(IDD_OPT_MAIN, Main_Options_Dialog_Proc);
-		} while (main_handle == 0);
-
-		OwnerDraw::Move_Dialog(main_handle, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
-		OwnerDraw::Display_Dialog(main_handle);
-
-		while (!screen.Result.has_value()) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				// A session that ended underneath the screen leaves the family, which is
-				// what the driver's own unanswered result did on the way to its default arm.
-				UIResult ended;
-				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
-				ended.GameEnded = true;
-				screen.Choice = UIMainOptionsPresenterClass::CHOICE_EXIT;
-				screen.Result = ended;
-				break;
-			}
-
-			screen.Drain();
-			screen.Service();
-		}
-
-		OwnerDraw::End_Dialog(main_handle);
 
 		if (screen.Exits()) {
 			break;
 		}
 
-		// The sub-screen runs with this one destroyed, which is the coexistence rule the
-		// driver already kept.
+		// The sub-screen runs with this one gone, which is the coexistence rule the driver
+		// already kept.
 		screen.Run_Pending();
 	}
-
-	_MainScreen = NULL;
 
 	screen.End();
 }
@@ -155,43 +93,8 @@ void Display_Options_Dialog(void)
 		UIDisplayOptionsPresenterClass screen;
 		screen.Refresh();
 
-		// The selection is latched here, at screen entry, and the legacy dialog opens only
-		// when the document could not be prepared.
-		bool shown = false;
-		if (UI_Use_Rml()) {
-			UIResult const result = UI_Display_Options_Screen(screen);
-			if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-				shown = true;
-			} else {
-				screen.IsClosing = false;
-				screen.Result.reset();
-			}
-		}
-
-		if (!shown) {
-			_DisplayScreen = &screen;
-
-			HWND handle;
-			do {
-				handle = OwnerDraw::Begin_Dialog(IDD_OPT_DISPLAY, Display_Options_Dialog_Proc);
-			} while (handle == 0);
-			OwnerDraw::Display_Dialog(handle);
-
-			while (!screen.Result.has_value()) {
-				if (OwnerDraw::Dialog_Message_Handler() == true) {
-					UIResult ended;
-					ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
-					ended.GameEnded = true;
-					screen.Result = ended;
-					break;
-				}
-
-				screen.Drain();
-				screen.Service();
-			}
-
-			OwnerDraw::End_Dialog(handle);
-			_DisplayScreen = NULL;
+		if (UI_Display_Options_Screen(screen).Outcome == UIResult::OUTCOME_FAILED_TO_OPEN) {
+			break;
 		}
 
 		if (screen.Choice != UIDisplayOptionsPresenterClass::CHOICE_ACCEPT) {
@@ -210,63 +113,6 @@ void Display_Options_Dialog(void)
 
 		break;
 	}
-}
-
-
-/// <summary>
-/// Handles the main options dialog.
-/// The procedure queues what the player pressed for the driver to execute after the pump,
-/// and disables the sound button when there is no audio hardware to talk to.
-/// </summary>
-INT_PTR CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	HWND handle;
-
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-	if (rc == 0) {
-		if (_MainScreen == NULL) {
-			return(0);
-		}
-
-		UIMainOptionsPresenterClass & screen = *_MainScreen;
-
-		switch (message) {
-
-			case WM_COMMAND:
-				switch (LOWORD(wparam)) {
-					case IDC_OPTMAIN_SOUND:
-						Options_Queue(screen, UI_MAINOPT_SOUND);
-						break;
-
-					case IDC_OPTMAIN_DISPLAY:
-						Options_Queue(screen, UI_MAINOPT_DISPLAY);
-						break;
-
-					case IDC_OPTMAIN_KEYBOARD:
-						Options_Queue(screen, UI_MAINOPT_KEYBOARD);
-						break;
-
-					case IDC_OPTMAIN_GAME_SETTINGS:
-						Options_Queue(screen, UI_MAINOPT_SETTINGS);
-						break;
-
-					default:
-						Options_Queue(screen, UI_MAINOPT_EXIT);
-						break;
-				}
-				break;
-
-			case WM_INITDIALOG:
-				handle = GetDlgItem(window, IDC_OPTMAIN_SOUND);
-				if (handle) {
-					EnableWindow(handle, screen.SoundAvailable);
-				}
-				break;
-
-		}
-		return(0);
-	}
-	return(rc);
 }
 
 
@@ -444,155 +290,10 @@ bool Test_Display_Mode_Dialog(int width, int height)
 	UIDisplayConfirmPresenterClass screen;
 	screen.Refresh();
 
-	// The selection is latched here, at screen entry, and the legacy dialog opens only when
-	// the document could not be prepared.
-	if (UI_Use_Rml()) {
-		UIResult const result = UI_Display_Confirm_Screen(screen);
-		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-			return(Keep_Or_Reset_Display_Mode(width, height,
-				screen.Choice == UIDisplayConfirmPresenterClass::CHOICE_ACCEPT));
-		}
-		screen.IsClosing = false;
-		screen.Result.reset();
-	}
-
-	_ConfirmScreen = &screen;
-
-	bool accepted = true;
-
-	HWND dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CONFIRM_MODE, Test_Display_Mode_Dialog_Proc);
-	if (dialog) {
-		OwnerDraw::Display_Dialog(dialog);
-
-		while (!screen.Result.has_value()) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				break;
-			}
-
-			screen.Drain();
-			screen.Service();
-		}
-
-		OwnerDraw::End_Dialog(dialog);
-
-		accepted = (screen.Choice == UIDisplayConfirmPresenterClass::CHOICE_ACCEPT);
-	}
-
-	_ConfirmScreen = NULL;
+	// A mode whose confirmation could not be shown is refused, because the screen it would
+	// have been read on may be the unreadable one.
+	bool const accepted = UI_Display_Confirm_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN
+		&& screen.Choice == UIDisplayConfirmPresenterClass::CHOICE_ACCEPT;
 
 	return(Keep_Or_Reset_Display_Mode(width, height, accepted));
-}
-
-
-/// <summary>
-/// Handles the mode confirmation dialog.
-/// The procedure queues what the player pressed. Anything that is not the accept button is
-/// a refusal, which is what the driver's test against IDOK made of every other identifier
-/// the dialog could produce.
-/// </summary>
-INT_PTR CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-	if (rc == 0) {
-		if (_ConfirmScreen == NULL) {
-			return(0);
-		}
-
-		switch (message) {
-			case WM_COMMAND: {
-				int const id = LOWORD(wparam);
-				if (id > 0 && id <= IDCANCEL) {
-					Options_Queue(*_ConfirmScreen, (id == IDOK) ? UI_MODECONFIRM_ACCEPT : UI_MODECONFIRM_CANCEL);
-				}
-				break;
-			}
-		}
-		return(0);
-	}
-	return(rc);
-}
-
-
-/// <summary>
-/// Handles the display options dialog messages.
-/// The procedure fills the resolution list from the view-model, queues the row and the
-/// movie stretching preference the player left it on, and hands the driver what the player
-/// pressed to execute after the pump.
-/// </summary>
-static __forceinline BOOL Display_Options_Dialog_Body(HWND window, UINT message, WPARAM wparam)
-{
-	if (_DisplayScreen == NULL) {
-		return(0);
-	}
-
-	UIDisplayOptionsPresenterClass & screen = *_DisplayScreen;
-
-	switch (message) {
-		case WM_COMMAND:
-			switch (LOWORD(wparam)) {
-				default:
-					return(0);
-
-				case IDC_DISPLAY_RESLIST: {
-					HWND list = GetDlgItem(window, IDC_DISPLAY_RESLIST);
-					if (list) {
-						Options_Queue(screen, UI_DISPLAY_SELECT, ListBox_GetCurSel(list));
-					}
-				}
-				return(0);
-
-				case IDOK: {
-					HWND list = GetDlgItem(window, IDC_DISPLAY_RESLIST);
-					if (list) {
-						Center_Window_Within_Window(window, MainWindow);
-						Options_Queue(screen, UI_DISPLAY_SELECT, ListBox_GetCurSel(list));
-					}
-					HWND button = GetDlgItem(window, IDC_STRETCH_MOVIES);
-					if (button) {
-						Options_Queue(screen, UI_DISPLAY_STRETCH, Button_GetCheck(button) == BST_CHECKED ? 1 : 0);
-					}
-					Options_Queue(screen, UI_DISPLAY_ACCEPT);
-				}
-				break;
-
-				case IDCANCEL:
-					Options_Queue(screen, UI_DISPLAY_CANCEL);
-					break;
-			}
-			break;
-
-		case WM_INITDIALOG: {
-			HWND list = GetDlgItem(window, IDC_DISPLAY_RESLIST);
-			if (list) {
-				for (UIDisplayOptionsPresenterClass::ModeType const & mode : screen.Modes) {
-					int const index = ListBox_AddString(list, mode.Label.c_str());
-					ListBox_SetItemData(list, index, index);
-				}
-				ListBox_SetCurSel(list, screen.Selected);
-			}
-
-			HWND button = GetDlgItem(window, IDC_STRETCH_MOVIES);
-			if (button) {
-				Button_SetCheck(button, screen.StretchMovies != false);
-			}
-		}
-		break;
-
-	}
-	return(0);
-}
-
-
-/// <summary>
-/// Handles the display options dialog.
-/// This routine gives the owner draw dialog system first refusal on the message and only
-/// deals with what it leaves behind.
-/// </summary>
-INT_PTR CALLBACK Display_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-	if (rc == 0) {
-		return(Display_Options_Dialog_Body(window, message, wparam));
-	}
-	return(rc);
 }

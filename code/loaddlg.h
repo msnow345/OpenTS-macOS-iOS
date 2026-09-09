@@ -120,8 +120,6 @@ class LoadOptionsClass
 		**	Internal routines
 		*/
 		void Clear_List (void);                                     // clears the list & game # array
-		void Fill_List (HWND window, int selected);                  // puts the list on the control
-		void Sync_List (HWND list, HWND dialog, class UISaveBrowserPresenterClass & screen);
 		int Num_From_Ext (char *fname);                             // translates filename to file #
 		static int __cdecl Compare(const void *p1, const void *p2); // for qsort()
 
@@ -136,13 +134,7 @@ class LoadOptionsClass
 		/*
 		 * These handlers are members so that they can reach the dialog's protected data.
 		 */
-		static void Load_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id);
-		static void Save_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id);
-		static void Delete_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id);
 
-		static INT_PTR CALLBACK Load_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-		static INT_PTR CALLBACK Save_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-		static INT_PTR CALLBACK Delete_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 		/*
 		**	This is the requested style of the dialog
