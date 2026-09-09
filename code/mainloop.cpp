@@ -294,7 +294,12 @@ bool Main_Loop(void)
 			}
 		}
 	} else {
-		FrameTimer = Options.GameSpeed;
+		/*
+		 * A game speed of zero is the "fastest" setting, which asks for no delay at all. The
+		 * period display paced the loop on its own; a modern one does not, so hold the same
+		 * 60 frames a second the network pacing in Queue_AI already reads that setting as.
+		 */
+		FrameTimer = std::max(1, Options.GameSpeed);
 	}
 
 	/*
