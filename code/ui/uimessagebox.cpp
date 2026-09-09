@@ -357,6 +357,9 @@ bool UI_Wait_Box_Open(char const * message, char const * cancelcaption, bool * c
 		return(false);
 	}
 
+	// The box must be on screen before the operation underneath begins. A caller that saves
+	// a game and never pumps again would otherwise show nothing at all.
+	UI_Paint_Now(true);
 	return(true);
 }
 
@@ -369,6 +372,9 @@ void UI_Wait_Box_Set_Text(char const * message)
 
 	_WaitPresenter->Message = (message != nullptr) ? message : "";
 	_WaitView->Sync();
+
+	// Set_Custom_Message_Box_Text repainted the box before it returned, through UpdateWindow.
+	UI_Paint_Now(true);
 }
 
 
