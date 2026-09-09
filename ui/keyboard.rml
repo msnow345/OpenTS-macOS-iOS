@@ -1,0 +1,38 @@
+<rml>
+<head>
+	<title>Customize keyboard</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="keyboard.rcss"/>
+</head>
+<body data-model="keyboard" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="title">Customize Keyboard</div>
+
+		<div class="caption" id="categorylabel">Category:</div>
+		<select id="category" data-attr-value="category" data-event-change="choose()">
+			<option data-for="name : categories" data-attr-value="it_index">{{ name }}</option>
+		</select>
+
+		<div class="caption" id="commandlabel">Commands:</div>
+		<div id="commands" class="list">
+			<div class="row" data-for="command : commands" data-class-picked="it_index == selectedcommand" data-event-click="pick(it_index)">{{ command.label }}</div>
+		</div>
+
+		<div id="descriptionbox">Description:</div>
+		<div id="description">{{ description }}</div>
+
+		<div class="caption" id="capturelabel">Press new shortcut key:</div>
+		<div id="capture" tabindex="auto" data-event-keydown="capture()">{{ capturedtext }}</div>
+		<div class="button" id="assign" data-event-click="press('assign')">Assign</div>
+
+		<div class="caption" id="assignedlabel">Currently assigned to:</div>
+		<div class="caption" id="shortcutlabel">Current shortcut:</div>
+		<div class="caption" id="assignedto">{{ assignedto }}</div>
+		<div class="caption" id="shortcut">{{ shortcut }}</div>
+
+		<div class="button" id="reset" data-event-click="press('reset')">Reset All</div>
+		<div class="button" id="ok" data-event-click="press('accept')">[[TXT_OK]]</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

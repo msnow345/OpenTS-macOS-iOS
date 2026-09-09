@@ -89,3 +89,8 @@ class UIKeyboardPresenterClass : public UIPresenterClass
 		void Reset_All(void);
 		void Save_Assignments(void) const;
 };
+
+
+// Shows the screen through its RmlUi view. FAILED_TO_OPEN leaves nothing shown and the
+// caller falls through to the legacy dialog.
+UIResult UI_Keyboard_Screen(UIKeyboardPresenterClass & presenter);

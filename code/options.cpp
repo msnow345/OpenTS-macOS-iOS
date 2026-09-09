@@ -85,6 +85,7 @@
 #include "video.h"
 #include "vox.h"
 #include "ui/uikeyboard.h"
+#include "ui/uishell.h"
 
 #include "diff.hh"
 
@@ -762,6 +763,18 @@ bool OptionsClass::Hotkey_Dialog(void)
 {
 	UIKeyboardPresenterClass screen;
 	screen.Refresh();
+
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Keyboard_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			return(true);
+		}
+
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
 
 	_KeyboardScreen = &screen;
 

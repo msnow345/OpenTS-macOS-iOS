@@ -30,6 +30,9 @@
 
 #include "uikeyboard.h"
 
+#include "uiinternal.h"
+#include "uirmlview.h"
+
 #include "_command.h"
 #include "ccfile.h"
 #include "ccini.h"
@@ -43,8 +46,15 @@
 #include "ownrdraw.h"
 #include "vector.h"
 
+#include "keyboard.h"
+
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
 
 
 // Build_Hotkey_String lives in ownrdraw.cpp and is the only thing this screen wants from
@@ -310,4 +320,156 @@ void UIKeyboardPresenterClass::Execute(UIIntent const & intent)
 	}
 
 	Result = result;
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the keyboard screen.
+/// </summary>
+class KeyboardViewClass : public UIRmlViewClass
+{
+	public:
+		KeyboardViewClass(UIKeyboardPresenterClass & presenter) :
+			UIRmlViewClass(presenter, "keyboard.rml"),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+	private:
+		UIKeyboardPresenterClass & Screen;
+};
+
+
+// Is this the virtual key of a modifier on its own? A hotkey control holds nothing while
+// only modifiers are down and takes the binding when a real key arrives, so a modifier
+// pressed by itself is not a capture.
+static bool Is_Modifier_Key(int key)
+{
+	return(key == VK_SHIFT || key == VK_CONTROL || key == VK_MENU
+		|| (key >= 0xA0 && key <= 0xA5));
+}
+
+
+void KeyboardViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	if (auto command = model.RegisterStruct<UIKeyboardPresenterClass::CommandType>()) {
+		command.RegisterMember("label", &UIKeyboardPresenterClass::CommandType::Label);
+	}
+	model.RegisterArray<std::vector<UIKeyboardPresenterClass::CommandType>>();
+	model.RegisterArray<std::vector<std::string>>();
+
+	model.Bind("categories", &Screen.Categories);
+	model.Bind("category", &Screen.SelectedCategory);
+	model.Bind("commands", &Screen.Commands);
+	model.Bind("selectedcommand", &Screen.SelectedCommand);
+	model.Bind("description", &Screen.Description);
+	model.Bind("shortcut", &Screen.CurrentShortcut);
+	model.Bind("capturedtext", &Screen.CapturedText);
+	model.Bind("assignedto", &Screen.AssignedTo);
+
+	// The combo box is bound one way, as every form control in this family is, so the
+	// category the model holds cannot be re-queued as a change the player did not make.
+	model.BindEventCallback("choose",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			Rml::String const value = event.GetParameter<Rml::String>("value", Rml::String());
+			if (value.empty()) return;
+
+			int const row = std::atoi(value.c_str());
+			if (row == Screen.SelectedCategory) return;
+
+			Screen.Queue(UIIntent{UI_KEYBOARD_CATEGORY, "", row});
+		});
+
+	model.BindEventCallback("pick",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_KEYBOARD_COMMAND, "", (int)arguments[0].Get<float>()});
+		});
+
+	// The capture control. It stands where msctls_hotkey32 stood, so it takes the key
+	// itself and leaves the keys IsDialogMessage took from that control alone: Escape and
+	// Enter still leave the screen and Tab still moves the focus.
+	model.BindEventCallback("capture",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const identifier = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+
+			if (identifier == Rml::Input::KI_ESCAPE || identifier == Rml::Input::KI_RETURN
+				|| identifier == Rml::Input::KI_NUMPADENTER || identifier == Rml::Input::KI_TAB) {
+				return;
+			}
+
+			int const key = UI_Virtual_Key(identifier);
+			if (key == 0 || Is_Modifier_Key(key)) {
+				return;
+			}
+
+			// The game's encoding is the virtual key with its modifier bits above it, and
+			// those bits are the HOTKEYF_ values the hotkey control reported byte for byte.
+			int encoded = key;
+			if (event.GetParameter<bool>("shift_key", false)) encoded |= WWKEY_SHIFT_BIT;
+			if (event.GetParameter<bool>("ctrl_key", false)) encoded |= WWKEY_CTRL_BIT;
+			if (event.GetParameter<bool>("alt_key", false)) encoded |= WWKEY_ALT_BIT;
+
+			event.StopPropagation();
+			Screen.Queue(UIIntent{UI_KEYBOARD_CAPTURE, "", encoded});
+		});
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// Escape cancels and Enter accepts, which is what IsDialogMessage delivered to a dialog
+	// whose template names no default push button.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Screen.Queue(UIIntent{UI_KEYBOARD_CANCEL, "", 0});
+			} else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_KEYBOARD_ACCEPT, "", 0});
+			}
+		});
+}
+
+
+void KeyboardViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Model.DirtyVariable("categories");
+	Model.DirtyVariable("category");
+	Model.DirtyVariable("commands");
+	Model.DirtyVariable("selectedcommand");
+	Model.DirtyVariable("description");
+	Model.DirtyVariable("shortcut");
+	Model.DirtyVariable("capturedtext");
+	Model.DirtyVariable("assignedto");
+}
+
+
+/// <summary>
+/// Shows the keyboard screen and waits for the player to leave it.
+/// </summary>
+UIResult UI_Keyboard_Screen(UIKeyboardPresenterClass & presenter)
+{
+	KeyboardViewClass view(presenter);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
 }

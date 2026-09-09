@@ -1,0 +1,207 @@
+/* The keyboard screen. Geometry from the IDD_OPT_KEYBOARD template, converted from dialog
+   units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625 down,
+   with a child's offset taken from the panel's content box and the panel's declared size
+   taken inside its own border. */
+
+/* 336 x 208 dialog units, so 504 x 338 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -252dp;
+	margin-top: -169dp;
+
+	width: 500dp;
+	height: 334dp;
+}
+
+/* The CTEXT title, 292 x 11 dialog units at 22, 12. */
+#title
+{
+	left: 31dp;
+	top: 17.5dp;
+	width: 438dp;
+	height: 17.875dp;
+	line-height: 17.875dp;
+	text-align: center;
+}
+
+/* The two column captions and the four label and value pairs, all LTEXT. */
+#categorylabel { left: 31dp;  top: 41.875dp;  width: 219dp; height: 14.625dp; line-height: 14.625dp; }
+#commandlabel  { left: 250dp; top: 41.875dp;  width: 219dp; height: 13dp;     line-height: 13dp; }
+#capturelabel  { left: 31dp;  top: 191.375dp; width: 192dp; height: 14.625dp; line-height: 14.625dp; }
+#assignedlabel { left: 31dp;  top: 243.375dp; width: 219dp; height: 17.875dp; line-height: 17.875dp; }
+#shortcutlabel { left: 250dp; top: 243.375dp; width: 219dp; height: 17.875dp; line-height: 17.875dp; }
+#assignedto    { left: 31dp;  top: 267.75dp;  width: 219dp; height: 16.25dp;  line-height: 16.25dp; }
+#shortcut      { left: 250dp; top: 267.75dp;  width: 219dp; height: 16.25dp;  line-height: 16.25dp; }
+
+/* The category combo box, 138 dialog units wide at 22, 42. The template's 146 is how far
+   the list drops, not how tall the control is: an owner-draw CBS_DROPDOWNLIST sizes its
+   closed rectangle from the item height ownrdraw.cpp sets, which is the 14 pixel dialog
+   font plus two, inside a two pixel border. */
+#category
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 31dp;
+	top: 66.25dp;
+	width: 207dp;
+	height: 20dp;
+
+	color: #b9bcae;
+	background-color: #2b2f25;
+	border-width: 2dp;
+	border-top-color: #14160f;
+	border-left-color: #14160f;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+#category selectvalue
+{
+	width: auto;
+	margin-right: 16dp;
+	height: 16dp;
+	line-height: 16dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+#category selectarrow
+{
+	width: 16dp;
+	height: 16dp;
+
+	background-color: #33372c;
+	border-width: 2dp;
+	border-top-color: #767c68;
+	border-left-color: #767c68;
+	border-right-color: #14160f;
+	border-bottom-color: #14160f;
+}
+
+#category selectarrow:active
+{
+	border-top-color: #14160f;
+	border-left-color: #14160f;
+	border-right-color: #767c68;
+	border-bottom-color: #767c68;
+}
+
+/* The dropped list, capped at the 146 dialog units the template gives it. */
+#category selectbox
+{
+	width: 203dp;
+	max-height: 237.25dp;
+	overflow-y: auto;
+
+	background-color: #14160f;
+	border-width: 1dp;
+	border-top-color: #6e7360;
+	border-left-color: #6e7360;
+	border-right-color: #10120e;
+	border-bottom-color: #10120e;
+}
+
+#category selectbox option
+{
+	width: auto;
+	height: 20dp;
+	line-height: 20dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	color: #b9bcae;
+}
+
+#category selectbox option:hover  { color: #e4e6da; }
+#category selectbox option:checked
+{
+	background-color: #3f4536;
+	color: #e4e6da;
+}
+
+/* The command list, 146 x 104 dialog units at 168, 41. */
+#commands
+{
+	left: 250dp;
+	top: 64.625dp;
+	width: 219dp;
+	height: 169dp;
+}
+
+/* A row spans the list less its scrollbar. */
+#commands .row { width: 207dp; }
+
+/* The description group box, 138 x 57 dialog units at 22, 57, with its caption on the top
+   edge the way the owner-draw group box drew it, and the description text inside it at
+   127 x 42 dialog units at 29, 68. */
+#descriptionbox
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 31dp;
+	top: 90.625dp;
+	width: 207dp;
+	height: 92.625dp;
+	line-height: 14dp;
+	padding-left: 8dp;
+
+	color: #b9bcae;
+	border-width: 1dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+#description
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 41.5dp;
+	top: 108.5dp;
+	width: 190.5dp;
+	height: 68.25dp;
+	overflow: hidden;
+	color: #d6d8cc;
+}
+
+/* The capture control, 85 x 14 dialog units at 22, 131. It stands where msctls_hotkey32
+   stood: a bordered field that spells out the key it is holding and takes a keypress
+   whenever it has the focus. */
+#capture
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 31dp;
+	top: 210.875dp;
+	width: 127.5dp;
+	height: 22.75dp;
+	line-height: 18.75dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	overflow: hidden;
+
+	color: #e4e6da;
+	background-color: #14160f;
+	border-width: 2dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+#capture:focus { background-color: #1d2017; }
+
+/* Assign, Reset All, OK and Cancel. */
+.button { height: 22.75dp; line-height: 22.75dp; }
+
+#assign { left: 163dp;   top: 212.5dp;   width: 75dp; }
+#reset  { left: 31dp;    top: 292.125dp; width: 81dp; }
+#ok     { left: 278.5dp; top: 292.125dp; width: 75dp; }
+#cancel { left: 394dp;   top: 292.125dp; width: 75dp; }
