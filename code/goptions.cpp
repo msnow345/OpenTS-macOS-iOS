@@ -48,13 +48,68 @@
 #include "savemgr.h"
 #include "scenario.h"
 #include "stats.h"
+#include "ui/uigameoptions.h"
 
 #include "special.hh"
 
-void Game_Options_On_INITDIALOG(HWND window);
+void Game_Options_On_INITDIALOG(HWND window, UIGameOptionsPresenterClass const & screen);
 INT_PTR CALLBACK Game_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 INT_PTR CALLBACK Abort_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 void Abort_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+
+
+// The screen the dialog procedure reads and writes. The driver owns it for the whole life
+// of the dialog, which is the same lifetime DWLP_USER gave the result pointer it replaces.
+static UIGameOptionsPresenterClass * _Screen = NULL;
+
+
+static void Game_Options_Queue(UIGameOptionsPresenterClass & screen, char const * action, int value = 0)
+{
+	UIIntent intent;
+	intent.Action = action;
+	intent.Value = value;
+	screen.Queue(intent);
+}
+
+
+/// <summary>
+/// Puts the view-model's enabled states into the controls the dialog enabled by hand.
+/// A control the template left alone for a session type is left alone here too, so styling
+/// adds no restriction the dialog did not have.
+/// </summary>
+static void Game_Options_Sync_Controls(HWND window, UIGameOptionsPresenterClass const & screen)
+{
+	HWND handle;
+
+	if (!screen.IsMultiplayer) {
+		handle = GetDlgItem(window, IDC_LOAD_GAME);
+		if (handle) {
+			EnableWindow(handle, screen.CanLoad);
+		}
+
+		handle = GetDlgItem(window, IDC_DELETE_GAME);
+		if (handle) {
+			EnableWindow(handle, screen.CanDelete);
+		}
+	} else {
+		handle = GetDlgItem(window, IDC_SAVE_GAME);
+		if (handle) {
+			EnableWindow(handle, screen.CanSave);
+		}
+
+		handle = GetDlgItem(window, IDC_LOAD_GAME);
+		if (handle) {
+			EnableWindow(handle, screen.CanLoad);
+		}
+	}
+
+	if (!screen.CanBrief) {
+		handle = GetDlgItem(window, IDC_BRIEFING);
+		if (handle) {
+			EnableWindow(handle, FALSE);
+		}
+	}
+}
 
 /// <summary>
 /// Displays the in game options dialog.
@@ -65,7 +120,10 @@ void Abort_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lp
 /// </summary>
 void Game_Options_Dialog(void)
 {
-	int rc = 0;
+	UIGameOptionsPresenterClass screen;
+	screen.Refresh();
+
+	_Screen = &screen;
 
 	HWND dialog;
 	if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
@@ -81,33 +139,57 @@ void Game_Options_Dialog(void)
 
 	if (dialog) {
 
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&rc);
-
 		OwnerDraw::Display_Dialog(dialog);
 
-		while (rc == 0) {
+		while (!screen.Result.has_value()) {
 			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				rc = IDOK;
+				// A session that ended underneath the screen leaves it as though the player
+				// had resumed, which is the IDOK the driver used to write.
+				UIResult ended;
+				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
+				ended.GameEnded = true;
+				screen.Choice = UIGameOptionsPresenterClass::CHOICE_RESUME;
+				screen.Result = ended;
+				break;
 			}
+
+			// A control handler queues rather than acts, so the queue is executed here,
+			// after the pump has returned.
+			screen.Drain();
+
+			// Getting out of the way of a screen this one opens is the view's work; what
+			// running it means is the presenter's.
+			if (screen.Pending != UIGameOptionsPresenterClass::SUB_NONE) {
+				ShowWindow(dialog, SW_HIDE);
+				UpdateWindow(MainWindow);
+				screen.Run_Pending();
+				if (!screen.Result.has_value()) {
+					ShowWindow(dialog, SW_SHOW);
+					UpdateWindow(dialog);
+				}
+			}
+
+			Game_Options_Sync_Controls(dialog, screen);
 		}
+
 		OwnerDraw::End_Dialog(dialog);
 	}
 
+	_Screen = nullptr;
+
 	Keyboard->Clear();
 
-	if (rc == IDC_BRIEFING) {
+	if (screen.Choice == UIGameOptionsPresenterClass::CHOICE_BRIEFING) {
 		Restate_Mission(Scen);
 	}
 
 	IgnoreInput = Scen->IsInputLocked;
 
-	if (rc == IDC_LOAD_GAME) {
-		if (IDC_LOAD_GAME) {
-			if (MouseCursor->Is_Hidden() == false && Scen->IsInputLocked == 1) {
-				Hide_Mouse();
-			} else if (MouseCursor->Is_Hidden() == true && Scen->IsInputLocked == 0) {
-				Show_Mouse();
-			}
+	if (screen.Choice == UIGameOptionsPresenterClass::CHOICE_LOADED) {
+		if (MouseCursor->Is_Hidden() == false && Scen->IsInputLocked == 1) {
+			Hide_Mouse();
+		} else if (MouseCursor->Is_Hidden() == true && Scen->IsInputLocked == 0) {
+			Show_Mouse();
 		}
 	}
 
@@ -117,139 +199,79 @@ void Game_Options_Dialog(void)
 
 /// <summary>
 /// Handles messages for the in game options dialog.
-/// This routine offers every message to the owner draw system first. What is left it uses
-/// to service the option buttons -- save, load, delete, briefing, resume, abort and
-/// settings -- either acting on them directly or noting the player's choice for
-/// Game_Options_Dialog to deal with once the dialog comes down. Dragging the game speed or
-/// connection quality slider updates the label beside it.
+/// The procedure reads the view-model and queues what the player asked for; the driver
+/// executes the queue after the pump returns, as docs/UI_DESIGN.md requires of every
+/// screen. Dragging the game speed or connection quality slider updates the label beside it,
+/// which is the view's own business.
 /// </summary>
 /// <returns>Returns with TRUE if the owner draw system consumed the message.</returns>
 INT_PTR CALLBACK Game_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	static int GameConnectionQualityNames[] = {
-		TXT_WORST_CONNECTION,
-		TXT_POOR_CONNECTION,
-		TXT_GOOD_CONNECTION,
-		TXT_BEST_CONNECTION
-	};
-
 	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	HWND handle;
 
 	if (rc) {
 		return(rc);
 	}
 
+	// The driver owns the screen for the whole life of the dialog, so a message that arrives
+	// without one has nothing to act on.
+	if (_Screen == nullptr) {
+		return(FALSE);
+	}
+
+	UIGameOptionsPresenterClass & screen = *_Screen;
+	HWND handle;
+
 	switch (message) {
 
 		case WM_INITDIALOG:
-			Game_Options_On_INITDIALOG(window);
+			Game_Options_On_INITDIALOG(window, screen);
 			break;
 
 		case WM_COMMAND: {
 			int code = HIWORD(wparam);
-			int* retval = (int *)GetWindowLongPtr(window, DWLP_USER);
 
 			switch (LOWORD(wparam)) {
 
 				case IDC_SAVE_GAME:
-					if (!code) {
-						if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
-							ShowWindow(window, SW_HIDE);
-							UpdateWindow(MainWindow);
-							char description[512];
-							strcpy(description, Scen->Description);
-							LoadOptionsClass().Save(description);
-							Game_Options_On_INITDIALOG(window);
-							ShowWindow(window, SW_SHOW);
-							UpdateWindow(window);
-						} else if (SaveManager.Is_Multiplayer_Saving_Allowed()) {
-							OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::SAVEGAME));
-							*retval = IDC_SAVE_GAME;
-						}
-					}
+					if (!code) Game_Options_Queue(screen, UI_GAMEOPT_SAVE);
 					break;
 
 				case IDC_LOAD_GAME:
-					if (!code) {
-						if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
-							ShowWindow(window, SW_HIDE);
-							UpdateWindow(MainWindow);
-							if (LoadOptionsClass().Load()) {
-								*retval = IDC_LOAD_GAME;
-							} else {
-								ShowWindow(window, SW_SHOW);
-								UpdateWindow(window);
-							}
-						} else if (SaveManager.Multiplayer_Load_Is_Allowed()) {
-							// A list opened from in here would sit inside the main loop and stall the
-							// match; the menu loop opens it between frames instead.
-							SpecialDialog = SDLG_LOAD;
-							*retval = IDC_LOAD_GAME;
-						}
-					}
+					if (!code) Game_Options_Queue(screen, UI_GAMEOPT_LOAD);
 					break;
 
 				case IDC_BRIEFING:
-					if (!code) {
-						*retval = IDC_BRIEFING;
-					}
+					if (!code) Game_Options_Queue(screen, UI_GAMEOPT_BRIEFING);
 					break;
 
 				case IDC_DELETE_GAME:
-					if (!code) {
-						ShowWindow(window, SW_HIDE);
-						UpdateWindow(MainWindow);
-						LoadOptionsClass().Delete();
-						Game_Options_On_INITDIALOG(window);
-						ShowWindow(window, SW_SHOW);
-						UpdateWindow(window);
-					}
+					if (!code) Game_Options_Queue(screen, UI_GAMEOPT_DELETE);
 					break;
 
 				case IDC_RESUME_MISSION:
 					if (!code) {
-						if (Session.Type == GAME_INTERNET) {
-							handle = GetDlgItem(window, IDC_CTRLWOL_CONNECTION);
-							if (handle) {
-								int fudge = 3 - SendMessage(handle, TBM_GETPOS, 0, 0);
-								if (fudge != Session.LatencyFudge) {
-									OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::LATENCYFUDGE, fudge));
-									DebugString("LATENCYFUDGE event created - %d\n", fudge);
-								}
-							}
-							handle = GetDlgItem(window, IDC_GAME_SPEED_SLIDER);
-							if (handle) {
-								int speed = (OptionsClass::MAX_SPEED_SETTING-1) - SendMessage(handle, TBM_GETPOS, 0, 0);
-								if (Options.GameSpeed != speed) {
-									OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::GAMESPEED, speed));
-								}
-							}
+						// The sliders are read here rather than tracked, because a keyboard
+						// or page move changes a track bar without raising WM_HSCROLL's
+						// thumb notification, and resume is where the dialog read them.
+						handle = GetDlgItem(window, IDC_CTRLWOL_CONNECTION);
+						if (handle) {
+							Game_Options_Queue(screen, UI_GAMEOPT_CONNECTION, SendMessage(handle, TBM_GETPOS, 0, 0));
 						}
-						*retval = IDOK;
+						handle = GetDlgItem(window, IDC_GAME_SPEED_SLIDER);
+						if (handle) {
+							Game_Options_Queue(screen, UI_GAMEOPT_SPEED, SendMessage(handle, TBM_GETPOS, 0, 0));
+						}
+						Game_Options_Queue(screen, UI_GAMEOPT_RESUME);
 					}
 					break;
 
 				case IDC_ABORT_MISSION:
-					if (!code) {
-						if (Session.Type == GAME_INTERNET) {
-							SpecialDialog = SDLG_SURRENDER;
-							if (!WestwoodOnline_Tournament) {
-								SpecialDialog = SDLG_ABORT;
-							}
-						} else {
-							SpecialDialog = SDLG_ABORT;
-						}
-						*retval = IDCANCEL;
-					}
+					if (!code) Game_Options_Queue(screen, UI_GAMEOPT_ABORT);
 					break;
 
 				case IDC_GAME_CONTROLS:
-					if (!code) {
-						SpecialDialog = SDLG_SETTINGS;
-						*retval = IDOK;
-					}
+					if (!code) Game_Options_Queue(screen, UI_GAMEOPT_SETTINGS);
 					break;
 
 				default:
@@ -261,20 +283,28 @@ INT_PTR CALLBACK Game_Options_Dialog_Proc(HWND window, UINT message, WPARAM wpar
 		case WM_HSCROLL: {
 			if (LOWORD(wparam) == SB_THUMBTRACK) {
 				int pos = HIWORD(wparam);
-				int textid;
+				char const * label = NULL;
 
 				if ((HWND)lparam == GetDlgItem(window, IDC_GAME_SPEED_SLIDER)) {
-					textid = GameSpeedNames[pos];
+					if (pos >= 0 && pos < (int)screen.SpeedLabels.size()) {
+						label = screen.SpeedLabels[pos].c_str();
+					}
 					handle = GetDlgItem(window, IDC_GAME_SPEED_LABEL);
+					Game_Options_Queue(screen, UI_GAMEOPT_SPEED, pos);
 				} else if ((HWND)lparam == GetDlgItem(window, IDC_CTRLWOL_CONNECTION)) {
-					textid = GameConnectionQualityNames[pos];
+					if (pos >= 0 && pos < (int)screen.ConnectionLabels.size()) {
+						label = screen.ConnectionLabels[pos].c_str();
+					}
+					// The connection label shares the scroll speed label's identifier, which
+					// is what the IDD_OPT_CTRL_WOL template names it.
 					handle = GetDlgItem(window, IDC_SCROLL_SPEED_LABEL);
+					Game_Options_Queue(screen, UI_GAMEOPT_CONNECTION, pos);
 				} else {
 					break;
 				}
 
-				if (handle) {
-					Static_SetText(handle, Fetch_String(textid));
+				if (handle && label != NULL) {
+					Static_SetText(handle, label);
 				}
 			}
 			break;
@@ -290,61 +320,28 @@ INT_PTR CALLBACK Game_Options_Dialog_Proc(HWND window, UINT message, WPARAM wpar
 
 /// <summary>
 /// Prepares the controls of the game options dialog.
-/// This routine is called when the dialog is created, and again whenever a save or delete
-/// has changed what is on disk. It decides which buttons the current game type allows the
-/// player to use and primes the game speed and connection quality sliders.
+/// Everything here comes out of the view-model, which the presenter refreshed before the
+/// dialog was created and again whenever a save or a delete changed what is on disk.
 /// </summary>
-void Game_Options_On_INITDIALOG(HWND window)
+void Game_Options_On_INITDIALOG(HWND window, UIGameOptionsPresenterClass const & screen)
 {
 	HWND handle;
 
-	if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
-		bool present = LoadOptionsClass().Files_Present();
+	Game_Options_Sync_Controls(window, screen);
 
-		handle = GetDlgItem(window, IDC_LOAD_GAME);
-		if (handle) {
-			EnableWindow(handle, present);
-		}
-
-		handle = GetDlgItem(window, IDC_DELETE_GAME);
-		if (handle) {
-			EnableWindow(handle, present);
-		}
-	}
-
-	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH) {
-		handle = GetDlgItem(window, IDC_SAVE_GAME);
-		if (handle) {
-			EnableWindow(handle, SaveManager.Is_Multiplayer_Saving_Allowed());
-		}
-
-		handle = GetDlgItem(window, IDC_LOAD_GAME);
-		if (handle) {
-			EnableWindow(handle, SaveManager.Multiplayer_Load_Is_Allowed() && MultiplayerLoadOptionsClass().Files_Present());
-		}
-	}
-
-	if (Session.Type == GAME_INTERNET) {
+	if (screen.HasSliders) {
 
 		handle = GetDlgItem(window, IDC_CTRLWOL_CONNECTION);
 		if (handle) {
-			SetSliderRangeAndPos(handle, 0, 3, 3 - Session.LatencyFudge);
+			SetSliderRangeAndPos(handle, 0, 3, screen.ConnectionStep);
 		}
 
 		handle = GetDlgItem(window, IDC_GAME_SPEED_SLIDER);
 		if (handle) {
 			Slider_SetRange(handle, 0, OptionsClass::MAX_SPEED_SETTING-1);
-			Slider_SetPos(handle, (OptionsClass::MAX_SPEED_SETTING-1) - Options.GameSpeed);
+			Slider_SetPos(handle, screen.SpeedStep);
 		}
 	}
-
-	if (Session.Type == GAME_SKIRMISH) {
-		handle = GetDlgItem(window, IDC_BRIEFING);
-		if (handle) {
-			EnableWindow(handle, FALSE);
-		}
-	}
-
 }
 
 
