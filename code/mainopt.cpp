@@ -36,6 +36,7 @@
 #include "surface.h"
 #include "wwmouse.h"
 #include "ui/uidisplayconfirm.h"
+#include "ui/uidisplayoptions.h"
 
 #include "color.hh"
 
@@ -46,12 +47,11 @@ bool Change_Display_Mode(int width, int height);
 bool Test_Display_Mode_Dialog(int width, int height);
 INT_PTR CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
-GameOptionsClass TempOptions;
 
 
-// The screen the mode confirmation's procedure reads and writes. The driver owns it for the
-// whole life of that dialog, which is the lifetime DWLP_USER gave the result pointer it
-// replaces.
+// The screens the dialog procedures read and write. A driver owns one for the whole life of
+// its dialog, which is the lifetime DWLP_USER gave the result pointer each replaces.
+static UIDisplayOptionsPresenterClass * _DisplayScreen = NULL;
 static UIDisplayConfirmPresenterClass * _ConfirmScreen = NULL;
 
 
@@ -106,44 +106,9 @@ void Main_Options_Dialog(void)
 				SoundControlsClass().Dialog();
 				break;
 
-			case IDC_OPTMAIN_DISPLAY: {
-				while (true) {
-					do {
-						TempOptions = Options;
-						in_rc = -1;
-						in_handle = OwnerDraw::Begin_Dialog(IDD_OPT_DISPLAY, Display_Options_Dialog_Proc);
-					} while (in_handle == 0);
-					SetWindowLongPtr(in_handle, DWLP_USER, (LONG_PTR)&in_rc);
-					OwnerDraw::Display_Dialog(in_handle);
-
-					while (in_rc < 0) {
-						if (OwnerDraw::Dialog_Message_Handler() == true) {
-							break;
-						}
-						Title_Screen_Restore();
-					}
-
-					OwnerDraw::End_Dialog(in_handle);
-
-					if (in_rc != 1) {
-						break;
-					}
-					if (TempOptions.ScreenWidth == Options.ScreenWidth && TempOptions.ScreenHeight == Options.ScreenHeight) {
-						break;
-					}
-
-						if (WWMessageBox().Process(TXT_ABOUT_TO_TRY_MODE, TXT_OK, TXT_CANCEL) == 0) {
-							if (!Test_Display_Mode_Dialog(TempOptions.ScreenWidth, TempOptions.ScreenHeight)) {
-								continue;
-							}
-							Options.ScreenWidth = TempOptions.ScreenWidth;
-							Options.ScreenHeight = TempOptions.ScreenHeight;
-						}
-
-					break;
-				}
-			}
-			break;
+			case IDC_OPTMAIN_DISPLAY:
+				Display_Options_Dialog();
+				break;
 
 			case IDC_OPTMAIN_KEYBOARD:
 				Options.Hotkey_Dialog();
@@ -193,6 +158,60 @@ INT_PTR CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wpar
 		return(0);
 	}
 	return(rc);
+}
+
+
+/// <summary>
+/// Brings up the display options and offers a chosen resolution as a trial.
+/// A mode the player refuses, or does not answer for, brings the screen straight back up
+/// with the old resolution in force; anything else leaves.
+/// </summary>
+void Display_Options_Dialog(void)
+{
+	while (true) {
+		UIDisplayOptionsPresenterClass screen;
+		screen.Refresh();
+
+		_DisplayScreen = &screen;
+
+		HWND handle;
+		do {
+			handle = OwnerDraw::Begin_Dialog(IDD_OPT_DISPLAY, Display_Options_Dialog_Proc);
+		} while (handle == 0);
+		OwnerDraw::Display_Dialog(handle);
+
+		while (!screen.Result.has_value()) {
+			if (OwnerDraw::Dialog_Message_Handler() == true) {
+				UIResult ended;
+				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
+				ended.GameEnded = true;
+				screen.Result = ended;
+				break;
+			}
+
+			screen.Drain();
+			screen.Service();
+		}
+
+		OwnerDraw::End_Dialog(handle);
+		_DisplayScreen = NULL;
+
+		if (screen.Choice != UIDisplayOptionsPresenterClass::CHOICE_ACCEPT) {
+			break;
+		}
+		if (!screen.Wants_Mode_Change()) {
+			break;
+		}
+
+		if (WWMessageBox().Process(TXT_ABOUT_TO_TRY_MODE, TXT_OK, TXT_CANCEL) == 0) {
+			if (!Test_Display_Mode_Dialog(screen.StagedWidth, screen.StagedHeight)) {
+				continue;
+			}
+			screen.Commit();
+		}
+
+		break;
+	}
 }
 
 
@@ -422,26 +441,18 @@ INT_PTR CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM
 
 /// <summary>
 /// Handles the display options dialog messages.
-/// This routine fills the resolution list with the display modes the hardware reports,
-/// remembers which one the player picked, and tracks the movie stretching preference. The
-/// chosen resolution is staged in the temporary options so that it can be tested before
-/// being made permanent.
+/// The procedure fills the resolution list from the view-model, queues the row and the
+/// movie stretching preference the player left it on, and hands the driver what the player
+/// pressed to execute after the pump.
 /// </summary>
 static __forceinline BOOL Display_Options_Dialog_Body(HWND window, UINT message, WPARAM wparam)
 {
-	enum {
-		MIN_WIDTH = 640,
-		MIN_HEIGHT = 400,
-		MAX_WIDTH = 4096,
-		MAX_HEIGHT = 4096,
-	};
+	if (_DisplayScreen == NULL) {
+		return(0);
+	}
 
-	static int * _modes = NULL;
-	static int _current_mode = -1;
-	static int _previous_mode = -1;
-	static bool _initialized = true;
+	UIDisplayOptionsPresenterClass & screen = *_DisplayScreen;
 
-	int * result = (int *)GetWindowLongPtr(window, DWLP_USER);
 	switch (message) {
 		case WM_COMMAND:
 			switch (LOWORD(wparam)) {
@@ -450,65 +461,45 @@ static __forceinline BOOL Display_Options_Dialog_Body(HWND window, UINT message,
 
 				case IDC_DISPLAY_RESLIST: {
 					HWND list = GetDlgItem(window, IDC_DISPLAY_RESLIST);
-					_current_mode = ListBox_GetCurSel(list);
+					if (list) {
+						Options_Queue(screen, UI_DISPLAY_SELECT, ListBox_GetCurSel(list));
+					}
 				}
 				return(0);
 
 				case IDOK: {
-					if (_previous_mode != _current_mode) {
+					HWND list = GetDlgItem(window, IDC_DISPLAY_RESLIST);
+					if (list) {
 						Center_Window_Within_Window(window, MainWindow);
-						HWND list = GetDlgItem(window, IDC_DISPLAY_RESLIST);
-						if (list) {
-							int index = ListBox_GetItemData(list, _current_mode);
-							int * modes = &_modes[2 * index];
-							TempOptions.ScreenWidth = modes[0];
-							TempOptions.ScreenHeight = modes[1];
-						}
+						Options_Queue(screen, UI_DISPLAY_SELECT, ListBox_GetCurSel(list));
 					}
 					HWND button = GetDlgItem(window, IDC_STRETCH_MOVIES);
 					if (button) {
-						Options.StretchMovies = Button_GetCheck(button) == BST_CHECKED;
+						Options_Queue(screen, UI_DISPLAY_STRETCH, Button_GetCheck(button) == BST_CHECKED ? 1 : 0);
 					}
+					Options_Queue(screen, UI_DISPLAY_ACCEPT);
 				}
 				break;
 
 				case IDCANCEL:
+					Options_Queue(screen, UI_DISPLAY_CANCEL);
 					break;
 			}
-			delete [] _modes;
-			*result = LOWORD(wparam);
 			break;
 
 		case WM_INITDIALOG: {
 			HWND list = GetDlgItem(window, IDC_DISPLAY_RESLIST);
-			_modes = EnumDisplayModes(MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT);
-			int * modes = _modes;
-			int item_index = 0;
-			int initial_mode = -1;
-			int mode_index = 0;
-			if (modes != NULL) {
-				while (*modes != 0) {
-					int width = *modes++;
-					int height = *modes++;
-					if (width == TempOptions.ScreenWidth && height == TempOptions.ScreenHeight) {
-						initial_mode = mode_index;
-					}
-					char buffer[64];
-					sprintf(buffer, "%d x %d", width, height);
-					int index = ListBox_AddString(list, buffer);
-					ListBox_SetItemData(list, index, item_index);
-					mode_index++;
-					item_index++;
+			if (list) {
+				for (UIDisplayOptionsPresenterClass::ModeType const & mode : screen.Modes) {
+					int const index = ListBox_AddString(list, mode.Label.c_str());
+					ListBox_SetItemData(list, index, index);
 				}
+				ListBox_SetCurSel(list, screen.Selected);
 			}
-			ListBox_SetCurSel(list, initial_mode);
-			_initialized = true;
-			_current_mode = initial_mode;
-			_previous_mode = initial_mode;
 
 			HWND button = GetDlgItem(window, IDC_STRETCH_MOVIES);
 			if (button) {
-				Button_SetCheck(button, Options.StretchMovies != false);
+				Button_SetCheck(button, screen.StretchMovies != false);
 			}
 		}
 		break;
