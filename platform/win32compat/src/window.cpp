@@ -888,3 +888,95 @@ extern "C" BOOL Win32Compat_Window_Is_Fullscreen(HWND handle)
 
 	return((SDL_GetWindowFlags(window->Handle) & SDL_WINDOW_FULLSCREEN) != 0 ? TRUE : FALSE);
 }
+
+
+#ifdef OPENTS_IOS
+/*
+ * The smallest frame the game lays its art out in. Every touch target on screen is some
+ * number of frame pixels across, so the frame is kept as small as the art allows and the
+ * display stretches it; a larger frame would put more map on screen and shrink the sidebar
+ * cameos, the tab buttons and the menu entries in the same proportion.
+ */
+static int const _MinimumFrameWidth = 640;
+static int const _MinimumFrameHeight = 400;
+#endif
+
+
+/// <summary>
+/// Reports the frame size this host wants the game laid out in.
+/// A display the player cannot resize or move the game off has one answer better than any
+/// default: the smallest frame the art supports, grown along whichever axis has room, so
+/// the drawable is covered without a letterbox and every target is as large as it can be.
+/// </summary>
+/// <returns>BOOL; Does this host have an answer? A host whose window the player owns does
+/// not, and leaves the game to its own default.</returns>
+extern "C" BOOL Win32Compat_Preferred_Frame_Size(int * width, int * height)
+{
+#ifdef OPENTS_IOS
+	if (width == NULL || height == NULL) {
+		return(FALSE);
+	}
+
+	/*
+	 * The display is asked before there is a window to ask, so it may still be reporting
+	 * the orientation the device is held in rather than the one the bundle allows. This
+	 * application is landscape only, so the longer edge is the width whichever way the
+	 * numbers arrive.
+	 */
+	int const across = std::max(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+	int const down = std::min(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+
+	if (across <= 0 || down <= 0) {
+		return(FALSE);
+	}
+
+	double const aspect = (double)across / (double)down;
+	int frame_width = _MinimumFrameWidth;
+	int frame_height = _MinimumFrameHeight;
+
+	if (aspect >= (double)_MinimumFrameWidth / (double)_MinimumFrameHeight) {
+		frame_width = (int)(_MinimumFrameHeight * aspect + 0.5);
+	} else {
+		frame_height = (int)(_MinimumFrameWidth / aspect + 0.5);
+	}
+
+	// The surfaces are happier on an even edge and a pixel either way is below the scale
+	// the frame is stretched by.
+	*width = frame_width & ~1;
+	*height = frame_height & ~1;
+	return(TRUE);
+#else
+	(void)width;
+	(void)height;
+	return(FALSE);
+#endif
+}
+
+
+/// <summary>
+/// Reports the part of the client area nothing of the host's own covers, in physical pixels.
+/// </summary>
+/// <returns>BOOL; Was an area reported? A host that answers no is not covering anything.</returns>
+extern "C" BOOL Win32Compat_Window_Safe_Area(HWND handle, LPRECT rect)
+{
+	Win32Window * window = Win32_Lookup(handle);
+
+	if (rect == NULL || window == NULL || window->Handle == NULL) {
+		return(FALSE);
+	}
+
+	SDL_Rect area;
+	if (!SDL_GetWindowSafeArea(window->Handle, &area)) {
+		return(FALSE);
+	}
+
+	// The host states the area in logical points; every rectangle this layer reports is in
+	// the physical pixels the engine measures its frame in.
+	float const density = Win32_Pixel_Density();
+
+	rect->left = (LONG)(area.x * density);
+	rect->top = (LONG)(area.y * density);
+	rect->right = (LONG)((area.x + area.w) * density);
+	rect->bottom = (LONG)((area.y + area.h) * density);
+	return(TRUE);
+}

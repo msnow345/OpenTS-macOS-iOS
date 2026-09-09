@@ -92,3 +92,9 @@ bool Win32_Touch_Take_Scroll(int * x, int * y);
 // The layer bgfx presents into, which SDL owns and this layer only hands over.
 extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
 extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
+
+// The frame size this host wants the game laid out in, and the part of the client area
+// nothing of the host's own covers. Both are in physical pixels; a host with no opinion
+// answers FALSE and leaves the values alone.
+extern "C" BOOL Win32Compat_Preferred_Frame_Size(int * width, int * height);
+extern "C" BOOL Win32Compat_Window_Safe_Area(HWND window, LPRECT rect);

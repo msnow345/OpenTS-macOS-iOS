@@ -145,6 +145,7 @@ Uint8 _HeldButton;
 
 float Dead_Zone(void);
 bool Window_Size(float & width, float & height);
+void Log_Display(void);
 
 // The pointer is parked once the gesture's own messages are all out. Parking ahead of a
 // deferred release would deliver that release at the middle of the window.
@@ -214,6 +215,39 @@ bool Log_Requested(void)
 }
 
 
+// The second header line answers the questions a first device session raises before any
+// finger has arrived: how large the drawable really is, what part of it the host covers,
+// how fast the panel runs, and what frame size this layer asked the game to lay itself out
+// in. A touch that lands in the wrong place is nearly always one of these being wrong.
+void Log_Display(void)
+{
+	Win32Window * main = Win32_Lookup(Win32_Main_Window());
+
+	if (_Log == NULL || main == NULL || main->Handle == NULL) {
+		return;
+	}
+
+	int pixelwidth = 0;
+	int pixelheight = 0;
+	SDL_GetWindowSizeInPixels(main->Handle, &pixelwidth, &pixelheight);
+
+	SDL_Rect safe = { 0, 0, 0, 0 };
+	bool const hassafe = SDL_GetWindowSafeArea(main->Handle, &safe);
+
+	SDL_DisplayMode const * mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(main->Handle));
+
+	int framewidth = 0;
+	int frameheight = 0;
+	bool const preferred = Win32Compat_Preferred_Frame_Size(&framewidth, &frameheight) != FALSE;
+
+	std::fprintf(_Log, "drawable %dx%d pixels, safe area %d,%d %dx%d points, refresh %g Hz, preferred frame %dx%d\n",
+		pixelwidth, pixelheight,
+		hassafe ? safe.x : 0, hassafe ? safe.y : 0, hassafe ? safe.w : 0, hassafe ? safe.h : 0,
+		mode != NULL ? (double)mode->refresh_rate : 0.0,
+		preferred ? framewidth : 0, preferred ? frameheight : 0);
+}
+
+
 FILE * Log_Open(void)
 {
 	if (_LogChecked) {
@@ -251,6 +285,7 @@ FILE * Log_Open(void)
 		std::fprintf(_Log, "window %gx%g points, density %g, dead zone %g points, long press %llu ms\n",
 			sized ? width : 0.0f, sized ? height : 0.0f, (double)Win32_Pixel_Density(),
 			(double)Dead_Zone(), (unsigned long long)(TOUCH_LONG_PRESS_NS / 1000000ULL));
+		Log_Display();
 		std::fflush(_Log);
 	}
 
@@ -792,6 +827,12 @@ bool Win32_Touch_Handle_Event(SDL_Event const & event)
 void Win32_Touch_Service(void)
 {
 	Uint64 const now = SDL_GetTicksNS();
+
+	// Opened as soon as there is a window to measure, so the header is written even in a
+	// session that ends before anything is touched.
+	if (!_LogChecked && Win32_Lookup(Win32_Main_Window()) != NULL) {
+		Log_Open();
+	}
 
 	if (_Release.Pending && now >= _Release.Due) {
 		Flush_Release();
