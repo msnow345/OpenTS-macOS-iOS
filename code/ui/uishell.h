@@ -43,8 +43,6 @@ bool UI_Overlay_Is_Dirty(void);
 
 // Is an overlay document on screen? The coexistence rule in docs/UI_DESIGN.md forbids
 // showing a legacy dialog while one is.
-bool UI_Document_Is_Visible(void);
 
 // Should a migrated screen use its RmlUi view rather than its legacy one? No screen has
 // migrated yet, so this answers false until one has.
-bool UI_Use_Rml(void);

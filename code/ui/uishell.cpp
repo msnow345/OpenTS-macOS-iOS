@@ -18,6 +18,8 @@
 
 #include "uishell.h"
 
+#include "drawhelp.h"
+
 #include "uiinternal.h"
 #include "uirmlview.h"
 
@@ -61,7 +63,6 @@ static int _ModalDepth = 0;
 // How many shown documents have handed the mouse pointer to the host. A legacy dialog gave
 // the pointer back to Windows for as long as it was up, which is what drew an arrow over it;
 // the game's own pointer is a shape it only has while a scenario is running.
-static int _PointerDepth = 0;
 
 // How many modal runners are on the stack. A runner owns the context between its own
 // passes, so the tick that Main_Loop and Call_Back make from inside one is dropped rather
@@ -530,24 +531,6 @@ void UI_Paint_Now(bool immediate)
 }
 
 
-bool UI_Document_Is_Visible(void)
-{
-	return(_Initialized && _Context != nullptr && _Context->GetNumDocuments() > 0);
-}
-
-
-/// <summary>
-/// Should a migrated screen use its RmlUi view rather than its legacy one?
-/// The answer is latched at screen entry, never mid-gesture, and LegacyDialogs in SUN.INI
-/// returns every migrated screen to the view it replaced for as long as one exists. The key
-/// and this function both go when OwnerDraw does.
-/// </summary>
-bool UI_Use_Rml(void)
-{
-	return(_Initialized && _Context != nullptr && !Options.LegacyDialogs);
-}
-
-
 #ifndef NDEBUG
 /// <summary>
 /// Shows or hides the document that proves the shell renders, clips and takes input.
@@ -607,37 +590,6 @@ static bool Handle_Developer_Key(WPARAM key)
 	}
 }
 #endif
-
-
-/// <summary>
-/// Hands the mouse pointer to the host while a document is shown.
-/// OwnerDraw::Capture_Mouse did this for every legacy dialog: with the game's mouse
-/// released, WM_SETCURSOR falls through to the window class and Windows draws an arrow.
-/// A front end has no game pointer of its own, so without this a document shows none.
-/// </summary>
-static void Release_Pointer_To_Host(void)
-{
-	if (MouseCursor != nullptr && MouseCursor->Is_Captured()) {
-		MouseCursor->Release_Mouse();
-	}
-
-	_PointerDepth++;
-}
-
-
-/// <summary>
-/// Takes the pointer back once the last document has gone.
-/// </summary>
-static void Recapture_Pointer(void)
-{
-	if (_PointerDepth > 0) {
-		_PointerDepth--;
-	}
-
-	if (_PointerDepth == 0 && MouseCursor != nullptr && !MouseCursor->Is_Captured()) {
-		MouseCursor->Capture_Mouse();
-	}
-}
 
 
 /// <summary>

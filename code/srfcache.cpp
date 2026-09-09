@@ -17,7 +17,7 @@
 
 #include "ccfile.h"
 #include "dsurface.h"
-#include "ownrdraw.h"
+#include "drawhelp.h"
 #include "pcx.h"
 
 #include <algorithm>
@@ -101,6 +101,9 @@ static unsigned int SurfaceCache_Wstring_Hash(Wstring & string)
 	}
 	return(hash);
 }
+
+
+SurfaceCacheClass SurfaceCache;
 
 
 /// <summary>

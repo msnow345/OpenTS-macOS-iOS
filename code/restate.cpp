@@ -29,7 +29,7 @@
 #include "msanim.h"
 #include "msengine.h"
 #include "msfont.h"
-#include "ownrdraw.h"
+#include "drawhelp.h"
 #include "rules.h"
 #include "scenario.h"
 #include "srfcache.h"

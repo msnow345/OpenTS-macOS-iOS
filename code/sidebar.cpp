@@ -837,10 +837,6 @@ bool SidebarClass::Add(RTTIType type, int id)
  *=============================================================================================*/
 bool SidebarClass::Scroll(bool up, int column)
 {
-	if (_dialog_count != 0) {
-		return(false);
-	}
-
 	if (column == -1) {
 		bool scr = false;
 		if (Column[0].Scroll(up)) {

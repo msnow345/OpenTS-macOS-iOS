@@ -396,12 +396,6 @@ bool UI_Reconnect_Open(bool reconnect, int const * frames, int connections)
 	_Presenter = new UIReconnectPresenterClass;
 	_Presenter->Open(reconnect, frames, connections);
 
-	// The presentation is latched here, at screen entry. A document that will not prepare
-	// drops the screen back to the legacy dialog, which runs against the same presenter.
-	if (!UI_Use_Rml()) {
-		return(false);
-	}
-
 	ReconnectViewClass * const view = new ReconnectViewClass(*_Presenter);
 
 	// The wait loop stops servicing the map's input while this screen is up, so the screen

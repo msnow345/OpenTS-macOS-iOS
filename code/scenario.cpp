@@ -127,7 +127,6 @@
 #include "newmenu.h"
 #include "overlay.h"
 #include "overtype.h"
-#include "ownrdraw.h"
 #include "partsys.h"
 #include "pcx.h"
 #include "preview.h"
@@ -396,10 +395,6 @@ bool Start_Scenario(char const * name, bool briefing, CampaignType campaign)
 	bool transit_playing = false;
 
 	if (briefing && Session.Type == GAME_NORMAL && !has_briefing_movie) {
-
-		// No dialog has been put up in a game a client launched, so the artwork it draws with
-		// is not built yet.
-		OwnerDraw::Prepare_Resources(MainWindow);
 
 		if (Scen->TransitTheme != THEME_NONE) {
 			Theme.Play_Song(Scen->TransitTheme);
@@ -734,7 +729,7 @@ bool Read_Scenario(char const * fname)
 		read_ok = RandomMapGen.SeedData.Load(name);
 
 		if (read_ok) {
-			RandomMapGen.Generate_Random_Map(false, NULL);
+			RandomMapGen.Generate_Random_Map(false);
 			Multiplayer_Last_Minute_Fixups();
 		}
 		strcpy(Scen->ScenarioName, name);

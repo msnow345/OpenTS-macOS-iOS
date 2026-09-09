@@ -15,6 +15,8 @@
 
 #include "video.h"
 
+#include "drawhelp.h"
+
 #include "_surface.h"
 #include "bgfxbackend.h"
 #include "dbgprint.h"
@@ -216,6 +218,10 @@ bool Video_Set_Mode(int width, int height)
 
 	VideoModeWidth = width;
 	VideoModeHeight = height;
+
+	// The blend masks follow how the display surface packs its pixels, so they are built
+	// where that becomes known. OwnerDraw's first subclassed control used to do this.
+	Prepare_Draw_Resources();
 
 	Update_Scale_Info();
 	Win_Cursor_Refresh();

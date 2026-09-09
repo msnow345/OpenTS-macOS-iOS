@@ -43,7 +43,7 @@
 #include "init.h"
 #include "language/language.h"
 #include "msgbox.h"
-#include "ownrdraw.h"
+#include "keyboard.h"
 #include "vector.h"
 
 #include "keyboard.h"

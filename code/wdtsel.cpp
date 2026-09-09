@@ -22,7 +22,7 @@
 #include "msfont.h"
 #include "newmenu.h"
 #include "netshare.h"
-#include "ownrdraw.h"
+#include "drawhelp.h"
 #include "pcx.h"
 #include "session.h"
 #include "theme.h"
@@ -1114,7 +1114,7 @@ bool WDT_Select_Campaign(Campaign * campaign, bool vq_anim)
 /// </summary>
 void Selection::Start(void)
 {
-	OwnerDraw::Capture_Mouse();
+	Release_Pointer_To_Host();
 	if (ThemeName != NULL) {
 		Theme.Play_Song(Theme.From_Name(ThemeName));
 		Theme.Set_Repeat(true);
@@ -1144,7 +1144,7 @@ void Selection::End(void)
 	AlternateSurface->Fill(0);
 	Draw_Menu_Background();
 	Show_Mouse();
-	OwnerDraw::Release_Mouse();
+	Recapture_Pointer();
 }
 
 

@@ -133,7 +133,6 @@
 #include "opents_build.h"
 #include "overlay.h"
 #include "overtype.h"
-#include "ownrdraw.h"
 #include "particle.h"
 #include "partsys.h"
 #include "psystype.h"
@@ -171,7 +170,6 @@
 #include "warhead.h"
 #include "waypoint.h"
 #include "weapon.h"
-#include "windlg.h"
 #include "winstub.h"
 #include "wsproto.h"
 
@@ -324,8 +322,6 @@ static int Process_Reconnect_Dialog(CDTimerClass<SystemTimerClass> *timeout_time
 	BasicTimerClass<SystemTimerClass> *timer);
 static int Handle_Timeout(ConnManClass *net, FrameSyncStruct *their);
 static void Stop_Game(bool=false);
-INT_PTR CALLBACK Reconnect_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-static void Refill_Message_List(HWND window, UIReconnectPresenterClass const & screen);
 static void Close_Reconnect_Dialog(void);
 void Kick_Player_Now(ConnManClass *net, int kickee, FrameSyncStruct * their, bool error);
 bool Cast_Kick_Vote(int kicker, int kickee);
@@ -2299,13 +2295,12 @@ static int Process_Reconnect_Dialog(CDTimerClass<SystemTimerClass> *timeout_time
 {
 	static int displayed_time = 0;	// time value currently displayed
 
-	static HWND disconnect_dialog;  /// the disconnect/kick dialog, when no document was shown
 
 	int new_time;
 	int i;
 
 	//------------------------------------------------------------------------
-	/// Update the frame-sync progress info for Draw_Sync_Bars.
+	/// Update the frame-sync progress info the screen's bars are drawn from.
 	//------------------------------------------------------------------------
 	SyncWaitElapsed = *timer;
 	for (i = 0; i < num_conn; i++) {
@@ -2313,12 +2308,10 @@ static int Process_Reconnect_Dialog(CDTimerClass<SystemTimerClass> *timeout_time
 	}
 
 	//------------------------------------------------------------------------
-	/// The first time through, open the screen. A build whose document will not
-	/// prepare gets the dialog instead, running against the same presenter.
+	/// The first time through, open the screen.
 	//------------------------------------------------------------------------
 	if (fresh) {
 		TacticalActive = false;
-		disconnect_dialog = NULL;
 
 		int frames[ARRAY_SIZE(SyncBarFrameSync)];
 		int reported = 0;
@@ -2326,16 +2319,7 @@ static int Process_Reconnect_Dialog(CDTimerClass<SystemTimerClass> *timeout_time
 			frames[reported++] = their[i].frame;
 		}
 
-		if (!UI_Reconnect_Open(reconn != 0, frames, reported)) {
-			disconnect_dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_DISCONNECT, MainWindow, Reconnect_Dialog_Proc, true);
-			Center_Window_Within_Window(disconnect_dialog);
-			if (disconnect_dialog) {
-				MouseCursor->Hide_Mouse();
-				ShowWindow(disconnect_dialog, SW_SHOWNORMAL);
-				UpdateWindow(disconnect_dialog);
-				MouseCursor->Show_Mouse();
-			}
-		}
+		UI_Reconnect_Open(reconn != 0, frames, reported);
 	}
 
 	UIReconnectPresenterClass * const screen = UI_Reconnect_Screen();
@@ -2365,36 +2349,9 @@ static int Process_Reconnect_Dialog(CDTimerClass<SystemTimerClass> *timeout_time
 	UI_Reconnect_Service();
 
 	//------------------------------------------------------------------------
-	/// Put the model on the dialog's controls, for the build that has one.
-	//------------------------------------------------------------------------
-	if (disconnect_dialog) {
-		if (screen->TimeChanged) {
-			HWND item = GetDlgItem(disconnect_dialog, IDC_DISCONNECT_TIME_REMAINING);
-			if (item) {
-				SendMessage(item, WM_SETTEXT, 0, (LPARAM)screen->TimeText.c_str());
-			}
-			if (!(displayed_time & 1)) {
-				PostMessage(disconnect_dialog, WM_PAINT, 0, 0);
-			}
-			screen->TimeChanged = false;
-		}
-
-		if (screen->MessagesChanged) {
-			Refill_Message_List(disconnect_dialog, *screen);
-			screen->MessagesChanged = false;
-		}
-
-		screen->Drain();
-	}
-
-	//------------------------------------------------------------------------
 	/// If the user gave up, bail out of the game.
 	//------------------------------------------------------------------------
 	if (screen->Cancelled) {
-		if (disconnect_dialog) {
-			WS_Destroy_Dialog(disconnect_dialog, false);
-			disconnect_dialog = NULL;
-		}
 		UI_Reconnect_Close();
 		TacticalActive = true;
 		Map.Flag_To_Redraw(GS_REDRAW_ALL);
@@ -2404,27 +2361,6 @@ static int Process_Reconnect_Dialog(CDTimerClass<SystemTimerClass> *timeout_time
 	return(0);
 
 }	// end of Process_Reconnect_Dialog
-
-static int SyncNameButtonControlsIDs[MAX_PLAYERS] = {
-	IDC_DISCONNECT_PLAYER1,
-	IDC_DISCONNECT_PLAYER2,
-	IDC_DISCONNECT_PLAYER3,
-	IDC_DISCONNECT_PLAYER4,
-	IDC_DISCONNECT_PLAYER5,
-	IDC_DISCONNECT_PLAYER6,
-	IDC_DISCONNECT_PLAYER7,
-	IDC_DISCONNECT_PLAYER8
-};
-static int SyncBarControlIDs[MAX_PLAYERS] = {
-	IDC_DISCONNECT_PLAYER1_BOX,
-	IDC_DISCONNECT_PLAYER2_BOX,
-	IDC_DISCONNECT_PLAYER3_BOX,
-	IDC_DISCONNECT_PLAYER4_BOX,
-	IDC_DISCONNECT_PLAYER5_BOX,
-	IDC_DISCONNECT_PLAYER6_BOX,
-	IDC_DISCONNECT_PLAYER7_BOX,
-	IDC_DISCONNECT_PLAYER8_BOX
-};
 
 
 /// <summary>
@@ -2436,50 +2372,6 @@ static int Connection_Index(int player)
 {
 	return(Ipx.Connection_Index(player));
 }
-
-
-/// <summary>
-/// Draws the frame sync bars on the reconnect dialog.
-/// Every player in the game gets a bar that shrinks and changes color as the wait on that
-/// player drags on, so the humans can see who the game is actually stalled on.
-/// </summary>
-/// <param name="window">The reconnect dialog that owns the bar controls.</param>
-void Draw_Sync_Bars(HWND window)
-{
-	for (int i = 0; i < Session.Players.Count(); i++) {
-		RECT bar_winrect;
-		Get_Display_Rect(GetDlgItem(window, SyncBarControlIDs[i]), &bar_winrect);
-
-		Rect bar_rect;
-		bar_rect.X = bar_winrect.left;
-		bar_rect.Y = bar_winrect.top;
-		bar_rect.Width = bar_winrect.right - bar_winrect.left;
-		bar_rect.Height = bar_winrect.bottom - bar_winrect.top;
-
-		int playerid = Connection_Index(Session.Players[i]->Player.ID);
-
-		unsigned progress;
-		if (i == 0) {
-			progress = 0;
-		} else {
-			progress = SyncWaitElapsed - SyncBarFrameSync[playerid].timing;
-		}
-
-		unsigned short color = DSurface::Build_Hicolor_Pixel(0, 200, 0);
-		if (progress > 240) {
-			color = DSurface::Build_Hicolor_Pixel(200, 200, 0);
-			if (progress > 480) {
-				color = DSurface::Build_Hicolor_Pixel(200, 0, 0);
-			}
-		}
-
-		int w = std::max(100 - (int)(100 * progress / 1200), 0) * bar_rect.Width;
-		bar_rect.Width = std::max(6, w / 100);
-
-		AlternateSurface->Fill_Rect(AlternateSurface->Get_Rect(), bar_rect, color);
-	}
-}
-
 bool Cast_Kick_Vote(int kicker, int kickee);
 
 
@@ -2591,27 +2483,6 @@ void Forget_Kick_Player(int player)
 	}
 }
 
-/// <summary>
-/// Puts the screen's message list on the dialog's list box and scrolls it to the end.
-/// The model holds the lines and the control shows them, so a presentation that is not a
-/// window keeps the same backlog.
-/// </summary>
-/// <param name="window">The reconnect dialog holding the list box.</param>
-/// <param name="screen">The screen whose messages are shown.</param>
-static void Refill_Message_List(HWND window, UIReconnectPresenterClass const & screen)
-{
-	HWND listbox = GetDlgItem(window, IDC_DISCONNECT_MESSAGES);
-	if (listbox == NULL) {
-		return;
-	}
-
-	ListBox_ResetContent(listbox);
-	for (std::string const & line : screen.Messages) {
-		ListBox_AddString(listbox, line.c_str());
-	}
-	ListBox_SetTopIndex(listbox, ListBox_GetCount(listbox) - 1);
-}
-
 
 /// <summary>
 /// Handles a kick proposal arriving from another player.
@@ -2699,92 +2570,6 @@ bool Cast_Kick_Vote(int kicker, int kickee)
 }
 
 
-/// <summary>
-/// Handles the messages for the reconnect dialog.
-/// This is the dialog that appears when the game stalls waiting on somebody. It paints the
-/// per-player sync bars and offers a kick button for each player in the game.
-/// </summary>
-INT_PTR CALLBACK Reconnect_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	UIReconnectPresenterClass * const screen = UI_Reconnect_Screen();
-
-	switch (message) {
-		case IDCANCEL:
-			Remove_Modeless_Dialog(window);
-			break;
-
-		case WM_DRAWITEM:
-			OwnerDraw::Draw_Item((DRAWITEMSTRUCT *)lparam);
-			return(TRUE);
-
-		case WM_PAINT:
-			OwnerDraw::Draw_Dialog_Back(window);
-			Draw_Sync_Bars(window);
-			ValidateRect(window, NULL);
-			break;
-
-		case WM_INITDIALOG: {
-			OwnerDraw::Subclass_Dialog(window, 0);
-			Center_Window_Within_Window(window);
-			Add_Modeless_Dialog(window);
-
-			int i;
-			for (i = 0; i < MAX_PLAYERS; i++) {
-				HWND button = GetDlgItem(window, SyncNameButtonControlsIDs[i]);
-				EnableWindow(button, FALSE);
-				HWND bar = GetDlgItem(window, SyncBarControlIDs[i]);
-				EnableWindow(bar, FALSE);
-			}
-
-			for (i = 0; i < MAX_PLAYERS; i++) {
-				HWND button = GetDlgItem(window, SyncNameButtonControlsIDs[i]);
-				HWND bar = GetDlgItem(window, SyncBarControlIDs[i]);
-				if (i < Session.Players.Count()) {
-					SendMessage(button, WM_SETTEXT, 0, (LPARAM)Session.Players[i]->Name);
-					EnableWindow(button, TRUE);
-					EnableWindow(bar, TRUE);
-				} else {
-					DestroyWindow(button);
-					DestroyWindow(bar);
-				}
-			}
-			break;
-		}
-
-		case WM_MOVING:
-			return(On_WM_MOVING(window, wparam, lparam));
-
-		case WM_CTLCOLORMSGBOX:
-		case WM_CTLCOLOREDIT:
-		case WM_CTLCOLORLISTBOX:
-		case WM_CTLCOLORBTN:
-		case WM_CTLCOLORDLG:
-		case WM_CTLCOLORSCROLLBAR:
-		case WM_CTLCOLORSTATIC:
-			return((INT_PTR)GetStockObject(BLACK_BRUSH));
-
-		case WM_ERASEBKGND:
-			return(TRUE);
-
-		case WM_COMMAND:
-			if (screen == NULL) {
-				break;
-			}
-
-			for (int seat = 0; seat < MAX_PLAYERS; seat++) {
-				if (LOWORD(wparam) == (WPARAM)SyncNameButtonControlsIDs[seat]) {
-					screen->Queue(UIIntent{UI_RECONNECT_KICK, "", seat});
-				}
-			}
-
-			if (LOWORD(wparam) == IDCANCEL) {
-				screen->Queue(UIIntent{UI_RECONNECT_CANCEL, "", 0});
-			}
-			break;
-	}
-
-	return(FALSE);
-}
 
 
 /// The name comes from the TS demo build, which ships this routine with symbols.
@@ -2799,14 +2584,8 @@ static void Close_Reconnect_Dialog(void)
 	//------------------------------------------------------------------------
 	// If the reconnect screen was shown, force the map to redraw.
 	//------------------------------------------------------------------------
-	bool shown = UI_Reconnect_Has_View();
+	bool const shown = UI_Reconnect_Has_View();
 	UI_Reconnect_Close();
-
-	HWND dialog = WS_Find_Dialog(IDD_MPLAYER_DISCONNECT);
-	if (dialog) {
-		WS_Destroy_Dialog(dialog, false);
-		shown = true;
-	}
 
 	if (shown) {
 		TacticalActive = true;

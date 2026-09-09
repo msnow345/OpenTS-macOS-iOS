@@ -50,10 +50,9 @@ class ProgressScreenClass
 		void End_Dialog(void);
 
 		// Is the dialog presentation up, whichever of the two it is?
-		bool Has_Dialog(void) const { return(Dialog != NULL || IsOverlay); }
+		bool Has_Dialog(void) const { return(IsOverlay); }
 
 	private:
-		static INT_PTR CALLBACK Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 	public:
 		/*
@@ -104,16 +103,9 @@ class ProgressScreenClass
 		char PlayerCount;
 
 		/*
-		 * Handle of the progress dialog, or NULL when the progress is presented on the full
-		 * screen instead. The dialog is used where the game must keep a window up while it
-		 * works rather than take the screen over.
-		 */
-		HWND Dialog;
-
-		/*
-		 * If the dialog presentation is a document rather than a window, then this flag will
-		 * be true and Dialog stays NULL. The document draws its own frame and bar, so the
-		 * routines that paint into the game's surfaces stand aside for it.
+		 * If the progress is presented as a screen of its own rather than on the full
+		 * screen, then this flag will be true. That screen draws its own frame and bar, so
+		 * the routines that paint into the game's surfaces stand aside for it.
 		 */
 		bool IsOverlay;
 

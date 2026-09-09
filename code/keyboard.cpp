@@ -801,3 +801,71 @@ int WWKeyboardClass::Noop(void) const
 {
 	return(0);
 }
+
+
+/// <summary>
+/// Converts a key code into its printable name.
+/// This routine is used by the hotkey control to show a binding the way the player's own
+/// keyboard layout names it, with the modifier names spelled out ahead of the key.
+/// </summary>
+/// <param name="key">The key, complete with its modifier bits, to spell out.</param>
+/// <param name="buffer">Buffer to build the name in.</param>
+/// <remarks>Be sure that the buffer is big enough for the modifier names as well.</remarks>
+int Build_Hotkey_String(KeyNumType key, char * buffer)
+{
+	char key_name[32];
+	unsigned char modifier = HIBYTE(key);
+
+	buffer[0] = '\0';
+
+	UINT lparam;
+
+	/// (p << 16) - places the scan code into bits 16-23.
+	/// (1 <<  0) - purpose unknown; Windows does not document this bit.
+	/// (1 << 24) - Extended-key bit. Distinguishes some keys on an enhanced keyboard.
+	/// (1 << 25) - "Don't care" bit. Should not distinguish between left and right ctrl and shift keys.
+
+	if ((modifier & (WWKEY_ALT_BIT >> 8)) != 0) {
+		lparam = MapVirtualKey(VK_MENU, 0) ;
+		lparam = (lparam << 16);
+		lparam |= (1 << 0);
+		lparam |= (1 << 25);
+		GetKeyNameText(lparam, key_name, sizeof(key_name));
+		strcat(buffer, key_name);
+		strcat(buffer, "+");
+	}
+
+	if ((modifier & (WWKEY_CTRL_BIT >> 8)) != 0) {
+		lparam = MapVirtualKey(VK_CONTROL, 0);
+		lparam = (lparam << 16);
+		lparam |= (1 << 0);
+		lparam |= (1 << 25);
+		GetKeyNameText(lparam, key_name, sizeof(key_name));
+		strcat(buffer, key_name);
+		strcat(buffer, "+");
+	}
+
+	if ((modifier & (WWKEY_SHIFT_BIT >> 8)) != 0) {
+		lparam = MapVirtualKey(VK_SHIFT, 0);
+		lparam = (lparam << 16);
+		lparam |= (1 << 0);
+		lparam |= (1 << 25);
+		GetKeyNameText(lparam, key_name, sizeof(key_name));
+		strcat(buffer, key_name);
+		strcat(buffer, "+");
+	}
+
+	lparam = MapVirtualKey(key & 0xFF, 0);
+	lparam = (lparam << 16);
+	lparam |= (1 << 0);
+	lparam |= (1 << 25);
+
+	if ((modifier & (WWKEY_RLS_BIT >> 8)) != 0) {
+		lparam |= (1 << 24);
+	}
+
+	GetKeyNameText(lparam, key_name, sizeof(key_name));
+	strcat(buffer, key_name);
+
+	return(0);
+}

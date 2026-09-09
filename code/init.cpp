@@ -148,7 +148,6 @@
 #include "overlay.h"
 #include "overtype.h"
 #include "ovrlight.h"
-#include "ownrdraw.h"
 #include "partsys.h"
 #include "pcx.h"
 #include "queue.h"
@@ -188,6 +187,7 @@
 #include "vqoption.h"
 #include "wave.h"
 #include "waypoint.h"
+#include "winfix.h"
 #include "winstub.h"
 #include "wsproto.h"
 #include "wspudp.h"
@@ -717,110 +717,6 @@ void Prepare_Side_Roster(void)
 
 
 
-static UICampaignPresenterClass * _CampaignScreen = NULL;
-static UIMainMenuPresenterClass * _MainMenuScreen = NULL;
-
-
-/// <summary>
-/// Puts the view-model on the campaign dialog's controls.
-/// </summary>
-static void Campaign_Sync_Controls(HWND window, UICampaignPresenterClass const & screen)
-{
-	HWND handle = GetDlgItem(window, IDC_DIFFICULTY_LABEL);
-	if (handle) {
-		SetWindowText(handle, screen.DifficultyLabel.c_str());
-	}
-}
-
-
-/// <summary>
-/// Handles the messages for the campaign choice dialog.
-/// This routine lists the campaigns that the player is entitled to play, drives the
-/// difficulty slider, and leaves the choice where Choose_Campaign will collect it.
-/// </summary>
-static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	HWND item;
-
-	INT_PTR rc;
-	rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc) {
-		return(rc);
-	}
-
-	if (_CampaignScreen == NULL) {
-		return(FALSE);
-	}
-
-	UICampaignPresenterClass & screen = *_CampaignScreen;
-
-	switch (message) {
-
-		case WM_INITDIALOG:
-			item = GetDlgItem(window, IDC_LIST);
-
-			if (item != NULL) {
-				DebugString("Initializing Choose_Campaign() Dialog.\n");
-				for (UICampaignPresenterClass::EntryType const & entry : screen.Campaigns) {
-					ListBox_AddString(item, entry.Label.c_str());
-				}
-				ListBox_SetCurSel(item, screen.Selected);
-			}
-
-			item = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
-
-			if (item != NULL) {
-				SendMessage(item, OD_TRACKNUMBERS, 0, 0);
-				Slider_SetRange(item, 0, UICampaignPresenterClass::DIFFICULTY_STEPS - 1);
-				Slider_SetPos(item, screen.Difficulty);
-			}
-			break;
-
-		case WM_COMMAND:
-			switch (LOWORD(wparam)) {
-				case IDOK:
-					if (HIWORD(wparam) == BN_CLICKED) {
-						item = GetDlgItem(window, IDC_LIST);
-						if (item != NULL) {
-							screen.Queue(UIIntent{UI_CAMPAIGN_SELECT, "", ListBox_GetCurSel(item)});
-						}
-
-						// The slider is read back here rather than tracked, because a
-						// keyboard or page move changes a track bar without raising the
-						// thumb notification the label follows.
-						item = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
-						if (item != NULL) {
-							screen.Queue(UIIntent{UI_CAMPAIGN_DIFFICULTY, "", Slider_GetPos(item)});
-						}
-
-						screen.Queue(UIIntent{UI_CAMPAIGN_ACCEPT, "", 0});
-					}
-					break;
-
-				case IDCANCEL:
-					if (HIWORD(wparam) == BN_CLICKED) {
-						screen.Queue(UIIntent{UI_CAMPAIGN_CANCEL, "", 0});
-					}
-
-					break;
-			}
-			break;
-
-		case WM_HSCROLL: {
-			if ((HWND)lparam == GetDlgItem(window, IDC_DIFFICULTY_SLIDER)) {
-				screen.Queue(UIIntent{UI_CAMPAIGN_DIFFICULTY, "", (int)HIWORD(wparam)});
-			}
-			break;
-		}
-
-		default:
-			break;
-	}
-
-	return(FALSE);
-}
-
 
 /// <summary>
 /// Asks the player which campaign to play.
@@ -830,8 +726,6 @@ static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, W
 /// <returns>Returns with the campaign chosen, or CAMPAIGN_NONE if the player backed out.</returns>
 static CampaignType Choose_Campaign(void)
 {
-	HWND dialog;
-
 	if (Campaigns.Count() == 0) {
 		Init_Campaigns();
 
@@ -843,39 +737,7 @@ static CampaignType Choose_Campaign(void)
 	UICampaignPresenterClass screen;
 	screen.Refresh();
 
-	// The selection is latched here, at screen entry, and the legacy dialog opens only when
-	// the document could not be prepared.
-	if (UI_Use_Rml()) {
-		if (UI_Campaign_Screen(screen).Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-			return((CampaignType)screen.Chosen());
-		}
-
-		screen.IsClosing = false;
-		screen.Result.reset();
-	}
-
-	_CampaignScreen = &screen;
-
-	dialog = OwnerDraw::Begin_Dialog(IDD_CAMPAIGN, Campaign_Choice_Dialog_Proc);
-
-	if (dialog != NULL) {
-		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
-		OwnerDraw::Display_Dialog(dialog);
-
-		while (!screen.Result.has_value()) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				break;
-			}
-
-			screen.Drain();
-			Campaign_Sync_Controls(dialog, screen);
-			screen.Service();
-		}
-
-		OwnerDraw::End_Dialog(dialog);
-	}
-
-	_CampaignScreen = NULL;
+	UI_Campaign_Screen(screen);
 
 	return((CampaignType)screen.Chosen());
 }
@@ -2982,115 +2844,13 @@ bool Cheat_Key_Process(char chr)
 
 
 /// <summary>
-/// Handles the messages for the version information dialog.
-/// This routine fills the list box with the game's title, its version numbers, the build
-/// stamp, and a description of the processor it finds itself running upon. It is the
-/// first thing to ask for when a player reports a problem.
-/// </summary>
-INT_PTR CALLBACK Version_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	HWND handle;
-	int *res;
-	char buffer[256];
-
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-
-	if (rc) {
-		return(rc);
-	}
-
-	res = (int *)GetWindowLongPtr(window, DWLP_USER);
-
-	switch (message) {
-		case WM_INITDIALOG:
-			handle = GetDlgItem(window, IDC_VERSION_INFO);
-
-			if (Addon_Installed(ADDON_FIRESTORM) == true) {
-				strcpy(buffer, Fetch_String(TXT_SHORT_TITLE));
-				strcat(buffer, ": ");
-				strcat(buffer, Get_Addon_Title(ADDON_FIRESTORM));
-				ListBox_AddString(handle, buffer);
-			} else {
-				ListBox_AddString(handle, Fetch_String(TXT_SHORT_TITLE));
-			}
-
-			sprintf(buffer, "Version %s", Version_Name());
-			ListBox_AddString(handle, buffer);
-
-			sprintf(buffer, "Internal Version %s", VerNum.Version_Name());
-			ListBox_AddString(handle, buffer);
-
-#ifdef _DEBUG
-			sprintf(buffer, "Debug Build: %s - %s", OPENTS_BUILD_DESCRIPTION, OPENTS_COMMIT_DATE);
-#else
-			sprintf(buffer, "Release Build: %s - %s", OPENTS_BUILD_DESCRIPTION, OPENTS_COMMIT_DATE);
-#endif
-			ListBox_AddString(handle, buffer);
-
-			// The braces keep the 'case' label from jumping over these initializations.
-			{
-				int cpu_type = 5;
-				char vendor[32];
-				vendor[0] = '\0';
-				Get_CPU_Type(cpu_type, vendor, sizeof(vendor) - 1);
-
-				sprintf(buffer, "CPU vendor: %s", vendor);
-			ListBox_AddString(handle, buffer);
-			}
-
-			Get_Language_Version(buffer);
-			ListBox_AddString(handle, buffer);
-			break;
-
-		case WM_COMMAND:
-			switch (LOWORD(wparam)) {
-				case IDCANCEL:
-				case IDOK:
-					*res = LOWORD(wparam);
-					break;
-			}
-			break;
-	}
-
-	return(FALSE);
-}
-
-
-/// <summary>
-/// Displays the version information dialog.
-/// This routine does not return until the player dismisses the dialog, and keeps the
+/// Displays the version information screen.
+/// This routine does not return until the player dismisses the screen, and keeps the
 /// title screen alive behind it while it waits.
 /// </summary>
 void Version_Dialog(void)
 {
-	HWND dialog;
-	int res = 0;
-
-	/*
-	**	The migrated screen, unless the player has asked for the dialog it replaced. A view
-	**	that could not be prepared reports so rather than showing nothing, and the legacy
-	**	dialog below is what it falls back to for as long as that dialog exists.
-	*/
-	if (UI_Use_Rml()) {
-		if (UI_Version_Screen().Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-			return;
-		}
-	}
-
-	dialog = OwnerDraw::Begin_Dialog(IDD_VERSION, Version_Dialog_Proc);
-
-	if (dialog != NULL) {
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&res);
-		OwnerDraw::Display_Dialog(dialog);
-
-		while (res == 0) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				break;
-			}
-			Title_Screen_Restore();
-		}
-		OwnerDraw::End_Dialog(dialog);
-	}
+	UI_Version_Screen();
 }
 
 
@@ -3134,7 +2894,6 @@ static void Seed_Crypto_Random(void)
  *=========================================================================*/
 int Main_Menu(unsigned int timeout)
 {
-	HWND dialog;
 	int retval = SEL_NONE;
 
 	timeout = 0;
@@ -3142,163 +2901,21 @@ int Main_Menu(unsigned int timeout)
 	UIMainMenuPresenterClass screen;
 	screen.Refresh();
 
-	_MainMenuScreen = &screen;
+	Draw_Title_Screen();
 
-	// The selection is latched here, at screen entry, and the legacy dialog opens only when
-	// the document could not be prepared.
-	if (UI_Use_Rml()) {
-		Draw_Title_Screen();
+	UIResult const result = UI_Main_Menu_Screen(screen);
 
-		UIResult const result = UI_Main_Menu_Screen(screen);
-
-		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
-			// A session that ended underneath the screen leaves the menu, which is what the
-			// driver's own exit intent did for the same condition.
-			if (result.Outcome == UIResult::OUTCOME_SESSION_ENDED) {
-				screen.Choice = UIMainMenuPresenterClass::CHOICE_EXIT;
-			}
-
-			retval = screen.Selection();
-			Seed_Crypto_Random();
-
-			_MainMenuScreen = NULL;
-			SetFocus(MainWindow);
-			return(retval);
-		}
-
-		screen.IsClosing = false;
-		screen.Result.reset();
+	// A session that ended underneath the screen leaves the menu, which is what the driver's
+	// own exit intent did for the same condition.
+	if (result.Outcome == UIResult::OUTCOME_SESSION_ENDED) {
+		screen.Choice = UIMainMenuPresenterClass::CHOICE_EXIT;
 	}
 
-	dialog = OwnerDraw::Begin_Dialog(IDD_MAIN_MENU, Main_Menu_Dialog_Proc);
-	assert(dialog != NULL);
-
-	if (dialog != NULL) {
-		Draw_Title_Screen();
-		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
-		OwnerDraw::Display_Dialog(dialog);
-		SetFocus(MainWindow);
-
-		do {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				screen.Queue(UIIntent{UI_MAINMENU_EXIT, "", 0});
-			}
-
-			screen.Drain();
-			screen.Service();
-
-			if (Keyboard->Check()) {
-				KeyNumType input = Keyboard->Get();
-
-				switch ((unsigned int)input) {
-					case (KN_V | KN_CTRL_BIT):
-						screen.Queue(UIIntent{UI_MAINMENU_VERSION, "", 0});
-						break;
-
-					case VK_C | KN_CTRL_BIT | KN_ALT_BIT:
-						screen.Queue(UIIntent{UI_MAINMENU_CREDITS, "", 0});
-						break;
-
-					default:
-						if ((input & KN_RLSE_BIT) == 0) {
-							screen.Queue(UIIntent{UI_MAINMENU_TYPED, "", (int)(char)input});
-						}
-						break;
-				}
-
-				screen.Drain();
-			}
-
-			// The version screen is a screen of a different kind, so it nests; getting out
-			// of the way of it is what the dialog's ShowWindow did.
-			if (screen.VersionPending) {
-				ShowWindow(dialog, SW_HIDE);
-				UpdateWindow(MainWindow);
-				screen.Run_Pending();
-				ShowWindow(dialog, SW_SHOW);
-				UpdateWindow(dialog);
-				SetFocus(MainWindow);
-			}
-		}
-		while (!screen.Result.has_value());
-
-		retval = screen.Selection();
-
-		OwnerDraw::End_Dialog(dialog);
-
-		Seed_Crypto_Random();
-	} else {
-		retval = SEL_EXIT;
-	}
-
-	_MainMenuScreen = NULL;
+	retval = screen.Selection();
+	Seed_Crypto_Random();
 
 	SetFocus(MainWindow);
 	return(retval);
-}
-
-
-/// <summary>
-/// Handles the messages for the main menu dialog.
-/// This routine records the button the player pressed into the result that Main_Menu is
-/// waiting upon, and greys out the load button when there is nothing to load.
-/// </summary>
-INT_PTR CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
-	if (rc) {
-		return(rc);
-	}
-
-	if (_MainMenuScreen == NULL) {
-		return(FALSE);
-	}
-
-	UIMainMenuPresenterClass & screen = *_MainMenuScreen;
-
-	switch (message) {
-		case WM_INITDIALOG: {
-			HWND control = GetDlgItem(window, IDC_LOAD_MISSION);
-			if (control) {
-				EnableWindow(control, screen.CanLoad ? TRUE : FALSE);
-				if (screen.CanLoad) {
-					return(FALSE);
-				}
-			}
-		}
-		break;
-
-		case WM_COMMAND: {
-			switch (LOWORD(wparam)) {
-				case IDC_OPTIONS:
-					screen.Queue(UIIntent{UI_MAINMENU_OPTIONS, "", 0});
-					break;
-
-				case IDC_EXIT_GAME:
-					screen.Queue(UIIntent{UI_MAINMENU_EXIT, "", 0});
-					break;
-
-				case IDC_INTRO:
-					screen.Queue(UIIntent{UI_MAINMENU_INTRO, "", 0});
-					break;
-
-				case IDC_NEWCAMPAIGN:
-					screen.Queue(UIIntent{UI_MAINMENU_CAMPAIGN, "", 0});
-					break;
-
-				case IDC_MULTIPLAYER_GAME:
-					screen.Queue(UIIntent{UI_MAINMENU_MULTIPLAYER, "", 0});
-					break;
-
-				case IDC_LOAD_MISSION:
-					screen.Queue(UIIntent{UI_MAINMENU_LOAD, "", 0});
-					break;
-			}
-		}
-		break;
-	}
-
-	return(false);
 }
 
 

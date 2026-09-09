@@ -28,9 +28,7 @@
  *---------------------------------------------------------------------------------------------*
  * Functions:                                                                                  *
  *   Add_Accelerator -- Adds a keyboard accelerator to the message handler.                    *
- *   Add_Modeless_Dialog -- Adds a modeless dialog box to the message handler.                 *
  *   Remove_Accelerator -- Removes an accelerator from the message processor.                  *
- *   Remove_Modeless_Dialog -- Removes the dialog box from the message tracking handler.       *
  *   Windows_Message_Handler -- Handles windows message.                                       *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -49,7 +47,6 @@
 **	box handles and then determining if the windows message applies to the dialog box. If it
 **	does, then the default message handling should not be performed.
 */
-DynamicVectorClass<HWND> _ModelessDialogs;
 
 
 /*
@@ -112,19 +109,7 @@ void Windows_Message_Handler(void)
 			ToolTips->Message_Handler(&msg);
 		}
 
-		/*
-		**	Pass the windows message through any modeless dialogs that may
-		**	be active. If one of the dialogs processes the message, then
-		**	it must not be processed by the normal window message handler.
-		*/
 		bool processed = false;
-		for (int index = 0; index < _ModelessDialogs.Count(); index++) {
-			if (IsDialogMessage(_ModelessDialogs[index], &msg)) {
-				processed = true;
-				break;
-			}
-		}
-		if (processed) continue;
 
 		/*
 		**	Pass the message through any loaded accelerators. If the message
@@ -165,74 +150,6 @@ void Windows_Message_Handler(void)
 	 * reach the screen.
 	 */
 	Video_Present_If_Dirty();
-}
-
-
-/***********************************************************************************************
- * Add_Modeless_Dialog -- Adds a modeless dialog box to the message handler.                   *
- *                                                                                             *
- *    When a modeless dialog box becomes active, the messages processed by the main message    *
- *    handler must be handled different. This routine is used to inform the message handler    *
- *    that a dialog box is active and messages must be fed to it as appropriate.               *
- *                                                                                             *
- * INPUT:   dialog   -- Handle to the modeless dialog box.                                     *
- *                                                                                             *
- * OUTPUT:  none                                                                               *
- *                                                                                             *
- * WARNINGS:   The modeless dialog box must be removed from the tracking system by calling     *
- *             Remove_Modeless_Dialog. Failure to do so when the dialog is destroyed will      *
- *             result in undefined behavior.                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   05/17/1997 JLB : Created.                                                                 *
- *=============================================================================================*/
-void Add_Modeless_Dialog(HWND dialog)
-{
-	_ModelessDialogs.Add(dialog);
-}
-
-
-/***********************************************************************************************
- * Remove_Modeless_Dialog -- Removes the dialog box from the message tracking handler.         *
- *                                                                                             *
- *    This routine must be called when a modeless dialog is being removed.                     *
- *                                                                                             *
- * INPUT:   dialog   -- Handle to the modeless dialog that was previously submitted to         *
- *                      Add_Modeless_Dialog().                                                 *
- *                                                                                             *
- * OUTPUT:  none                                                                               *
- *                                                                                             *
- * WARNINGS:   Failure to call this routine will result in undefined behavior when the dialog  *
- *             is destroyed.                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   05/17/1997 JLB : Created.                                                                 *
- *=============================================================================================*/
-void Remove_Modeless_Dialog(HWND dialog)
-{
-	_ModelessDialogs.Delete(dialog);
-}
-
-
-/// <summary>
-/// Fetches a tracked modeless dialog by its window title.
-/// This routine searches the dialogs submitted by Add_Modeless_Dialog for one whose caption
-/// matches the name given. Use this routine when only the title of the dialog is known.
-/// </summary>
-/// <param name="name">The window title of the dialog to look for.</param>
-/// <returns>Returns with the handle of the matching dialog, or NULL if no tracked dialog
-/// carries that title.</returns>
-HWND Get_Modeless_Dialog_From_Name(const char *name)
-{
-	static char _wname[100];
-
-	for (int i = 0; i < _ModelessDialogs.Count(); i++) {
-		GetWindowText(_ModelessDialogs[i], _wname, sizeof(_wname) - 1);
-		if (!strcmp(_wname, name)) {
-			return(_ModelessDialogs[i]);
-		}
-	}
-	return(NULL);
 }
 
 

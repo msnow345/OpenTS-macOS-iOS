@@ -72,7 +72,6 @@
 #include "video.h"
 #include "win.h"
 #include "wincursor.h"
-#include "windlg.h"
 #include "winfix.h"
 #include "wwmouse.h"
 #include "mainopt.h"
@@ -152,14 +151,9 @@ void Focus_Restore(void)
 	if (MouseCursor && _MouseCaptured == true && !Debug_Map) {
 		MouseCursor->Capture_Mouse();
 	}
-	Heal_Dialog_Controls();
 	Map.Flag_To_Redraw(GS_REDRAW_ALL);
 	InvalidateRect(MainWindow, 0, 0);
 	Pause_Ingame_Movie(false);
-	if (WS_Top_Window()) {
-		SetActiveWindow(WS_Top_Window());
-		SetFocus(WS_Top_Window());
-	}
 }
 
 

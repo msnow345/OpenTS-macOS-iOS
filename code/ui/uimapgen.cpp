@@ -178,12 +178,12 @@ void UIMapGenPresenterClass::Execute(UIIntent const & intent)
 		Apply();
 
 		if (Debug_Map) {
-			RandomMapGen.Generate_Random_Map(false, NULL);
+			RandomMapGen.Generate_Random_Map(false);
 			Scen->Set_Scenario_Name(Fetch_String(TXT_RANDOM_MAP_DESCRIPTION));
 			Write_Scenario_INI("RandMap.Map", true);
 		} else if (RandomMapGen.MapPreview == NULL || RandomMapGen.MapPreview->Get_Preview_Surface() == NULL) {
 			// A map the player never previewed has to be built before it can be accepted.
-			RandomMapGen.Generate_Random_Map(true, NULL);
+			RandomMapGen.Generate_Random_Map(true);
 		}
 
 		Answer(ANSWER_ACCEPTED);
@@ -499,7 +499,7 @@ void UIMapGenPresenterClass::Answer(int answer)
 /// </summary>
 void UIMapGenPresenterClass::Generate_Preview(void)
 {
-	RandomMapGen.Generate_Random_Map(true, NULL);
+	RandomMapGen.Generate_Random_Map(true);
 	RandomMapGen.MapPreview->Create_Preview();
 
 	delete RandomMapGen.MapSeeder;
