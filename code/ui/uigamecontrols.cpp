@@ -22,6 +22,8 @@
 
 #include "uigamecontrols.h"
 
+#include "uirmlview.h"
+
 #include "_map.h"
 #include "audio/audioengine.h"
 #include "_tooltip.h"
@@ -38,6 +40,10 @@
 #include "techno.h"
 
 #include "special.hh"
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
 
 
 static void Fill_Labels(std::vector<std::string> & labels, int const * names, int count)
@@ -202,4 +208,187 @@ void UIGameControlsPresenterClass::Apply(void)
 	if (Has_Difficulty()) {
 		Options.Difficulty = DifficultyStep;
 	}
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view. One document per dialog template, because the three templates differ by
+// which controls exist rather than by how one is arranged.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the game controls screen.
+/// </summary>
+class GameControlsViewClass : public UIRmlViewClass
+{
+	public:
+		GameControlsViewClass(UIGameControlsPresenterClass & presenter, char const * document) :
+			UIRmlViewClass(presenter, document),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+		// A slider takes its position from the model as the document loads, and that raises
+		// a change event of its own. Nothing is queued until this is set.
+		void Settle(void) { Settled = true; }
+
+	private:
+		void Move(char const * which, int step);
+		void Update_Labels(void);
+
+		UIGameControlsPresenterClass & Screen;
+		bool Settled = false;
+
+		Rml::String SpeedText;
+		Rml::String ScrollText;
+		Rml::String DetailText;
+		Rml::String DifficultyText;
+};
+
+
+static Rml::String Label_At(std::vector<std::string> const & labels, int step)
+{
+	if (step < 0 || step >= (int)labels.size()) {
+		return(Rml::String());
+	}
+	return(Rml::String(labels[step]));
+}
+
+
+void GameControlsViewClass::Update_Labels(void)
+{
+	SpeedText = Label_At(Screen.SpeedLabels, Screen.SpeedStep);
+	ScrollText = Label_At(Screen.ScrollLabels, Screen.ScrollStep);
+	DetailText = Label_At(Screen.DetailLabels, Screen.DetailStep);
+	DifficultyText = Label_At(Screen.DifficultyLabels, Screen.DifficultyStep);
+}
+
+
+void GameControlsViewClass::Move(char const * which, int step)
+{
+	if (!Settled) return;
+
+	if (which == UI_GAMECTRL_SPEED && step == Screen.SpeedStep) return;
+	if (which == UI_GAMECTRL_SCROLL && step == Screen.ScrollStep) return;
+	if (which == UI_GAMECTRL_DETAIL && step == Screen.DetailStep) return;
+	if (which == UI_GAMECTRL_DIFFICULTY && step == Screen.DifficultyStep) return;
+
+	Screen.Queue(UIIntent{which, "", step});
+}
+
+
+void GameControlsViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	Update_Labels();
+
+	model.Bind("speed", &Screen.SpeedStep);
+	model.Bind("scroll", &Screen.ScrollStep);
+	model.Bind("detail", &Screen.DetailStep);
+	model.Bind("difficulty", &Screen.DifficultyStep);
+	model.Bind("speedtext", &SpeedText);
+	model.Bind("scrolltext", &ScrollText);
+	model.Bind("detailtext", &DetailText);
+	model.Bind("difficultytext", &DifficultyText);
+
+	model.Bind("cameotext", &Screen.CameoText);
+	model.Bind("actionlines", &Screen.ActionLines);
+	model.Bind("tooltips", &Screen.ShowToolTips);
+	model.Bind("coasting", &Screen.Coasting);
+	model.Bind("edgescroll", &Screen.EdgeScroll);
+	model.Bind("soundavailable", &Screen.SoundAvailable);
+
+	model.BindEventCallback("move",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const which = arguments[0].Get<Rml::String>();
+			int const step = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
+
+			if (which == UI_GAMECTRL_SPEED) Move(UI_GAMECTRL_SPEED, step);
+			else if (which == UI_GAMECTRL_SCROLL) Move(UI_GAMECTRL_SCROLL, step);
+			else if (which == UI_GAMECTRL_DETAIL) Move(UI_GAMECTRL_DETAIL, step);
+			else if (which == UI_GAMECTRL_DIFFICULTY) Move(UI_GAMECTRL_DIFFICULTY, step);
+		});
+
+	// A check box is a class plus a click that queues a toggle, not a two-way bound control.
+	model.BindEventCallback("toggle",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const which = arguments[0].Get<Rml::String>();
+			if (which == UI_GAMECTRL_CAMEO_TEXT) Screen.Queue(UIIntent{UI_GAMECTRL_CAMEO_TEXT, "", Screen.CameoText ? 0 : 1});
+			else if (which == UI_GAMECTRL_ACTION_LINES) Screen.Queue(UIIntent{UI_GAMECTRL_ACTION_LINES, "", Screen.ActionLines ? 0 : 1});
+			else if (which == UI_GAMECTRL_TOOLTIPS) Screen.Queue(UIIntent{UI_GAMECTRL_TOOLTIPS, "", Screen.ShowToolTips ? 0 : 1});
+			else if (which == UI_GAMECTRL_COASTING) Screen.Queue(UIIntent{UI_GAMECTRL_COASTING, "", Screen.Coasting ? 0 : 1});
+			else if (which == UI_GAMECTRL_EDGE_SCROLL) Screen.Queue(UIIntent{UI_GAMECTRL_EDGE_SCROLL, "", Screen.EdgeScroll ? 0 : 1});
+		});
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// Escape cancels, which is the IDCANCEL the dialog's own cancel arm took. Enter accepts,
+	// because the template names no default push button and Windows then sent IDOK.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Screen.Queue(UIIntent{UI_GAMECTRL_CANCEL, "", 0});
+			} else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_GAMECTRL_ACCEPT, "", 0});
+			}
+		});
+}
+
+
+void GameControlsViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Update_Labels();
+
+	// The slider positions are not dirtied, because a slider already carries the position
+	// its own change event reported.
+	Model.DirtyVariable("speedtext");
+	Model.DirtyVariable("scrolltext");
+	Model.DirtyVariable("detailtext");
+	Model.DirtyVariable("difficultytext");
+	Model.DirtyVariable("cameotext");
+	Model.DirtyVariable("actionlines");
+	Model.DirtyVariable("tooltips");
+	Model.DirtyVariable("coasting");
+	Model.DirtyVariable("edgescroll");
+}
+
+
+/// <summary>
+/// Shows the game controls and waits for the player to leave them.
+/// </summary>
+UIResult UI_Game_Controls_Screen(UIGameControlsPresenterClass & presenter)
+{
+	char const * document = "gamecontrols.rml";
+	if (presenter.Variant == UIGameControlsPresenterClass::VARIANT_SESSION) {
+		document = "gamecontrolsmp.rml";
+	} else if (presenter.Variant == UIGameControlsPresenterClass::VARIANT_INTERNET) {
+		document = "gamecontrolswol.rml";
+	}
+
+	GameControlsViewClass view(presenter, document);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	view.Settle();
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
 }

@@ -1,0 +1,80 @@
+/* The game controls shown with no game running. Geometry from the IDD_OPT_CTRL_GAME_SP
+   template, whose name says single player but which is the screen the front end shows,
+   converted from dialog units at the 8 point MS Sans Serif the template names: 1.5 pixels
+   across and 1.625 down. */
+
+/* 292 x 179 dialog units, so 438 x 290.875 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -219dp;
+	margin-top: -145.4375dp;
+
+	width: 434dp;
+	height: 286.875dp;
+}
+
+/* Four track bars, 148 x 13 dialog units at x 80. */
+.slider
+{
+	left: 118dp;
+	width: 222dp;
+	height: 21.125dp;
+}
+
+.slider slidertrack { margin-top: 7.5dp; }
+
+#speed      { top: 17.5dp; }
+#scroll     { top: 53.25dp; }
+#detail     { top: 89dp; }
+#difficulty { top: 124.75dp; }
+
+/* The left captions are LTEXT with SS_CENTERIMAGE, 58 x 13 at x 22; the value captions are
+   RTEXT, 45 x 13 at x 229. */
+.caption
+{
+	height: 21.125dp;
+	line-height: 21.125dp;
+}
+
+#speedlabel, #scrolllabel, #detaillabel, #difficultylabel
+{
+	left: 31dp;
+	width: 87dp;
+}
+
+.value
+{
+	left: 341.5dp;
+	width: 67.5dp;
+	text-align: right;
+}
+
+#speedlabel, #speedvalue           { top: 17.5dp; }
+#scrolllabel, #scrollvalue         { top: 53.25dp; }
+#detaillabel, #detailvalue         { top: 89dp; }
+#difficultylabel, #difficultyvalue { top: 124.75dp; }
+
+/* Five BS_FLAT check boxes in two columns. */
+.check
+{
+	height: 16.25dp;
+	line-height: 16.25dp;
+}
+
+#cameotext   { left: 31dp; top: 165.375dp; width: 186dp; }
+#actionlines { left: 31dp; top: 191.375dp; width: 186dp; }
+#edgescroll  { left: 31dp; top: 217.375dp; width: 186dp; }
+#tooltips    { left: 217dp; top: 165.375dp; width: 192dp; }
+#coasting    { left: 217dp; top: 191.375dp; width: 192dp; }
+
+/* The one button, 130 x 14 dialog units at 81, 153. */
+#mainmenu
+{
+	left: 119.5dp;
+	top: 246.625dp;
+	width: 195dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}

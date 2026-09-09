@@ -49,6 +49,7 @@
 #include "session.h"
 #include "techno.h"
 #include "ui/uigamecontrols.h"
+#include "ui/uishell.h"
 
 #include "special.hh"
 
@@ -165,6 +166,22 @@ void GameControlsClass::Dialog(void)
 
 	UIGameControlsPresenterClass screen;
 	screen.Refresh();
+
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Game_Controls_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			if (screen.Commits()) {
+				screen.Apply();
+				Options.Save_Settings();
+			}
+			DebugString("GameControls: GameSpeed = %d, ScrollRate = %d, Detail = %d\n", Options.GameSpeed, Options.ScrollRate, Options.DetailLevel);
+			return;
+		}
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
 
 	_Screen = &screen;
 

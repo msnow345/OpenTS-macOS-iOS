@@ -1,0 +1,28 @@
+<rml>
+<head>
+	<title>Game controls</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="gamecontrolswol.rcss"/>
+</head>
+<body data-model="gamecontrols" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="scrolllabel">Scroll Rate:</div>
+		<input id="scroll" class="slider" type="range" orientation="horizontal" min="0" max="6" step="1" data-attr-value="scroll" data-event-change="move('scroll')"/>
+		<div class="caption value" id="scrollvalue">{{ scrolltext }}</div>
+
+		<div class="caption" id="detaillabel">Visual Details:</div>
+		<input id="detail" class="slider" type="range" orientation="horizontal" min="0" max="2" step="1" data-attr-value="detail" data-event-change="move('detail')"/>
+		<div class="caption value" id="detailvalue">{{ detailtext }}</div>
+
+		<div class="check" id="cameotext" data-class-ticked="cameotext" data-event-click="toggle('cameotext')">Sidebar Text</div>
+		<div class="check" id="actionlines" data-class-ticked="actionlines" data-event-click="toggle('actionlines')">Target Lines</div>
+		<div class="check" id="tooltips" data-class-ticked="tooltips" data-event-click="toggle('tooltips')">Tooltips</div>
+		<div class="check" id="coasting" data-class-ticked="coasting" data-event-click="toggle('coasting')">Scroll Coasting</div>
+		<div class="check" id="edgescroll" data-class-ticked="edgescroll" data-event-click="toggle('edgescroll')">Edge Scrolling</div>
+
+		<div class="button" id="sound" data-class-disabled="!soundavailable" data-event-click="press('sound')">Sound</div>
+		<div class="button" id="keyboard" data-event-click="press('keyboard')">Keyboard</div>
+		<div class="button" id="accept" data-event-click="press('accept')">[[TXT_OPTIONS_MENU]]</div>
+	</div>
+</body>
+</rml>

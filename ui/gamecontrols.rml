@@ -1,0 +1,34 @@
+<rml>
+<head>
+	<title>Game controls</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="gamecontrols.rcss"/>
+</head>
+<body data-model="gamecontrols" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="speedlabel">Game Speed</div>
+		<input id="speed" class="slider" type="range" orientation="horizontal" min="0" max="6" step="1" data-attr-value="speed" data-event-change="move('speed')"/>
+		<div class="caption value" id="speedvalue">{{ speedtext }}</div>
+
+		<div class="caption" id="scrolllabel">Scroll Rate</div>
+		<input id="scroll" class="slider" type="range" orientation="horizontal" min="0" max="6" step="1" data-attr-value="scroll" data-event-change="move('scroll')"/>
+		<div class="caption value" id="scrollvalue">{{ scrolltext }}</div>
+
+		<div class="caption" id="detaillabel">Visual Details</div>
+		<input id="detail" class="slider" type="range" orientation="horizontal" min="0" max="2" step="1" data-attr-value="detail" data-event-change="move('detail')"/>
+		<div class="caption value" id="detailvalue">{{ detailtext }}</div>
+
+		<div class="caption" id="difficultylabel">Difficulty</div>
+		<input id="difficulty" class="slider" type="range" orientation="horizontal" min="0" max="2" step="1" data-attr-value="difficulty" data-event-change="move('difficulty')"/>
+		<div class="caption value" id="difficultyvalue">{{ difficultytext }}</div>
+
+		<div class="check" id="cameotext" data-class-ticked="cameotext" data-event-click="toggle('cameotext')">Cameo Text</div>
+		<div class="check" id="actionlines" data-class-ticked="actionlines" data-event-click="toggle('actionlines')">Target Lines</div>
+		<div class="check" id="tooltips" data-class-ticked="tooltips" data-event-click="toggle('tooltips')">Tooltips</div>
+		<div class="check" id="coasting" data-class-ticked="coasting" data-event-click="toggle('coasting')">Scroll Coasting</div>
+		<div class="check" id="edgescroll" data-class-ticked="edgescroll" data-event-click="toggle('edgescroll')">Edge Scrolling</div>
+
+		<div class="button" id="mainmenu" data-event-click="press('accept')">Main Menu</div>
+	</div>
+</body>
+</rml>
