@@ -2296,7 +2296,7 @@ static void Get_Join_Responses(void)
 				//..................................................................
 				who = new NodeNameType;
 				UTF8::Copy(who->Name, sizeof(who->Name), Session.GPacket.Name);
-				strcpy(who->Player.Serial, Session.GPacket.Serial);
+				UTF8::Copy(who->Player.Serial, sizeof(who->Player.Serial), Session.GPacket.Serial);
 				who->Address = Session.GAddress;
 				who->Player.House = Session.GPacket.PlayerInfo.House;
 				who->Player.Color = Session.GPacket.PlayerInfo.Color;
@@ -2344,7 +2344,7 @@ static void Get_Join_Responses(void)
 		if (Session.GPacket.Command==NET_CONFIRM_JOIN) {
 			if ( JoinState != JOIN_CONFIRMED) {
 				JoinState = JOIN_CONFIRMED;
-				strcpy (Session.GameName, Session.GPacket.Name);
+				UTF8::Copy(Session.GameName, sizeof(Session.GameName), Session.GPacket.Name);
 				Session.House = Session.GPacket.PlayerInfo.House;
 				Session.ColorIdx = Session.GPacket.PlayerInfo.Color;
 
@@ -2696,7 +2696,7 @@ static void Get_Join_Responses(void)
 			else {
 				for (i = 0; i < Session.Chat.Count(); i++) {
 					if (Session.Chat[i]->Address==Session.GAddress) {
-						strcpy (Session.Chat[i]->Name, Session.GPacket.Name);
+						UTF8::Copy(Session.Chat[i]->Name, sizeof(Session.Chat[i]->Name), Session.GPacket.Name);
 						Session.Chat[i]->Chat.LastTime = TickCount;
 						Session.Chat[i]->Chat.LastChance = 0;
 						Session.Chat[i]->Chat.Color = Session.GPacket.Chat.Color;
@@ -2930,7 +2930,7 @@ static void Get_Join_Responses(void)
 				UTF8::Copy(who->Name, sizeof(who->Name), Session.GPacket.Name);
 				who->Address = Session.GAddress;
 				who->Player.House = Session.GPacket.PlayerInfo.House;
-				strcpy(who->Player.Serial, Session.GPacket.Serial);
+				UTF8::Copy(who->Player.Serial, sizeof(who->Player.Serial), Session.GPacket.Serial);
 
 				//..................................................................
 				//	Set player's color; if requested color isn't used, give it to him;
