@@ -48,6 +48,7 @@
 #include "savemgr.h"
 #include "scenario.h"
 #include "stats.h"
+#include "ui/uiabort.h"
 #include "ui/uigameoptions.h"
 
 #include "special.hh"
@@ -61,6 +62,9 @@ void Abort_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lp
 // The screen the dialog procedure reads and writes. The driver owns it for the whole life
 // of the dialog, which is the same lifetime DWLP_USER gave the result pointer it replaces.
 static UIGameOptionsPresenterClass * _Screen = NULL;
+
+// The abort screen, owned by Abort_Dialog for the life of its dialog.
+static UIAbortPresenterClass * _Abort = NULL;
 
 
 static void Game_Options_Queue(UIGameOptionsPresenterClass & screen, char const * action, int value = 0)
@@ -355,32 +359,60 @@ void Game_Options_On_INITDIALOG(HWND window, UIGameOptionsPresenterClass const &
 /// IDCANCEL to carry on playing.</returns>
 int Abort_Dialog(void)
 {
-	int rc = 0;
+	UIAbortPresenterClass screen;
+	screen.Refresh();
+
+	_Abort = &screen;
 
 	HWND dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_ABORT, Abort_Dialog_Proc);
 
 	if (dialog) {
 
-		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&rc);
-
 		OwnerDraw::Display_Dialog(dialog);
 
-		while (rc == 0) {
+		while (!screen.Result.has_value()) {
 			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				rc = IDOK;
+				// A session that ended underneath the box answers as though the player chose
+				// to quit, which is the IDOK the driver used to write.
+				UIResult ended;
+				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
+				ended.GameEnded = true;
+				screen.Choice = UIAbortPresenterClass::CHOICE_QUIT;
+				screen.Result = ended;
+				break;
 			}
+
+			screen.Drain();
 		}
+
 		OwnerDraw::End_Dialog(dialog);
 	}
-	return(rc);
+
+	_Abort = NULL;
+
+	switch (screen.Choice) {
+		case UIAbortPresenterClass::CHOICE_QUIT:
+			return(IDOK);
+
+		case UIAbortPresenterClass::CHOICE_RESTART:
+			return(IDABORT);
+
+		case UIAbortPresenterClass::CHOICE_CANCEL:
+			return(IDCANCEL);
+
+		default:
+			break;
+	}
+
+	// The dialog could not be created, which left its driver's result at zero.
+	return(0);
 }
 
 
 /// <summary>
 /// Handles messages for the abort mission dialog.
-/// This routine offers every message to the owner draw system first. What is left it uses
-/// to relabel the restart button as a surrender for a multiplayer game, and to pass button
-/// presses along to Abort_Dialog_On_COMMAND.
+/// The procedure relabels and disables the middle button from the view-model, and queues
+/// what the player pressed for the driver to execute after the pump.
 /// </summary>
 /// <returns>Returns with the result of the owner draw default dialog handler.</returns>
 INT_PTR CALLBACK Abort_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
@@ -389,12 +421,20 @@ INT_PTR CALLBACK Abort_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPA
 
 	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (rc == 0) {
+		if (_Abort == NULL) {
+			return(0);
+		}
+
+		UIAbortPresenterClass & screen = *_Abort;
+
 		switch (message) {
 			case WM_INITDIALOG:
 				handle = GetDlgItem(window, IDC_RESTART_MISSION);
-				if (Session.Type != GAME_NORMAL) {
-					SetWindowText(handle, Fetch_String(TXT_SURRENDER));
-					if (PlayerPtr->IsDefeated || PlayerPtr->IsToWin || PlayerPtr->IsToLose || PlayerPtr->IsToDie) {
+				if (handle) {
+					if (!screen.RestartCaption.empty()) {
+						SetWindowText(handle, screen.RestartCaption.c_str());
+					}
+					if (!screen.CanRestart) {
 						EnableWindow(handle, FALSE);
 					}
 				}
@@ -411,34 +451,35 @@ INT_PTR CALLBACK Abort_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPA
 
 
 /// <summary>
-/// Handles a button press in the abort mission dialog.
-/// This routine records the player's choice in the result variable that Abort_Dialog
-/// attached to the dialog window, which is what ends the dialog's message pump.
+/// Queues what the player pressed in the abort mission dialog.
 /// </summary>
 /// <param name="message">The control identifier of the button that was pressed.</param>
 /// <param name="lparam">The notification code that came with the button press.</param>
 void Abort_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int* retval = (int *)GetWindowLongPtr(window, DWLP_USER);
+	if (_Abort == NULL || lparam != 0) {
+		return;
+	}
+
+	UIIntent intent;
 
 	switch ((int)message) {
 		case IDC_ABORT_MISSION:
-			if (lparam == 0) {
-				*retval = IDOK;
-			}
+			intent.Action = UI_ABORT_QUIT;
 			break;
 
 		case IDC_RESTART_MISSION:
-			if (lparam == 0) {
-				*retval = IDABORT;
-			}
+			intent.Action = UI_ABORT_RESTART;
 			break;
 
 		case IDOK:
 		case IDCANCEL:
-			if (lparam == 0) {
-				*retval = IDCANCEL;
-			}
+			intent.Action = UI_ABORT_CANCEL;
 			break;
+
+		default:
+			return;
 	}
+
+	_Abort->Queue(intent);
 }
