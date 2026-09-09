@@ -246,6 +246,7 @@ static unsigned int Unpremultiplied_Color(Rml::ColourbPremultiplied colour)
 class UIFontEngineClass : public Rml::FontEngineInterfaceDefault
 {
 	public:
+		void Shutdown(void) override;
 		Rml::FontFaceHandle GetFontFaceHandle(Rml::String const & family, Rml::Style::FontStyle style,
 			Rml::Style::FontWeight weight, int size) override;
 		Rml::FontEffectsHandle PrepareFontEffects(Rml::FontFaceHandle handle, Rml::FontEffectList const & effects) override;
@@ -416,6 +417,23 @@ void UIFontEngineClass::ReleaseFontResources(void)
 }
 
 
+/// <summary>
+/// Gives back the glyph sheets while RmlUi still owns the render manager that has to free
+/// them.
+/// Rml::Shutdown calls this and then clears its render managers. Releasing a sheet after
+/// that point dereferences a destroyed texture database, so this is the last moment a font
+/// engine may hold a render resource. Rml::ReleaseFontResources, which also drops them, is
+/// a collection entry point the application calls and is not part of shutdown.
+/// </summary>
+void UIFontEngineClass::Shutdown(void)
+{
+	_Sheets.clear();
+	_Faces.clear();
+	++_Version;
+	Rml::FontEngineInterfaceDefault::Shutdown();
+}
+
+
 static UIFontEngineClass _FontEngine;
 
 
@@ -427,8 +445,10 @@ Rml::FontEngineInterface * UI_Font_Interface(void)
 
 void UI_Font_Shutdown(void)
 {
-	_Sheets.clear();
-	_Faces.clear();
+	// The sheets and the faces are gone by now: Rml::Shutdown took them through the engine's
+	// own Shutdown, which is the only point where a render resource can still be released.
+	// Nothing here may touch one. What is left is the measurement of the artwork, which the
+	// next shell start probes again because the surface cache may have been emptied.
 	_MetricsRead = false;
 	_MetricsUsable = false;
 }

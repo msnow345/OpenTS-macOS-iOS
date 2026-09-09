@@ -655,6 +655,14 @@ templates give a static as little as 13dp, while `StaticCtrlProc` had no such
 limit; the two captions whose text comes from the game rather than from a
 template ask for the clip back.
 
+A font engine gives its render resources back in `FontEngineInterface::Shutdown`,
+which `Rml::Shutdown` calls while the render managers are still alive, and not
+in `ReleaseFontResources`. That second method is the entry point behind
+`Rml::ReleaseFontResources`, which an application calls to collect memory; no
+part of shutdown reaches it. Holding a `CallbackTexture` past
+`FontEngineInterface::Shutdown` releases it against a destroyed texture
+database.
+
 In-game text that must match the `WWFontClass` faces, needed only by the
 post-migration sidebar view, is a separate problem: those are a different
 format and this engine does not read them.
