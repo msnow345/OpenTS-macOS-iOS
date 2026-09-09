@@ -12,6 +12,7 @@
 			<div class="row" data-for="mode : modes" data-class-picked="it_index == selected" data-event-click="pick(it_index)">{{ mode.label }}</div>
 		</div>
 		<div class="check" id="stretch" data-class-ticked="stretch" data-event-click="toggle()">Stretch movies to fit resolution</div>
+		<div class="check" id="fullscreen" data-class-ticked="fullscreen" data-event-click="togglefull()">Full screen</div>
 		<div class="button" id="ok" data-event-click="press('accept')">[[TXT_OK]]</div>
 		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
 	</div>

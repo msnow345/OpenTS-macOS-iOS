@@ -11,8 +11,8 @@
 // mainopt.cpp.
 //
 // What the extraction fixes in place: the resolution is staged and only a trial the player
-// confirms writes it to the settings, while the movie stretching preference is written
-// straight to the settings at accept and left alone at cancel; and the staged resolution
+// confirms writes it to the settings, while the movie stretching and full screen
+// preferences are written straight to the settings at accept and left alone at cancel; and the staged resolution
 // moves only when the player leaves the screen on a row other than the one it opened on, so
 // re-picking the row already in force stages nothing and skips the trial.
 //
@@ -48,6 +48,7 @@ void UIDisplayOptionsPresenterClass::Refresh(void)
 	StagedWidth = Options.ScreenWidth;
 	StagedHeight = Options.ScreenHeight;
 	StretchMovies = Options.StretchMovies;
+	Fullscreen = Options.Fullscreen;
 
 	int * const modes = EnumDisplayModes(MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT);
 	if (modes != NULL) {
@@ -106,6 +107,11 @@ void UIDisplayOptionsPresenterClass::Execute(UIIntent const & intent)
 
 	if (intent.Action == UI_DISPLAY_STRETCH) {
 		StretchMovies = (intent.Value != 0);
+		return;
+	}
+
+	if (intent.Action == UI_DISPLAY_FULLSCREEN) {
+		Fullscreen = (intent.Value != 0);
 		return;
 	}
 
@@ -170,6 +176,7 @@ void DisplayOptionsViewClass::Bind(Rml::DataModelConstructor & model)
 	model.Bind("modes", &Screen.Modes);
 	model.Bind("selected", &Screen.Selected);
 	model.Bind("stretch", &Screen.StretchMovies);
+	model.Bind("fullscreen", &Screen.Fullscreen);
 
 	model.BindEventCallback("pick",
 		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
@@ -180,6 +187,11 @@ void DisplayOptionsViewClass::Bind(Rml::DataModelConstructor & model)
 	model.BindEventCallback("toggle",
 		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const &) {
 			Screen.Queue(UIIntent{UI_DISPLAY_STRETCH, "", Screen.StretchMovies ? 0 : 1});
+		});
+
+	model.BindEventCallback("togglefull",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const &) {
+			Screen.Queue(UIIntent{UI_DISPLAY_FULLSCREEN, "", Screen.Fullscreen ? 0 : 1});
 		});
 
 	model.BindEventCallback("press",
@@ -208,6 +220,7 @@ void DisplayOptionsViewClass::Sync(void)
 
 	Model.DirtyVariable("selected");
 	Model.DirtyVariable("stretch");
+	Model.DirtyVariable("fullscreen");
 }
 
 

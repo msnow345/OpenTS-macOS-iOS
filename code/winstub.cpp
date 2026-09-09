@@ -376,6 +376,7 @@ LRESULT CALLBACK /*_export*/ Windows_Procedure(HWND hwnd, UINT message, WPARAM w
 // it created for it. Windows presents into the window handle itself.
 extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
 extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
+extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
 #endif
 
 
@@ -400,6 +401,21 @@ bool Win_Window_Drawable_Size(HWND window, int & width, int & height)
 	width = client.right - client.left;
 	height = client.bottom - client.top;
 	return(width > 0 && height > 0);
+}
+
+
+// A borderless window covering the desktop is all a full screen presentation is on
+// Windows, so there is nothing further to ask for there. A host that keeps its own
+// furniture above an ordinary window has to be told, or it draws over the game.
+bool Win_Set_Window_Fullscreen(HWND window, bool fullscreen)
+{
+#ifdef _WIN32
+	(void)window;
+	(void)fullscreen;
+	return(true);
+#else
+	return(Win32Compat_Set_Window_Fullscreen(window, fullscreen ? TRUE : FALSE) != FALSE);
+#endif
 }
 
 
@@ -536,6 +552,8 @@ void Create_Main_Window ( HINSTANCE instance , int command_show , int width , in
 								NULL,
 								instance,
 								NULL );
+
+		Win_Set_Window_Fullscreen(MainWindow, true);
 	}
 
 	ShowWindow (MainWindow, SW_NORMAL);
@@ -550,6 +568,43 @@ void Create_Main_Window ( HINSTANCE instance , int command_show , int width , in
 	//Misc_Focus_Loss_Function = &Focus_Loss;
 	//Misc_Focus_Restore_Function = &Focus_Restore;
 	//Gbuffer_Focus_Loss_Function = &Focus_Loss;
+}
+
+
+/// <summary>
+/// Moves the main window between a full screen presentation and a window.
+/// The frame is not resized: it keeps the resolution the display options settled on and is
+/// scaled into whichever the window now is, which is what the two creation paths already do.
+/// </summary>
+/// <param name="fullscreen">Should the window cover the screen?</param>
+/// <remarks>The resize the host reports rebuilds the presentation, so nothing else needs telling.</remarks>
+void Set_Window_Fullscreen(bool fullscreen)
+{
+	if (MainWindow == NULL) {
+		return;
+	}
+
+	WindowedMode = !fullscreen;
+	SetWindowLong(MainWindow, GWL_STYLE, fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW);
+	Win_Set_Window_Fullscreen(MainWindow, fullscreen);
+
+	if (fullscreen) {
+		return;
+	}
+
+	int clientwidth = (Options.WindowWidth > 0) ? Options.WindowWidth : Options.ScreenWidth;
+	int clientheight = (Options.WindowHeight > 0) ? Options.WindowHeight : Options.ScreenHeight;
+
+	RECT rect;
+	SetRect(&rect, 0, 0, clientwidth, clientheight);
+	AdjustWindowRectEx(&rect, GetWindowLong(MainWindow, GWL_STYLE), FALSE, GetWindowLong(MainWindow, GWL_EXSTYLE));
+
+	int windowwidth = rect.right - rect.left;
+	int windowheight = rect.bottom - rect.top;
+	int x = (GetSystemMetrics(SM_CXSCREEN) - windowwidth) / 2;
+	int y = (GetSystemMetrics(SM_CYSCREEN) - windowheight) / 2;
+
+	MoveWindow(MainWindow, std::max(x, 0), std::max(y, 0), windowwidth, windowheight, 1);
 }
 
 

@@ -33,6 +33,7 @@
 #include "sounddlg.h"
 #include "stimer.h"
 #include "surface.h"
+#include "winstub.h"
 #include "wwmouse.h"
 #include "ui/uidisplayconfirm.h"
 #include "ui/uidisplayoptions.h"
@@ -100,6 +101,14 @@ void Display_Options_Dialog(void)
 		if (screen.Choice != UIDisplayOptionsPresenterClass::CHOICE_ACCEPT) {
 			break;
 		}
+
+		// The window mode is not staged and is not offered as a trial: the player can see
+		// at once whether the screen is covered, and the frame is unchanged either way.
+		if (screen.Fullscreen != Options.Fullscreen) {
+			Options.Fullscreen = screen.Fullscreen;
+			Set_Window_Fullscreen(Options.Fullscreen);
+		}
+
 		if (!screen.Wants_Mode_Change()) {
 			break;
 		}

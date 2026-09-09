@@ -26,27 +26,31 @@
 #title    { top: 17.5dp; height: 14.625dp; line-height: 14.625dp; }
 #reslabel { top: 38.625dp; height: 16.25dp; line-height: 16.25dp; }
 
-/* The resolution list, 185 x 110 dialog units at 22, 37. */
+/* The resolution list, 185 x 110 dialog units at 22, 37, one row shorter to make room for
+   the full screen check the template has no control for. */
 #reslist
 {
 	left: 31dp;
 	top: 58.125dp;
 	width: 277.5dp;
-	height: 178.75dp;
+	height: 162.5dp;
 }
 
 /* A row spans the list less its scrollbar. */
 #reslist .row { width: 265.5dp; }
 
-/* The movie stretching check box, 185 x 10 dialog units at 22, 153. */
-#stretch
+/* The movie stretching check box, 185 x 10 dialog units at 22, 153, moved up one row, and
+   the full screen check in the place it used to hold. */
+#stretch, #fullscreen
 {
 	left: 31dp;
-	top: 246.625dp;
 	width: 277.5dp;
 	height: 16.25dp;
 	line-height: 16.25dp;
 }
+
+#stretch    { top: 230.375dp; }
+#fullscreen { top: 246.625dp; }
 
 /* OK and Cancel, both 62 x 14 dialog units on the same row. */
 .button

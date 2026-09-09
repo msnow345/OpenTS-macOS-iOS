@@ -421,7 +421,14 @@ extern "C" LONG_PTR SetWindowLongPtr(HWND handle, int index, LONG_PTR value)
 	LONG_PTR const previous = GetWindowLongPtr(handle, index);
 
 	switch (index) {
-		case GWL_STYLE: window->Style = (DWORD)value; break;
+		case GWL_STYLE:
+			window->Style = (DWORD)value;
+			// Windows leaves the frame alone until a SWP_FRAMECHANGED asks for it. The host
+			// has no such second step, so the border follows the style as it is set.
+			if (window->Handle != NULL) {
+				SDL_SetWindowBordered(window->Handle, (window->Style & WS_POPUP) == 0);
+			}
+			break;
 		case GWL_EXSTYLE: window->ExStyle = (DWORD)value; break;
 		case GWLP_WNDPROC: window->Procedure = (WNDPROC)value; break;
 		default: break;
@@ -833,4 +840,44 @@ extern "C" int Win32Compat_Window_Refresh_Rate(HWND handle)
 
 	SDL_DisplayMode const * mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(window->Handle));
 	return(mode != NULL ? (int)(mode->refresh_rate + 0.5f) : 0);
+}
+
+
+// The engine expresses a full screen presentation as a borderless window covering the
+// desktop, which is what that amounts to on the platform this shim stands in for. Here it
+// has to be asked for, or the host's own furniture stays on top of the window. The
+// desktop's own mode is kept and the frame is scaled into it, which is what the engine
+// already does with the display mode it renders at.
+extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND handle, BOOL fullscreen)
+{
+	Win32Window * window = Win32_Lookup(handle);
+
+	if (window == NULL || window->Handle == NULL) {
+		return(FALSE);
+	}
+
+	if (!SDL_SetWindowFullscreenMode(window->Handle, NULL)) {
+		return(FALSE);
+	}
+
+	if (!SDL_SetWindowFullscreen(window->Handle, fullscreen != FALSE)) {
+		return(FALSE);
+	}
+
+	// The size the window reports is read back straight away by the caller, so the change
+	// has to have landed rather than be waiting in the event queue.
+	SDL_SyncWindow(window->Handle);
+	return(TRUE);
+}
+
+
+extern "C" BOOL Win32Compat_Window_Is_Fullscreen(HWND handle)
+{
+	Win32Window * window = Win32_Lookup(handle);
+
+	if (window == NULL || window->Handle == NULL) {
+		return(FALSE);
+	}
+
+	return((SDL_GetWindowFlags(window->Handle) & SDL_WINDOW_FULLSCREEN) != 0 ? TRUE : FALSE);
 }

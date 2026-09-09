@@ -24,6 +24,7 @@
 
 inline constexpr char const * UI_DISPLAY_SELECT = "select";    // Value: row
 inline constexpr char const * UI_DISPLAY_STRETCH = "stretch";  // Value: check state
+inline constexpr char const * UI_DISPLAY_FULLSCREEN = "fullscreen";  // Value: check state
 inline constexpr char const * UI_DISPLAY_ACCEPT = "accept";
 inline constexpr char const * UI_DISPLAY_CANCEL = "cancel";
 
@@ -69,6 +70,7 @@ class UIDisplayOptionsPresenterClass : public UIPresenterClass
 		std::vector<ModeType> Modes;
 		int Selected = -1;
 		bool StretchMovies = false;
+		bool Fullscreen = false;
 
 		// The resolution the screen is staging. It starts at the one in force and moves
 		// only when the player accepts a row other than the one the screen opened on, which
