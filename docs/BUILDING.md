@@ -185,8 +185,7 @@ Windows configure neither builds nor links it.
 ## Experimental iOS cross-build
 
 An unsupported iOS build cross-compiles from macOS for porting work. It does
-not expand the supported build matrix or establish runtime behavior. Nothing it
-produces has been signed or run on a device.
+not expand the supported build matrix or establish runtime behavior.
 
 It needs Xcode with the iOS SDK, Ninja, and CMake 3.23 or newer. `CMakePresets.json`
 carries the three configurations:
@@ -208,6 +207,14 @@ the minimum OS version of the executable and of every static library it links.
 The presets set `OPENTS_EXPERIMENTAL_NATIVE=ON`, since iOS reaches the game
 through the same non-Windows path.
 
+A display the player can neither resize nor move the game off names the frame
+size itself, so the game is laid out in the smallest frame its art supports,
+grown along whichever axis the display has room for. An iPad Pro 11-inch gives
+640x440. Everything on screen, the sidebar cameos and the menu entries included,
+is that many frame pixels across, so a smaller frame is what makes a target
+large enough to hit with a finger. `ScreenWidth` and `ScreenHeight` in the
+settings file still win where they are set.
+
 An iOS application is its bundle, so the executable target carries the bundle
 metadata and `cmake/ios/Info.plist.in` rather than handing a binary to a
 separate Xcode shell project. The build stages `ui/` and `Language.dat` inside
@@ -220,7 +227,38 @@ Two targets differ from the desktop native build. miniaudio's device layer
 reaches AVAudioSession, so its translation unit compiles as Objective-C. The
 `Language` library is not built at all: it carries no code off Windows, an
 application bundle holds no loose libraries beside its executable, and the
-strings come from `Language.dat` either way.
+strings come from `Language.dat` either way. Under the Xcode generator two of
+bgfx's Metal sources are named as Objective-C++ as well, because bgfx asks for
+that language through a compiler flag it sets only for the other generators.
+
+### Signing, installing and running on a device
+
+`scripts/build/ios/package-ios.sh` configures the Xcode preset, runs
+`xcodebuild` once to mint or refresh the provisioning profile, stages the bundle
+with `cmake --install`, adds the app icon, checks the staged bundle is complete,
+re-signs it, and installs it. `--help` lists the flags; `--clean`,
+`--resign-only`, `--install`, `--launch`, `--push-data` and `--touch-log` are the
+ones that matter. Signing needs a development certificate: a distribution one
+signs for the App Store and produces a bundle a device will not install
+directly.
+
+The team id, certificate, bundle identifier and device come from the environment
+or from `scripts/build/ios/ios-signing.env`, which is not committed.
+`scripts/build/ios/ios-signing.env.example` is the template and records the two
+traps that cost the most: the team id is not the identifier inside the
+certificate's parentheses, and an identity shortened to `Apple Development`
+matches several certificates on a machine that has belonged to more than one
+team.
+
+The game reads its data from, and writes its own files into,
+`Documents/OpenTS` inside the application's container. The Files app shows it,
+so an installation can be dropped in and a saved game copied out without a
+cable, and `--push-data <dir>` copies one there over the network. The whole
+installation goes across, minus the Windows executables, the editor and the
+documentation: the movie archives are most of the two gigabytes and the game
+refuses to start without one. The engine's own log is written to
+`Documents/OpenTS/Debug`, because the application bundle it would otherwise sit
+beside cannot be written to.
 
 Fingers reach the engine as the pointer every other host writes. One finger taps
 and drags, a held finger is the right button, and two fingers scroll the tactical
