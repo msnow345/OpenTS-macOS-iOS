@@ -11,8 +11,7 @@
 // the guest setup are one screen family sharing one model, because they share the session's
 // game, player and chat rosters and hand the driver one answer between them.
 //
-// This holds the game list half. The host and guest commands still write the driver's
-// response themselves.
+// All three screens are here: the game list, the host setup and the guest setup.
 //
 // docs/UI_DESIGN.md, "Screens", owns the contract.
 
@@ -34,6 +33,33 @@ inline constexpr char const * UI_LOBBY_COLOR = "color";
 inline constexpr char const * UI_LOBBY_SIDE = "side";
 inline constexpr char const * UI_LOBBY_IDENTITY = "identity";
 inline constexpr char const * UI_LOBBY_ACCEPT = "accept";
+inline constexpr char const * UI_LOBBY_GO = "go";
+inline constexpr char const * UI_LOBBY_HOST_SIDE = "hostside";
+inline constexpr char const * UI_LOBBY_HOST_COLOR = "hostcolor";
+inline constexpr char const * UI_LOBBY_KICK = "kick";
+inline constexpr char const * UI_LOBBY_PICK_USER = "pickuser";
+inline constexpr char const * UI_LOBBY_PICK_MAP = "pickmap";
+inline constexpr char const * UI_LOBBY_TOGGLE = "toggle";
+inline constexpr char const * UI_LOBBY_SLIDER = "slider";
+
+// The game options the host owns. A track bar and a check box name themselves, because an
+// intent carries an identity rather than a control.
+inline constexpr char const * UI_LOBBY_UNITCOUNT = "unitcount";
+inline constexpr char const * UI_LOBBY_CREDITS = "credits";
+inline constexpr char const * UI_LOBBY_TECHLEVEL = "techlevel";
+inline constexpr char const * UI_LOBBY_AILEVEL = "ailevel";
+inline constexpr char const * UI_LOBBY_AIPLAYERS = "aiplayers";
+inline constexpr char const * UI_LOBBY_GAMESPEED = "gamespeed";
+
+inline constexpr char const * UI_LOBBY_BASES = "bases";
+inline constexpr char const * UI_LOBBY_CRATES = "crates";
+inline constexpr char const * UI_LOBBY_FOG = "fog";
+inline constexpr char const * UI_LOBBY_BRIDGES = "bridges";
+inline constexpr char const * UI_LOBBY_MCV = "mcv";
+inline constexpr char const * UI_LOBBY_SHORTGAME = "shortgame";
+inline constexpr char const * UI_LOBBY_ENGINEER = "engineer";
+inline constexpr char const * UI_LOBBY_ALLIES = "allies";
+inline constexpr char const * UI_LOBBY_HARVTRUCE = "harvtruce";
 
 
 class UILobbyPresenterClass : public UIPresenterClass
@@ -46,6 +72,41 @@ class UILobbyPresenterClass : public UIPresenterClass
 			RESPONSE_CANCEL,
 			RESPONSE_JOIN,
 			RESPONSE_NEW,
+			RESPONSE_GO,
+		};
+
+		// A screen the lobby opens and comes back from. The scenario picker draws where the
+		// host screen is, so its owner takes the host screen off the screen and puts it
+		// back rather than running it underneath.
+		enum PendingType {
+			SUB_NONE,
+			SUB_PICK_MAP,
+		};
+
+		// A country that may be played, carrying the country itself rather than its
+		// position, because the list holds only the multiplayable countries.
+		struct SideType
+		{
+			std::string Name;
+			int Country = 0;
+		};
+
+		// A track bar and the range the rules give it. A range control clamps a value into
+		// the range it is holding, so a view sets the range before the value.
+		struct SliderType
+		{
+			int Value = 0;
+			int Minimum = 0;
+			int Maximum = 0;
+			int Step = 1;
+		};
+
+		// A line of chat or system text, as PMessagePrintf composed it. Wrapping it to the
+		// width it is shown at belongs to the presentation.
+		struct ChatLineType
+		{
+			std::string Text;
+			int Color = -1;
 		};
 
 		// A game somebody is advertising. The lobby itself heads the list.
@@ -80,6 +141,18 @@ class UILobbyPresenterClass : public UIPresenterClass
 		// arrives having accepted nothing.
 		void Open_Guest(void);
 
+		// The game the host has just created: the scenario the setup opens on, the option
+		// values the rules allow, and the country and color lists both setup screens show.
+		void Open_Host(void);
+
+		// Runs the scenario picker with the host screen out of the way, and puts the map it
+		// chose on the model. Called by the owner between passes, never from an event.
+		void Run_Pending(void);
+
+		// Records a line of chat or system text for whatever is showing the lobby. Called
+		// from the network code wherever PMessagePrintf composes one.
+		void Record_Message(int color, char const * text);
+
 		// Reads the session's rosters into the view-model. Marking the host as accepted
 		// happens here rather than while drawing, because it is a fact about the player
 		// rather than about the row.
@@ -110,11 +183,60 @@ class UILobbyPresenterClass : public UIPresenterClass
 
 		std::vector<UserRowType> Users;
 
+		// Which player rows the host has picked out to kick. The list is a LBS_MULTIPLESEL
+		// one, so this is a set of rows rather than a single selection.
+		std::vector<int> PickedUsers;
+
+		std::vector<ChatLineType> Messages;
+
+		// The most lines the model keeps, which is what the message list box was capped at.
+		enum { MESSAGE_LIMIT = 128 };
+
+		/*
+		**	The host's half of the model. The guest screen shows the same fields and cannot
+		**	change them, which is what WS_DISABLED on every one of its controls stood for.
+		*/
+		std::vector<SideType> Sides;
+		int SelectedSide = 0;
+
+		std::vector<std::string> Colors;
+
+		std::string ScenarioName;
+
+		SliderType UnitCount;
+		SliderType Credits;
+		SliderType TechLevel;
+		SliderType AILevel;
+		SliderType AIPlayers;
+		SliderType GameSpeed;
+
+		bool Bases = false;
+		bool Crates = false;
+		bool FogOfWar = false;
+		bool Bridges = false;
+		bool MCVRedeploy = false;
+		bool ShortGame = false;
+		bool MultiEngineer = false;
+		bool Allies = false;
+		bool HarvTruce = false;
+
+		// Is the start button available? Pressing it takes it away until the driver has
+		// decided the game may begin, which is what disabling the window stood for.
+		bool CanStart = true;
+
+		PendingType Pending = SUB_NONE;
+
+		// Moves when the map picture changes, so a view uploads once per map rather than
+		// once per present.
+		unsigned int PreviewGeneration = 0;
+
 		ResponseType Response = RESPONSE_NONE;
 
 		// Did the last executed intent move a roster? A view redraws only what moved.
 		bool GamesChanged = false;
 		bool UsersChanged = false;
+		bool MessagesChanged = false;
+		bool OptionsChanged = false;
 
 	private:
 		void Rename(std::string const & name);
@@ -122,4 +244,18 @@ class UILobbyPresenterClass : public UIPresenterClass
 		void Say(std::string const & text);
 		void Accept(void);
 		void Change_Identity(int color);
+
+		void Build_Identity_Lists(void);
+		void Read_Options(void);
+		void Host_Side(int row);
+		void Host_Color(int color);
+		void Toggle(std::string const & which);
+		void Slide(std::string const & which, int value);
+		void Kick(void);
 };
+
+
+// The lobby screen the driver is running, or NULL when no lobby is up. The network code
+// reaches the model through this wherever a change is produced away from a screen.
+UILobbyPresenterClass * UI_Lobby_Screen(void);
+void UI_Set_Lobby_Screen(UILobbyPresenterClass * screen);

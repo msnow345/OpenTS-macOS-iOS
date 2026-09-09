@@ -10,6 +10,7 @@
 #include "always.h"
 
 #include "netshare.h"
+#include "ui/uilobby.h"
 #include "ui/uiscenariopick.h"
 #include "ui/uishell.h"
 
@@ -143,6 +144,12 @@ void __cdecl PMessagePrintf(int color, const char * fmt, ...)
 	va_start(va, fmt);
 	vsprintf(buffer, fmt, va);
 	va_end(va);
+
+	// The line is recorded where it is composed rather than where it is drawn, so a
+	// presentation that draws a different number of times cannot lose one or repeat one.
+	if (UILobbyPresenterClass * const lobby = UI_Lobby_Screen()) {
+		lobby->Record_Message(color, buffer);
+	}
 
 	if (WS_Top_Window() != 0) {
 		HWND top = WS_Top_Window();
