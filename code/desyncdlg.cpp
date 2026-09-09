@@ -34,6 +34,7 @@
 #include "savemgr.h"
 #include "session.h"
 #include "srfcache.h"
+#include "ui/uishell.h"
 #include "syncreport.h"
 #include "win.h"
 #include "windlg.h"
@@ -67,7 +68,7 @@ namespace {
 
 
 /// <summary>
-/// Shows the dialog and pumps it until the master has decided, or this player has quit. Game
+/// Shows the screen and runs it until the master has decided, or this player has quit. Game
 /// logic is halted for the duration; chat, sign-offs, heartbeats and the master's decision
 /// still come through, since the network is serviced the whole time.
 /// </summary>
@@ -79,66 +80,33 @@ DesyncDialogClass::OutcomeType DesyncDialogClass::Run(void)
 	TacticalActive = false;
 	Session.Suspended++;
 
-	Decision = 0;
-	ContinueReceived = false;
-	CountdownActive = false;
-	QuitEnabled = false;
-	LastCountdownSecond = -1;
-	ChatBacklog.clear();
-	OpenedAt = Monotonic_Milliseconds();
-	State.Begin(OpenedAt);
-
-	Create_Dialog();
+	IsRunning = true;
+	Screen.Open();
+	UI_Set_Desync_Screen(&Screen);
 
 	OutcomeType outcome = OutcomeType::Continue;
 
-	if (Window == NULL) {
-		DebugString("The out-of-sync dialog could not be created; continuing\n");
-	} else {
-		while (true) {
-			Call_Back();
+	// The presentation is latched here, at screen entry, and a document that will not
+	// prepare drops the screen back to the legacy dialog.
+	bool answered = false;
+	if (UI_Use_Rml()) {
+		UIResult const answer = UI_Desync_Run(Screen);
+		answered = answer.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN;
+	}
+	UI_Desync_Close_View();
 
-			if (Decision == IDC_DESYNC_QUIT) {
-				outcome = OutcomeType::Quit;
-				break;
-			}
-
-			std::int64_t now = Monotonic_Milliseconds();
-			if (!IsHostDialog && !QuitEnabled && now - OpenedAt >= DesyncClass::QUIT_DELAY_MS) {
-				QuitEnabled = true;
-				EnableWindow(GetDlgItem(Window, IDC_DESYNC_QUIT), TRUE);
-			}
-
-			if (!CountdownActive && SaveManager.MultiplayerLoad.Is_Pending()) {
-				Start_Countdown();
-			}
-
-			if (CountdownActive) {
-				Update_Countdown_Text();
-				InvalidateRect(Window, NULL, FALSE);
-				if (SaveManager.MultiplayerLoad.Is_Due(now)) {
-					outcome = OutcomeType::Load;
-					break;
-				}
-			} else if (ContinueReceived || Decision == IDC_DESYNC_CONTINUE) {
-				if (Decision == IDC_DESYNC_CONTINUE) {
-					Send_Continue();
-				}
-				outcome = OutcomeType::Continue;
-				break;
-			} else if (Decision == IDC_DESYNC_LOAD) {
-				EnableWindow(Window, FALSE);
-				SaveManager.Multiplayer_Load_Prompt();
-				EnableWindow(Window, TRUE);
-				SetFocus(GetDlgItem(Window, IDC_DESYNC_PLAYER_LIST));
-			}
-
-			Decision = 0;
-			Host_Sleep(10);
-		}
+	if (!answered) {
+		Run_Legacy();
 	}
 
-	Destroy_Dialog();
+	switch (Screen.Outcome) {
+		case UIDesyncPresenterClass::OUTCOME_LOAD: outcome = OutcomeType::Load; break;
+		case UIDesyncPresenterClass::OUTCOME_QUIT: outcome = OutcomeType::Quit; break;
+		default:                                   outcome = OutcomeType::Continue; break;
+	}
+
+	UI_Set_Desync_Screen(NULL);
+	IsRunning = false;
 
 	Session.Suspended--;
 	TacticalActive = true;
@@ -149,18 +117,72 @@ DesyncDialogClass::OutcomeType DesyncDialogClass::Run(void)
 }
 
 
+/// <summary>
+/// Runs the OwnerDraw dialog against the same screen, for a build whose documents will not
+/// prepare. It puts the model on its controls and queues an intent from a control.
+/// </summary>
+DesyncDialogClass::OutcomeType DesyncDialogClass::Run_Legacy(void)
+{
+	CountdownShown = false;
+	DrawnMessages = 0;
+
+	Create_Dialog();
+	if (Window == NULL) {
+		DebugString("The out-of-sync dialog could not be created; continuing\n");
+		return(OutcomeType::Continue);
+	}
+
+	while (!Screen.Result.has_value()) {
+		Call_Back();
+
+		Screen.Service();
+		Screen.Drain();
+
+		Become_Host_If_Promoted();
+
+		if (Screen.PromptPending) {
+			EnableWindow(Window, FALSE);
+			Screen.Run_Pending();
+			EnableWindow(Window, TRUE);
+			SetFocus(GetDlgItem(Window, IDC_DESYNC_PLAYER_LIST));
+		}
+
+		if (Screen.PlayersChanged) {
+			Update_Player_List();
+			Screen.PlayersChanged = false;
+		}
+		if (Screen.MessagesChanged) {
+			Refill_Chat_List();
+			Screen.MessagesChanged = false;
+		}
+
+		EnableWindow(GetDlgItem(Window, IDC_DESYNC_QUIT), Screen.CanQuit ? TRUE : FALSE);
+		if (IsHostDialog) {
+			EnableWindow(GetDlgItem(Window, IDC_DESYNC_LOAD), Screen.CanLoad ? TRUE : FALSE);
+			EnableWindow(GetDlgItem(Window, IDC_DESYNC_CONTINUE), Screen.CanContinue ? TRUE : FALSE);
+		}
+
+		Update_Countdown();
+
+		Host_Sleep(10);
+	}
+
+	Destroy_Dialog();
+	return(OutcomeType::Continue);
+}
+
+
 void DesyncDialogClass::Service(void)
 {
 	if (!Is_Active()) {
 		return;
 	}
 
-	std::int64_t now = Monotonic_Milliseconds();
-	if (State.Heartbeat_Is_Due(now)) {
-		Send_Heartbeat();
-		State.Heartbeat_Sent(now);
+	// The RmlUi runner services the screen itself; this is the path the network maintenance
+	// takes while a nested dialog owns the pump.
+	if (Window != NULL) {
+		Screen.Service();
 	}
-	Check_Timeouts();
 }
 
 
@@ -170,9 +192,7 @@ void DesyncDialogClass::Notify_Chat(char const * name, char const * text)
 		return;
 	}
 
-	char buffer[MAX_MESSAGE_LENGTH + MAX_MESSAGE_PREFIX];
-	std::snprintf(buffer, sizeof(buffer), "%s: %s", name, text);
-	Append_Chat_Line(buffer);
+	Screen.Record_Chat(name, text);
 }
 
 
@@ -182,16 +202,7 @@ void DesyncDialogClass::Notify_Player_Left(int house, char const * name)
 		return;
 	}
 
-	State.Mark_Left(house, name);
-
-	if (name != NULL && name[0] != '\0') {
-		char buffer[128];
-		std::snprintf(buffer, sizeof(buffer), Fetch_String(TXT_LEFT_GAME), name);
-		Append_Chat_Line(buffer);
-	}
-
-	Update_Player_List();
-	Become_Host_If_Promoted();
+	Screen.Player_Left(house, name);
 }
 
 
@@ -201,15 +212,14 @@ void DesyncDialogClass::Notify_Continue(void)
 		return;
 	}
 
-	DebugString("The master chose to continue without the players out of sync\n");
-	ContinueReceived = true;
+	Screen.Master_Decided_To_Continue();
 }
 
 
 void DesyncDialogClass::Notify_Heartbeat(int house)
 {
 	if (Is_Active()) {
-		State.Heard(house, Monotonic_Milliseconds());
+		Screen.Heartbeat_Heard(house);
 	}
 }
 
@@ -220,8 +230,7 @@ void DesyncDialogClass::Notify_Master_Changed(void)
 		return;
 	}
 
-	Update_Player_List();
-	Become_Host_If_Promoted();
+	Screen.Master_Changed();
 }
 
 
@@ -231,7 +240,7 @@ void DesyncDialogClass::Notify_Master_Changed(void)
 /// </summary>
 void DesyncDialogClass::Create_Dialog(void)
 {
-	IsHostDialog = Session.Am_I_Master();
+	IsHostDialog = Screen.IsMaster;
 	int const id = IsHostDialog ? IDD_DESYNC_HOST : IDD_DESYNC_WAIT;
 
 	Window = WS_Create_Dialog(ProgramInstance, id, MainWindow, Dialog_Proc, FALSE);
@@ -259,12 +268,10 @@ void DesyncDialogClass::Create_Dialog(void)
 	Update_Player_List();
 
 	if (IsHostDialog) {
-		bool const can_load = SaveManager.Multiplayer_Load_Is_Allowed() && MultiplayerLoadOptionsClass().Files_Present();
-		EnableWindow(GetDlgItem(Window, IDC_DESYNC_LOAD), can_load && !CountdownActive);
-		EnableWindow(GetDlgItem(Window, IDC_DESYNC_CONTINUE), !CountdownActive);
-	} else {
-		EnableWindow(GetDlgItem(Window, IDC_DESYNC_QUIT), QuitEnabled);
+		EnableWindow(GetDlgItem(Window, IDC_DESYNC_LOAD), Screen.CanLoad);
+		EnableWindow(GetDlgItem(Window, IDC_DESYNC_CONTINUE), Screen.CanContinue);
 	}
+	EnableWindow(GetDlgItem(Window, IDC_DESYNC_QUIT), Screen.CanQuit);
 
 	Refill_Chat_List();
 
@@ -274,11 +281,8 @@ void DesyncDialogClass::Create_Dialog(void)
 		ChatPlaceholderActive = true;
 	}
 
-	if (CountdownActive) {
-		ShowWindow(GetDlgItem(Window, IDC_DESYNC_COUNTDOWN_TEXT), SW_SHOW);
-		ShowWindow(GetDlgItem(Window, IDC_DESYNC_COUNTDOWN_BAR), SW_SHOW);
-		Update_Countdown_Text();
-	}
+	CountdownShown = false;
+	Update_Countdown();
 
 	MouseCursor->Hide_Mouse();
 	ShowWindow(Window, SW_SHOWNORMAL);
@@ -348,7 +352,7 @@ void DesyncDialogClass::Fit_To_Screen(void)
 /// </summary>
 void DesyncDialogClass::Become_Host_If_Promoted(void)
 {
-	if (!Is_Active() || IsHostDialog || CountdownActive || !Session.Am_I_Master()) {
+	if (Window == NULL || IsHostDialog == Screen.IsMaster) {
 		return;
 	}
 
@@ -360,7 +364,7 @@ void DesyncDialogClass::Become_Host_If_Promoted(void)
 
 void DesyncDialogClass::Update_Player_List(void)
 {
-	if (!Is_Active()) {
+	if (Window == NULL) {
 		return;
 	}
 
@@ -372,25 +376,14 @@ void DesyncDialogClass::Update_Player_List(void)
 	ListBox_ResetContent(list);
 
 	int const status_x = Status_Column_X(list);
-	int const master = Session.Master_Player_ID();
 
-	for (int house = 0; house < MAX_PLAYERS && house < Houses.Count(); house++) {
-		HouseClass const * housep = Houses[house];
-		bool const left = State.Has_Left(house);
-
-		// A player who left stays listed, though their seat is no longer human.
-		if (housep == NULL || (!housep->IsHuman && !left)) {
-			continue;
-		}
-
-		// The roster entry is gone by now, so the kept name is the only copy while the list rebuilds.
-		char const * name = left && State.Left_Name(house)[0] != '\0' ? State.Left_Name(house) : housep->IniName.c_str();
-		int const row = ListBox_AddString(list, name);
+	for (UIDesyncPresenterClass::PlayerRowType const & player : Screen.Players) {
+		int const row = ListBox_AddString(list, player.Name.c_str());
 		if (row < 0) {
 			continue;
 		}
 
-		if (house == master) {
+		if (player.IsHost) {
 			OwnerDraw::CellData host;
 			host.type = OwnerDraw::CellData::SURFACE;
 			host.surf = SurfaceCache.GetSurface("wolhost.pcx");
@@ -400,10 +393,10 @@ void DesyncDialogClass::Update_Player_List(void)
 
 		int text = TXT_OK;
 		COLORREF color = RGB(0, 200, 0);
-		if (left) {
+		if (player.Status == UIDesyncPresenterClass::STATUS_LEFT) {
 			text = TXT_SYNC_STATUS_LEFT;
 			color = RGB(200, 0, 0);
-		} else if (Sync_Is_Out_Of_Sync(house)) {
+		} else if (player.Status == UIDesyncPresenterClass::STATUS_OUT_OF_SYNC) {
 			text = TXT_SYNC_STATUS_OUT;
 			color = RGB(200, 200, 0);
 		}
@@ -422,7 +415,7 @@ void DesyncDialogClass::Update_Player_List(void)
 
 void DesyncDialogClass::Refill_Chat_List(void)
 {
-	if (!Is_Active()) {
+	if (Window == NULL) {
 		return;
 	}
 
@@ -432,32 +425,8 @@ void DesyncDialogClass::Refill_Chat_List(void)
 	}
 
 	ListBox_ResetContent(list);
-	for (std::string const & line : ChatBacklog) {
+	for (std::string const & line : Screen.Messages) {
 		ListBox_AddString(list, line.c_str());
-	}
-	ListBox_SetTopIndex(list, ListBox_GetCount(list) - 1);
-}
-
-
-void DesyncDialogClass::Append_Chat_Line(char const * line)
-{
-	ChatBacklog.emplace_back(line);
-	if (ChatBacklog.size() > CHAT_BACKLOG_MAX) {
-		ChatBacklog.erase(ChatBacklog.begin());
-	}
-
-	if (!Is_Active()) {
-		return;
-	}
-
-	HWND list = GetDlgItem(Window, IDC_DESYNC_CHAT_LIST);
-	if (list == NULL) {
-		return;
-	}
-
-	ListBox_AddString(list, line);
-	while (ListBox_GetCount(list) > CHAT_BACKLOG_MAX) {
-		ListBox_DeleteString(list, 0);
 	}
 	ListBox_SetTopIndex(list, ListBox_GetCount(list) - 1);
 }
@@ -465,7 +434,7 @@ void DesyncDialogClass::Append_Chat_Line(char const * line)
 
 void DesyncDialogClass::Send_Chat(void)
 {
-	if (!Is_Active() || ChatPlaceholderActive) {
+	if (Window == NULL || ChatPlaceholderActive) {
 		return;
 	}
 
@@ -483,15 +452,13 @@ void DesyncDialogClass::Send_Chat(void)
 	SetWindowText(edit, "");
 	SetFocus(edit);
 
-	Session.MessageScope = ChatScopeType::Everyone;
-	Session.MessageAddress = IPXAddressClass();
-	Chat_Send(buffer);
+	Screen.Queue(UIIntent{UI_DESYNC_SAY, buffer, 0});
 }
 
 
 void DesyncDialogClass::On_Chat_Edit_Focus(bool gained)
 {
-	if (!Is_Active()) {
+	if (Window == NULL) {
 		return;
 	}
 
@@ -510,104 +477,23 @@ void DesyncDialogClass::On_Chat_Edit_Focus(bool gained)
 }
 
 
-void DesyncDialogClass::Send_Heartbeat(void)
-{
-	if (PlayerPtr == NULL || Session.Players.Count() == 0) {
-		return;
-	}
-
-	GlobalPacketType packet;
-	NetGlobal::Initialize_Packet(packet, NET_DESYNC_HEARTBEAT);
-	std::snprintf(packet.Name, sizeof(packet.Name), "%s", Session.Players[0]->Name);
-
-	for (int index = 1; index < Session.Players.Count(); index++) {
-		Ipx.Send_Global_Message(&packet, sizeof(packet), 0, &Session.Players[index]->Address);
-	}
-	Ipx.Service();
-}
-
-
-void DesyncDialogClass::Send_Continue(void)
-{
-	DebugString("Telling every seat to continue without the players out of sync\n");
-
-	GlobalPacketType packet;
-	NetGlobal::Initialize_Packet(packet, NET_DESYNC_CONTINUE);
-	std::snprintf(packet.Name, sizeof(packet.Name), "%s", Session.Players[0]->Name);
-
-	for (int index = 1; index < Session.Players.Count(); index++) {
-		Ipx.Send_Global_Message(&packet, sizeof(packet), 1, &Session.Players[index]->Address);
-		Ipx.Service();
-	}
-}
-
-
 /// <summary>
-/// Drops the seats that have fallen silent, so a machine that died without a sign-off neither
-/// holds up the decision nor lingers in the seats a later load reconciles.
+/// Shows the countdown once a load is scheduled and keeps its text and bar current.
 /// </summary>
-void DesyncDialogClass::Check_Timeouts(void)
+void DesyncDialogClass::Update_Countdown(void)
 {
-	std::int64_t const now = Monotonic_Milliseconds();
-
-	for (int index = Session.Players.Count() - 1; index >= 1; index--) {
-		int const house = Session.Players[index]->Player.ID;
-		if (!State.Is_Silent(house, now)) {
-			continue;
-		}
-
-		DebugString("No heartbeat from %s (house %d) for %d seconds; dropping the seat\n",
-			Session.Players[index]->Name, house, (int)(DesyncClass::HEARTBEAT_TIMEOUT_MS / 1000));
-
-		std::string const name = Session.Players[index]->Name;
-		Destroy_Connection(house, 1);
-		Notify_Player_Left(house, name.c_str());
-	}
-}
-
-
-void DesyncDialogClass::Start_Countdown(void)
-{
-	DebugString("Counting down to the multiplayer load\n");
-
-	CountdownActive = true;
-	LastCountdownSecond = -1;
-
-	if (!Is_Active()) {
+	if (Window == NULL || !Screen.CountdownActive) {
 		return;
 	}
 
-	Append_Chat_Line(Fetch_String(TXT_LOADING_SAVED_GAME));
-
-	ShowWindow(GetDlgItem(Window, IDC_DESYNC_COUNTDOWN_TEXT), SW_SHOW);
-	ShowWindow(GetDlgItem(Window, IDC_DESYNC_COUNTDOWN_BAR), SW_SHOW);
-	Update_Countdown_Text();
-
-	if (IsHostDialog) {
-		EnableWindow(GetDlgItem(Window, IDC_DESYNC_LOAD), FALSE);
-		EnableWindow(GetDlgItem(Window, IDC_DESYNC_CONTINUE), FALSE);
+	if (!CountdownShown) {
+		CountdownShown = true;
+		ShowWindow(GetDlgItem(Window, IDC_DESYNC_COUNTDOWN_TEXT), SW_SHOW);
+		ShowWindow(GetDlgItem(Window, IDC_DESYNC_COUNTDOWN_BAR), SW_SHOW);
 	}
 
+	SetDlgItemText(Window, IDC_DESYNC_COUNTDOWN_TEXT, Screen.CountdownText.c_str());
 	InvalidateRect(Window, NULL, FALSE);
-}
-
-
-void DesyncDialogClass::Update_Countdown_Text(void)
-{
-	if (!Is_Active() || !CountdownActive || !SaveManager.MultiplayerLoad.Is_Pending()) {
-		return;
-	}
-
-	int const seconds = SaveManager.MultiplayerLoad.Seconds_Left(Monotonic_Milliseconds());
-	if (seconds == LastCountdownSecond) {
-		return;
-	}
-	LastCountdownSecond = seconds;
-
-	char buffer[128];
-	std::snprintf(buffer, sizeof(buffer),
-		Fetch_String(seconds == 1 ? TXT_LOADING_IN_SECOND : TXT_LOADING_IN_SECONDS), seconds);
-	SetDlgItemText(Window, IDC_DESYNC_COUNTDOWN_TEXT, buffer);
 }
 
 
@@ -617,7 +503,7 @@ void DesyncDialogClass::Update_Countdown_Text(void)
 /// </summary>
 void DesyncDialogClass::Draw_Countdown_Bar(HWND window)
 {
-	if (!CountdownActive || !SaveManager.MultiplayerLoad.Is_Pending()) {
+	if (!CountdownShown || DesyncDialog.Screen.CountdownTotal <= 0) {
 		return;
 	}
 
@@ -635,8 +521,8 @@ void DesyncDialogClass::Draw_Countdown_Bar(HWND window)
 	bar_rect.Width = winrect.right - winrect.left;
 	bar_rect.Height = winrect.bottom - winrect.top;
 
-	int const total = (int)MultiplayerLoadClass::COUNTDOWN_MS;
-	int const remaining = std::clamp((int)SaveManager.MultiplayerLoad.Milliseconds_Left(Monotonic_Milliseconds()), 0, total);
+	int const total = DesyncDialog.Screen.CountdownTotal;
+	int const remaining = std::clamp(DesyncDialog.Screen.CountdownRemaining, 0, total);
 	int const elapsed = total - remaining;
 
 	unsigned short color = DSurface::Build_Hicolor_Pixel(0, 200, 0);
@@ -688,9 +574,15 @@ INT_PTR CALLBACK DesyncDialogClass::Dialog_Proc(HWND window, UINT message, WPARA
 		case WM_COMMAND:
 			switch (LOWORD(wparam)) {
 				case IDC_DESYNC_LOAD:
+					DesyncDialog.Screen.Queue(UIIntent{UI_DESYNC_LOAD, "", 0});
+					break;
+
 				case IDC_DESYNC_CONTINUE:
+					DesyncDialog.Screen.Queue(UIIntent{UI_DESYNC_CONTINUE, "", 0});
+					break;
+
 				case IDC_DESYNC_QUIT:
-					DesyncDialog.Decision = LOWORD(wparam);
+					DesyncDialog.Screen.Queue(UIIntent{UI_DESYNC_QUIT, "", 0});
 					break;
 
 				// Enter in the chat box arrives as IDOK, since the dialog has no default button.

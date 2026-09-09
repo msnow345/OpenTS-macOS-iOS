@@ -1,0 +1,39 @@
+<rml>
+<head>
+	<title>Synchronization error</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="lobbybase.rcss"/>
+	<link type="text/rcss" href="desyncbase.rcss"/>
+	<link type="text/rcss" href="desyncwait.rcss"/>
+</head>
+<body data-model="desyncwait">
+	<div id="dialog" class="panel">
+		<div id="header">Synchronization Error</div>
+
+		<div class="caption" id="playerslabel">Players:</div>
+		<div id="players" class="list">
+			<div class="row" data-for="entry : players">
+				<div class="mark">{{ entry.mark }}</div>
+				<div class="name">{{ entry.name }}</div>
+				<div class="status" data-style-color="entry.hex">{{ entry.status }}</div>
+			</div>
+		</div>
+
+		<div id="prose" class="prose">The game has gone out of sync.<br/><br/>If there are saves available from this session, the game host can attempt to load a save to re-sync the game.<br/><br/>Alternatively, the host can choose for the desynced players to continue playing in separate game sessions.</div>
+		<div id="footprose" class="prose">Please wait while the host is making a decision.</div>
+
+		<div id="messages" class="log">
+			<div class="line" data-for="line : messages">{{ line }}</div>
+		</div>
+
+		<input type="text" id="say" class="field" maxlength="221" data-event-keydown="submit()"/>
+
+		<div class="caption" id="countdowntext" data-if="countdown">{{ countdowntext }}</div>
+		<div id="countdownframe" data-if="countdown">
+			<div id="countdownbar" data-style-width="barwidth" data-style-background-color="barhex"></div>
+		</div>
+
+		<div class="button" id="quit" data-class-disabled="!canquit" data-event-click="press('quit')">Quit</div>
+	</div>
+</body>
+</rml>

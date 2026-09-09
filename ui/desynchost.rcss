@@ -1,0 +1,5 @@
+/* The master's out-of-sync screen, IDD_DESYNC_HOST. It carries all three buttons, at 30,
+   145 and 260 dialog units across the bottom row the base stylesheet places. */
+#load     { left: 45dp; }
+#continue { left: 217.5dp; }
+#quit     { left: 390dp; }
