@@ -36,6 +36,13 @@ int main(int argc, char ** argv)
 	// a stray click on the tactical map is an order.
 	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
 	SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
+
+	// The host reserves a band along the bottom of the screen for its own swipe, and the
+	// sidebar reaches into it. This asks for the swipe to be handed to the game first and
+	// only taken by the host on a second one. The bar itself stays on screen: the host
+	// offers hiding it and deferring the swipe as alternatives, not together, and losing a
+	// drag to the home screen costs more than a dim line does.
+	SDL_SetHint(SDL_HINT_IOS_HIDE_HOME_INDICATOR, "2");
 #endif
 
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
