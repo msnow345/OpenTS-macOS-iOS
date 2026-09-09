@@ -37,7 +37,7 @@ class UISoundPresenterClass : public UIPresenterClass
 	public:
 		// The steps a volume is expressed in, which is the range the dialog's track bars
 		// were given. A view shows steps; only this class knows what they mean.
-		static int const VOLUME_LEVELS = 10;
+		static constexpr int VOLUME_LEVELS = 10;
 
 		struct TrackType
 		{
