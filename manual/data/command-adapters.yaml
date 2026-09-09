@@ -424,29 +424,19 @@ fixed_exclusions:
     reason: Tactical-tab hit-testing handled as pointer input.
   - sites:
       - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_F1 }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_F12 }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_BACK }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_TAB }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_RETURN }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_ESCAPE }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_SPACE }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_PRIOR }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_NEXT }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_END }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_HOME }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_LEFT }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_UP }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_RIGHT }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_DOWN }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_INSERT }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_DELETE }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_SHIFT }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_CONTROL }
-      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_MENU }
+      - { file: code/ui/uishell.cpp, function: Key_Identifier, expression: VK_F24 }
     reason: >-
-      Translates a Windows virtual key into the identifier the UI toolkit names it by. The
-      shell hands the key to whichever document has the input scope; the key's meaning is the
-      document's, so no site here is a game command.
+      Bounds of the function-key run in the translation from a Windows virtual key to the
+      identifier the UI toolkit names it by. The shell hands the key to whichever document
+      has the input scope; the key's meaning is the document's, so no site here is a game
+      command.
+  - sites:
+      - { file: code/ui/uikeyboard.cpp, function: Is_Modifier_Key, expression: VK_SHIFT }
+      - { file: code/ui/uikeyboard.cpp, function: Is_Modifier_Key, expression: VK_CONTROL }
+      - { file: code/ui/uikeyboard.cpp, function: Is_Modifier_Key, expression: VK_MENU }
+    reason: >-
+      Recognizes a modifier held on its own so the hotkey capture control waits for the key
+      it qualifies. It classifies a keypress and dispatches nothing.
   - sites:
       - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_CONTROL }
       - { file: code/ui/uishell.cpp, function: Key_Modifiers, expression: VK_SHIFT }
