@@ -20,6 +20,21 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 add_subdirectory(bgfx.cmake)
 
+# bgfx compiles its Apple sources as Objective-C++ by putting -ObjC++ into CMAKE_CXX_FLAGS,
+# which it skips under the Xcode generator in favour of a per-source language it names on
+# two files. Its Metal sources are not among the two, so they are named here; without this
+# the Xcode generated project fails on the Objective-C syntax in video_mtl.cpp.
+if(APPLE AND XCODE)
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/bgfx.cmake/bgfx/src/renderer_mtl.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/bgfx.cmake/bgfx/src/video_mtl.cpp"
+        TARGET_DIRECTORY bgfx
+        PROPERTIES
+            LANGUAGE OBJCXX
+            XCODE_EXPLICIT_FILE_TYPE sourcecode.cpp.objcpp
+    )
+endif()
+
 # The encoder supports the disabled texture tools and is not linked into OpenTS. The decoder
 # reads the PNG and TGA files the UI documents reference, so it is built with everything else.
 set_target_properties(bimg_encode PROPERTIES EXCLUDE_FROM_ALL TRUE)
