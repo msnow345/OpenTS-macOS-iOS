@@ -11,6 +11,7 @@
 
 #include "netshare.h"
 #include "ui/uiscenariopick.h"
+#include "ui/uishell.h"
 
 #include "_rules.h"
 #include "conquer.h"
@@ -1234,6 +1235,16 @@ int Scenario_Dialog(HWND top)
 /// <returns>bool; Did the player settle on a map?</returns>
 bool Pick_Scenario_Screen(void)
 {
+	if (UI_Use_Rml()) {
+		UIScenarioPickPresenterClass screen;
+		screen.Refresh();
+
+		UIResult const result = UI_Scenario_Pick_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			return(result.Outcome == UIResult::OUTCOME_ACCEPTED);
+		}
+	}
+
 	return(Scenario_Dialog(MainWindow) == IDOK);
 }
 

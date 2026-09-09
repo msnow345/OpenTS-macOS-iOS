@@ -1,0 +1,79 @@
+/* The multiplayer map selection screen. Geometry from the IDD_MPLAYER_SELECT_MAP template,
+   converted from dialog units at the 8 point MS Sans Serif the template names: 1.5 pixels
+   across and 1.625 down, with a child's offset taken from the panel's content box and the
+   panel's declared size taken inside its own border. */
+
+/* 360 x 200 dialog units, so 540 x 325 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -270dp;
+	margin-top: -162.5dp;
+
+	width: 536dp;
+	height: 321dp;
+}
+
+/* The CTEXT title, 316 x 12 dialog units at 22, 12. */
+#title
+{
+	left: 31dp;
+	top: 17.5dp;
+	width: 474dp;
+	height: 19.5dp;
+	line-height: 19.5dp;
+	text-align: center;
+}
+
+/* The map list, 175 x 142 dialog units at 22, 26. */
+#maps
+{
+	left: 31dp;
+	top: 40.25dp;
+	width: 262.5dp;
+	height: 230.75dp;
+}
+
+/* A row spans the list less its scrollbar, and stands as tall as the owner-draw list's own
+   item, which is the 12 pixel list font plus two. */
+#maps .row
+{
+	width: 250.5dp;
+	height: 14dp;
+	line-height: 14dp;
+}
+
+/* The preview frame, a GROUPBOX 129 x 80 dialog units at 209, 59. The picture inside it is
+   drawn by the screen and reaches the document through the <surface> element. */
+#previewframe
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 311.5dp;
+	top: 93.875dp;
+	width: 193.5dp;
+	height: 130dp;
+
+	background-color: #14160f;
+	border-width: 1dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+/* The picture takes its size from the provider, which is the frame's own extents in game
+   logical units, so nothing here states one. */
+#previewframe surface
+{
+	display: block;
+}
+
+/* OK, Create Random Map and Cancel, all 14 dialog units tall at y 174. */
+.button { height: 22.75dp; line-height: 22.75dp; top: 280.75dp; }
+
+#accept { left: 31dp;  width: 75dp; }
+#random { left: 196dp; width: 159dp; }
+#cancel { left: 430dp; width: 75dp; }
