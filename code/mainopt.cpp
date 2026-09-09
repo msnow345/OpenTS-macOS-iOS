@@ -38,6 +38,7 @@
 #include "ui/uidisplayconfirm.h"
 #include "ui/uidisplayoptions.h"
 #include "ui/uimainoptions.h"
+#include "ui/uishell.h"
 
 #include "color.hh"
 
@@ -81,8 +82,26 @@ void Main_Options_Dialog(void)
 	_MainScreen = &screen;
 
 	while (true) {
+		// The screen is opened again on each pass round the family, so what the last close
+		// left behind is cleared first.
 		screen.Result.reset();
+		screen.IsClosing = false;
 		screen.Choice = UIMainOptionsPresenterClass::CHOICE_NONE;
+
+		// The selection is latched here, at screen entry, and the legacy dialog opens only
+		// when the document could not be prepared.
+		if (UI_Use_Rml()) {
+			UIResult const result = UI_Main_Options_Screen(screen);
+			if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+				if (screen.Exits()) {
+					break;
+				}
+				screen.Run_Pending();
+				continue;
+			}
+			screen.IsClosing = false;
+			screen.Result.reset();
+		}
 
 		HWND main_handle;
 		do {
@@ -136,29 +155,44 @@ void Display_Options_Dialog(void)
 		UIDisplayOptionsPresenterClass screen;
 		screen.Refresh();
 
-		_DisplayScreen = &screen;
-
-		HWND handle;
-		do {
-			handle = OwnerDraw::Begin_Dialog(IDD_OPT_DISPLAY, Display_Options_Dialog_Proc);
-		} while (handle == 0);
-		OwnerDraw::Display_Dialog(handle);
-
-		while (!screen.Result.has_value()) {
-			if (OwnerDraw::Dialog_Message_Handler() == true) {
-				UIResult ended;
-				ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
-				ended.GameEnded = true;
-				screen.Result = ended;
-				break;
+		// The selection is latched here, at screen entry, and the legacy dialog opens only
+		// when the document could not be prepared.
+		bool shown = false;
+		if (UI_Use_Rml()) {
+			UIResult const result = UI_Display_Options_Screen(screen);
+			if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+				shown = true;
+			} else {
+				screen.IsClosing = false;
+				screen.Result.reset();
 			}
-
-			screen.Drain();
-			screen.Service();
 		}
 
-		OwnerDraw::End_Dialog(handle);
-		_DisplayScreen = NULL;
+		if (!shown) {
+			_DisplayScreen = &screen;
+
+			HWND handle;
+			do {
+				handle = OwnerDraw::Begin_Dialog(IDD_OPT_DISPLAY, Display_Options_Dialog_Proc);
+			} while (handle == 0);
+			OwnerDraw::Display_Dialog(handle);
+
+			while (!screen.Result.has_value()) {
+				if (OwnerDraw::Dialog_Message_Handler() == true) {
+					UIResult ended;
+					ended.Outcome = UIResult::OUTCOME_SESSION_ENDED;
+					ended.GameEnded = true;
+					screen.Result = ended;
+					break;
+				}
+
+				screen.Drain();
+				screen.Service();
+			}
+
+			OwnerDraw::End_Dialog(handle);
+			_DisplayScreen = NULL;
+		}
 
 		if (screen.Choice != UIDisplayOptionsPresenterClass::CHOICE_ACCEPT) {
 			break;
@@ -366,6 +400,22 @@ bool Change_Display_Mode(int width, int height)
 }
 
 
+// Leaves the tried mode in place or puts the old one back, whichever view answered.
+static bool Keep_Or_Reset_Display_Mode(int width, int height, bool accepted)
+{
+	if (!accepted) {
+		DebugString("Resetting display mode @ %dx%d\n", Options.ScreenWidth, Options.ScreenHeight);
+		Change_Display_Mode(Options.ScreenWidth, Options.ScreenHeight);
+		LogicalSurface = HiddenSurface;
+		return(false);
+	}
+
+	DebugString("Keeping display mode @ %dx%d\n", width, height);
+	LogicalSurface = HiddenSurface;
+	return(true);
+}
+
+
 /// <summary>
 /// Tries a display mode out and asks the player to confirm it.
 /// This routine switches to the requested mode and puts up a confirmation dialog. If the
@@ -394,6 +444,18 @@ bool Test_Display_Mode_Dialog(int width, int height)
 	UIDisplayConfirmPresenterClass screen;
 	screen.Refresh();
 
+	// The selection is latched here, at screen entry, and the legacy dialog opens only when
+	// the document could not be prepared.
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Display_Confirm_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			return(Keep_Or_Reset_Display_Mode(width, height,
+				screen.Choice == UIDisplayConfirmPresenterClass::CHOICE_ACCEPT));
+		}
+		screen.IsClosing = false;
+		screen.Result.reset();
+	}
+
 	_ConfirmScreen = &screen;
 
 	bool accepted = true;
@@ -418,16 +480,7 @@ bool Test_Display_Mode_Dialog(int width, int height)
 
 	_ConfirmScreen = NULL;
 
-	if (!accepted) {
-		DebugString("Resetting display mode @ %dx%d\n", Options.ScreenWidth, Options.ScreenHeight);
-		Change_Display_Mode(Options.ScreenWidth, Options.ScreenHeight);
-		LogicalSurface = HiddenSurface;
-		return(false);
-	}
-
-	DebugString("Keeping display mode @ %dx%d\n", width, height);
-	LogicalSurface = HiddenSurface;
-	return(true);
+	return(Keep_Or_Reset_Display_Mode(width, height, accepted));
 }
 
 

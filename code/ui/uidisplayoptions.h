@@ -81,3 +81,8 @@ class UIDisplayOptionsPresenterClass : public UIPresenterClass
 	private:
 		int Opened = -1;
 };
+
+
+// Shows the screen through its RmlUi view. FAILED_TO_OPEN leaves nothing shown and the
+// caller falls through to the legacy dialog.
+UIResult UI_Display_Options_Screen(UIDisplayOptionsPresenterClass & presenter);

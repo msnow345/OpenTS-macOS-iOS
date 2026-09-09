@@ -71,3 +71,8 @@ class UIMainOptionsPresenterClass : public UIPresenterClass
 	private:
 		bool WasGameActive = false;
 };
+
+
+// Shows the screen through its RmlUi view. FAILED_TO_OPEN leaves nothing shown and the
+// caller falls through to the legacy dialog.
+UIResult UI_Main_Options_Screen(UIMainOptionsPresenterClass & presenter);

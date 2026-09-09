@@ -1,0 +1,42 @@
+/* The display mode confirmation. Geometry from the IDD_OPT_CONFIRM_MODE template, converted
+   at 1.5 pixels across and 1.625 down.
+
+   Nothing here counts the timeout down. The screen takes the mode back on its own after ten
+   seconds, because the mode being confirmed may have left this document unreadable, and a
+   countdown a player cannot see is not what decides it. */
+
+/* 239 x 70 dialog units, so 358.5 x 113.75 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -179.25dp;
+	margin-top: -56.875dp;
+
+	width: 354.5dp;
+	height: 109.75dp;
+}
+
+/* LTEXT with no SS_CENTERIMAGE, 195 x 26 dialog units at 22, 12: left aligned, top aligned
+   and wrapping, which is how the sentence filled its two lines. */
+#text
+{
+	left: 31dp;
+	top: 17.5dp;
+	width: 292.5dp;
+	height: 42.25dp;
+	white-space: normal;
+	line-height: 16dp;
+}
+
+/* OK and Cancel, both 50 x 14 dialog units on the same row. */
+.button
+{
+	top: 69.5dp;
+	width: 75dp;
+	height: 22.75dp;
+	line-height: 22.75dp;
+}
+
+#ok     { left: 164.5dp; }
+#cancel { left: 248.5dp; }

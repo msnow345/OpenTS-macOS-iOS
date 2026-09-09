@@ -1,0 +1,16 @@
+<rml>
+<head>
+	<title>Options</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="options.rcss"/>
+</head>
+<body data-model="options" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="button" id="settings" data-event-click="press('settings')">Game Settings</div>
+		<div class="button" id="display" data-event-click="press('display')">Display</div>
+		<div class="button" id="sound" data-class-disabled="!available" data-event-click="press('sound')">Sound</div>
+		<div class="button" id="keyboard" data-event-click="press('keyboard')">Keyboard</div>
+		<div class="button" id="exit" data-event-click="press('exit')">Main Menu</div>
+	</div>
+</body>
+</rml>

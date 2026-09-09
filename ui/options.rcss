@@ -1,0 +1,35 @@
+/* The main options menu. Geometry from the IDD_OPT_MAIN template, converted from dialog
+   units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625 down,
+   with a child's offset taken from the panel's content box and the panel's declared size
+   taken inside its own border. */
+
+/* 200 x 148 dialog units, so 300 x 240.5 pixels.
+
+   The panel is not centred vertically. Its driver moved it with
+   Move_Dialog(handle, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147), which is half the
+   frame height less 53, so it sits 53 dp above the middle whatever the frame height is. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -150dp;
+	margin-top: -53dp;
+
+	width: 296dp;
+	height: 236.5dp;
+}
+
+/* Five buttons, all 126 x 18 dialog units at x 37. */
+.button
+{
+	left: 53.5dp;
+	width: 189dp;
+	height: 29.25dp;
+	line-height: 29.25dp;
+}
+
+#settings { top: 14.25dp; }
+#display  { top: 50dp; }
+#sound    { top: 85.75dp; }
+#keyboard { top: 121.5dp; }
+#exit     { top: 193dp; }

@@ -23,6 +23,12 @@
 
 #include "uidisplayconfirm.h"
 
+#include "uirmlview.h"
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
+
 
 void UIDisplayConfirmPresenterClass::Refresh(void)
 {
@@ -77,4 +83,86 @@ void UIDisplayConfirmPresenterClass::Execute(UIIntent const & intent)
 	}
 
 	Result = result;
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the display mode confirmation.
+/// </summary>
+class DisplayConfirmViewClass : public UIRmlViewClass
+{
+	public:
+		DisplayConfirmViewClass(UIDisplayConfirmPresenterClass & presenter) :
+			UIRmlViewClass(presenter, "modeconfirm.rml"),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+	private:
+		UIDisplayConfirmPresenterClass & Screen;
+		int Remaining = 0;
+};
+
+
+void DisplayConfirmViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	Remaining = Screen.Seconds_Remaining();
+	model.Bind("seconds", &Remaining);
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// Escape refuses the mode, as does saying nothing. Enter keeps it, because the template
+	// names no default push button and Windows then sent the dialog IDOK, which its
+	// procedure recorded and its driver compared against IDOK.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Screen.Queue(UIIntent{UI_MODECONFIRM_CANCEL, "", 0});
+			} else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_MODECONFIRM_ACCEPT, "", 0});
+			}
+		});
+}
+
+
+void DisplayConfirmViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	int const remaining = Screen.Seconds_Remaining();
+	if (remaining != Remaining) {
+		Remaining = remaining;
+		Model.DirtyVariable("seconds");
+	}
+}
+
+
+/// <summary>
+/// Shows the mode confirmation and waits for the player, or for the timeout.
+/// </summary>
+UIResult UI_Display_Confirm_Screen(UIDisplayConfirmPresenterClass & presenter)
+{
+	DisplayConfirmViewClass view(presenter);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
 }

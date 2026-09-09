@@ -25,6 +25,8 @@
 
 #include "uidisplayoptions.h"
 
+#include "uirmlview.h"
+
 #include "globals.h"
 #include "init.h"
 #include "goptions.h"
@@ -32,6 +34,10 @@
 #include "video.h"
 
 #include <cstdio>
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
 
 
 void UIDisplayOptionsPresenterClass::Refresh(void)
@@ -127,4 +133,98 @@ void UIDisplayOptionsPresenterClass::Execute(UIIntent const & intent)
 	}
 
 	Result = result;
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the display options screen.
+/// </summary>
+class DisplayOptionsViewClass : public UIRmlViewClass
+{
+	public:
+		DisplayOptionsViewClass(UIDisplayOptionsPresenterClass & presenter) :
+			UIRmlViewClass(presenter, "display.rml"),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+	private:
+		UIDisplayOptionsPresenterClass & Screen;
+};
+
+
+void DisplayOptionsViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	if (auto mode = model.RegisterStruct<UIDisplayOptionsPresenterClass::ModeType>()) {
+		mode.RegisterMember("label", &UIDisplayOptionsPresenterClass::ModeType::Label);
+	}
+	model.RegisterArray<std::vector<UIDisplayOptionsPresenterClass::ModeType>>();
+
+	model.Bind("modes", &Screen.Modes);
+	model.Bind("selected", &Screen.Selected);
+	model.Bind("stretch", &Screen.StretchMovies);
+
+	model.BindEventCallback("pick",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_DISPLAY_SELECT, "", (int)arguments[0].Get<float>()});
+		});
+
+	model.BindEventCallback("toggle",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const &) {
+			Screen.Queue(UIIntent{UI_DISPLAY_STRETCH, "", Screen.StretchMovies ? 0 : 1});
+		});
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// Escape cancels and Enter accepts, which is what IsDialogMessage delivered to a dialog
+	// whose template names no default push button.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Screen.Queue(UIIntent{UI_DISPLAY_CANCEL, "", 0});
+			} else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_DISPLAY_ACCEPT, "", 0});
+			}
+		});
+}
+
+
+void DisplayOptionsViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Model.DirtyVariable("selected");
+	Model.DirtyVariable("stretch");
+}
+
+
+/// <summary>
+/// Shows the display options and waits for the player to leave them.
+/// </summary>
+UIResult UI_Display_Options_Screen(UIDisplayOptionsPresenterClass & presenter)
+{
+	DisplayOptionsViewClass view(presenter);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
 }

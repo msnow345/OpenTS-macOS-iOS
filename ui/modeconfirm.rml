@@ -1,0 +1,14 @@
+<rml>
+<head>
+	<title>Confirm display mode</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="modeconfirm.rcss"/>
+</head>
+<body data-model="modeconfirm" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="text">Click OK to keep this display mode or wait and your old display settings will be restored.</div>
+		<div class="button" id="ok" data-event-click="press('accept')">[[TXT_OK]]</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

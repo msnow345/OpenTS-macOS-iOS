@@ -22,6 +22,8 @@
 
 #include "uimainoptions.h"
 
+#include "uirmlview.h"
+
 #include "audio/audioengine.h"
 #include "gamedlg.h"
 #include "globals.h"
@@ -30,6 +32,10 @@
 #include "goptions.h"
 #include "options.h"
 #include "sounddlg.h"
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
 
 
 void UIMainOptionsPresenterClass::Refresh(void)
@@ -117,4 +123,70 @@ void UIMainOptionsPresenterClass::Run_Pending(void)
 		default:
 			break;
 	}
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi view.
+//---------------------------------------------------------------------------------------
+
+/// <summary>
+/// The RmlUi half of the main options screen.
+/// </summary>
+class MainOptionsViewClass : public UIRmlViewClass
+{
+	public:
+		MainOptionsViewClass(UIMainOptionsPresenterClass & presenter) :
+			UIRmlViewClass(presenter, "options.rml"),
+			Screen(presenter)
+		{
+		}
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override {}
+
+	private:
+		UIMainOptionsPresenterClass & Screen;
+};
+
+
+void MainOptionsViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	model.Bind("available", &Screen.SoundAvailable);
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{arguments[0].Get<Rml::String>(), "", 0});
+		});
+
+	// Escape leaves, which is the IDCANCEL the dialog's default arm took as an exit. Enter
+	// leaves too, because the template names no default push button and Windows then sent
+	// the dialog IDOK, which that same arm did not recognize either.
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE || key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Screen.Queue(UIIntent{UI_MAINOPT_EXIT, "", 0});
+			}
+		});
+}
+
+
+/// <summary>
+/// Shows the main options menu and waits for the player to choose.
+/// </summary>
+UIResult UI_Main_Options_Screen(UIMainOptionsPresenterClass & presenter)
+{
+	MainOptionsViewClass view(presenter);
+
+	if (!view.Prepare(true)) {
+		UIResult result;
+		result.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+		return(result);
+	}
+
+	UIResult const result = UI_Run_Modal(presenter, view);
+	view.Close();
+	return(result);
 }
