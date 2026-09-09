@@ -1,0 +1,271 @@
+/* The skirmish setup screen. Geometry from the IDD_SKIRMISH template, converted from dialog
+   units at the 8 point MS Sans Serif the template names: 1.5 pixels across and 1.625 down,
+   with a child's offset taken from the panel's content box and the panel's declared size
+   taken inside its own border. */
+
+/* 426 x 240 dialog units, so 639 x 390 pixels, centred on the frame. */
+#dialog
+{
+	left: 50%;
+	top: 50%;
+	margin-left: -319.5dp;
+	margin-top: -195dp;
+
+	width: 635dp;
+	height: 386dp;
+}
+
+/* The player's own settings, down the left edge. */
+#namelabel  { left: 31dp; top: 17.5dp;   width: 117dp; height: 13dp; line-height: 13dp; }
+#sidelabel  { left: 31dp; top: 66.25dp;  width: 117dp; height: 13dp; line-height: 13dp; }
+#colorlabel { left: 31dp; top: 113.375dp; width: 117dp; height: 13dp; line-height: 13dp; }
+#maplabel   { left: 31dp; top: 155.625dp; width: 54dp;  height: 16.25dp; line-height: 16.25dp; }
+
+/* The scenario's own name, which the map selection screen writes. */
+#scenarioname
+{
+	left: 31dp;
+	top: 178.375dp;
+	width: 402dp;
+	height: 16.25dp;
+	line-height: 16.25dp;
+}
+
+/* The EDITTEXT, 78 x 12 dialog units at 22, 24. It states a width, because a field with
+   none formats no line and RmlUi's End key then moves the caret to the start of an empty
+   line rather than to the end of the value. */
+#name
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 31dp;
+	top: 37dp;
+	width: 117dp;
+	height: 19.5dp;
+	line-height: 15.5dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	overflow: hidden;
+
+	font-family: LatoLatin;
+	color: #e4e6da;
+	background-color: #14160f;
+	border-width: 2dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+#name:focus { background-color: #1d2017; }
+
+/* The two CBS_DROPDOWNLIST combo boxes, 78 dialog units wide at 22, 52 and 22, 82. A
+   closed combo stands as tall as the item height ownrdraw.cpp sets, which is the 14 pixel
+   dialog font plus two, inside a two pixel border; the template's own height is how far the
+   list drops. */
+#side,
+#color
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 31dp;
+	width: 117dp;
+	height: 20dp;
+
+	color: #b9bcae;
+	background-color: #2b2f25;
+	border-width: 2dp;
+	border-top-color: #14160f;
+	border-left-color: #14160f;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+#side  { top: 82.5dp; }
+#color { top: 131.25dp; }
+
+#side selectvalue,
+#color selectvalue
+{
+	width: auto;
+	margin-right: 16dp;
+	height: 16dp;
+	line-height: 16dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+#side selectarrow,
+#color selectarrow
+{
+	width: 16dp;
+	height: 16dp;
+
+	background-color: #33372c;
+	border-width: 2dp;
+	border-top-color: #767c68;
+	border-left-color: #767c68;
+	border-right-color: #14160f;
+	border-bottom-color: #14160f;
+}
+
+#side selectarrow:active,
+#color selectarrow:active
+{
+	border-top-color: #14160f;
+	border-left-color: #14160f;
+	border-right-color: #767c68;
+	border-bottom-color: #767c68;
+}
+
+/* The dropped lists, capped at the 74 and 73 dialog units the template gives them. */
+#side selectbox,
+#color selectbox
+{
+	width: 113dp;
+	overflow-y: auto;
+
+	background-color: #14160f;
+	border-width: 1dp;
+	border-top-color: #6e7360;
+	border-left-color: #6e7360;
+	border-right-color: #10120e;
+	border-bottom-color: #10120e;
+}
+
+#side selectbox  { max-height: 120.25dp; }
+#color selectbox { max-height: 118.625dp; }
+
+#side selectbox option,
+#color selectbox option
+{
+	width: auto;
+	height: 18dp;
+	line-height: 18dp;
+	padding: 0dp 4dp;
+	white-space: nowrap;
+	color: #b9bcae;
+}
+
+#side selectbox option:hover { color: #e4e6da; }
+
+#side selectbox option:checked,
+#color selectbox option:checked { background-color: #3f4536; }
+
+/* The preview frame, a GROUPBOX 215 x 106 dialog units at 22, 122. The picture inside it is
+   drawn by the screen and reaches the document through the <surface> element. */
+#previewframe
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 31dp;
+	top: 196.25dp;
+	width: 322.5dp;
+	height: 172.25dp;
+
+	background-color: #14160f;
+	border-width: 1dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+/* The template's own CTEXT inside the frame, which the picture is drawn over the way the
+   dialog blitted its preview over the group box. It shows through the letterbox around a
+   picture of a different shape, because the surface fills that with its color key. */
+#previewtext
+{
+	display: block;
+	position: absolute;
+	left: 0dp;
+	top: 68.875dp;
+	width: 320.5dp;
+	height: 21.125dp;
+	line-height: 21.125dp;
+	text-align: center;
+	color: #6e7360;
+}
+
+/* The picture takes its size from the provider, which is the frame's interior in game
+   logical units, so nothing here states one. */
+#previewframe surface
+{
+	display: block;
+	position: absolute;
+	left: 0dp;
+	top: 0dp;
+}
+
+/* The unnamed GROUPBOX around the check boxes, 167 x 96 dialog units at 117, 12, and the
+   one around the track bars, 110 x 181 at 294, 12. */
+#optionbox,
+#sliderbox
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+
+	border-width: 1dp;
+	border-top-color: #10120e;
+	border-left-color: #10120e;
+	border-right-color: #6e7360;
+	border-bottom-color: #6e7360;
+}
+
+#optionbox { left: 173.5dp; top: 17.5dp; width: 250.5dp; height: 156dp; }
+#sliderbox { left: 439dp;   top: 17.5dp; width: 165dp;   height: 294.125dp; }
+
+/* The seven check boxes, all 157 dialog units wide but the last, at x 123. */
+.check { left: 182.5dp; width: 235.5dp; height: 16.25dp; line-height: 16.25dp; }
+
+#bases     { top: 32.125dp; }
+#crates    { top: 51.625dp; }
+#fog       { top: 71.125dp; }
+#bridges   { top: 90.625dp; }
+#mcv       { top: 110.125dp; }
+#shortgame { top: 129.625dp; }
+#engineer  { top: 149.125dp; width: 162dp; }
+
+/* The six track bars and their captions, all 100 dialog units wide at x 298. The captions
+   never change: every WM_HSCROLL case in the dialog fetched its label and did nothing with
+   it, so the template's own words are what the screen has always shown. */
+#unitcountlabel,
+#creditslabel,
+#techlevellabel,
+#ailevellabel,
+#aiplayerslabel,
+#gamespeedlabel
+{
+	left: 445dp;
+	width: 150dp;
+	height: 13dp;
+	line-height: 13dp;
+}
+
+#unitcountlabel { top: 27.25dp; }
+#creditslabel   { top: 74.375dp; }
+#techlevellabel { top: 121.5dp; }
+#ailevellabel   { top: 168.625dp; }
+#aiplayerslabel { top: 215.75dp; }
+#gamespeedlabel { top: 262.875dp; }
+
+.slider { left: 445dp; width: 150dp; height: 22.75dp; }
+
+#unitcount { top: 46.75dp; }
+#credits   { top: 93.875dp; }
+#techlevel { top: 141dp; }
+#ailevel   { top: 188.125dp; }
+#aiplayers { top: 235.25dp; }
+#gamespeed { top: 282.375dp; }
+
+/* Multiplay Map, OK and Cancel, all 14 dialog units tall. */
+.button { height: 22.75dp; line-height: 22.75dp; }
+
+#multimap { left: 439dp; top: 318.125dp; width: 165dp; }
+#accept   { left: 439dp; top: 345.75dp;  width: 75dp; }
+#cancel   { left: 529dp; top: 345.75dp;  width: 75dp; }

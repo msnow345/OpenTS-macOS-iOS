@@ -196,7 +196,14 @@ bool Skirmish_Mode_Dialog(void)
 	UISkirmishPresenterClass screen;
 	screen.Refresh();
 
-	HWND dialog = OwnerDraw::Begin_Dialog(IDD_SKIRMISH, Skirmish_Dialog_Proc);
+	if (UI_Use_Rml()) {
+		UIResult const result = UI_Skirmish_Screen(screen);
+		if (result.Outcome != UIResult::OUTCOME_FAILED_TO_OPEN) {
+			rc = screen.Accepted() ? IDOK : IDCANCEL;
+		}
+	}
+
+	HWND dialog = rc == -1 ? OwnerDraw::Begin_Dialog(IDD_SKIRMISH, Skirmish_Dialog_Proc) : NULL;
 	if (dialog) {
 		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&screen);
 		Skirmish_Sync_Controls(dialog, screen);
@@ -223,9 +230,12 @@ bool Skirmish_Mode_Dialog(void)
 			screen.Service();
 		}
 		OwnerDraw::End_Dialog(dialog);
+		rc = screen.Accepted() ? IDOK : IDCANCEL;
 	}
 
-	rc = screen.Accepted() ? IDOK : IDCANCEL;
+	if (rc == -1) {
+		rc = IDCANCEL;
+	}
 
 	screen.End();
 

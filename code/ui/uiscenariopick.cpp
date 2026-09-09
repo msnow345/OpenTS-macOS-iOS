@@ -22,23 +22,20 @@
 
 #include "uiscenariopick.h"
 
+#include "uimappreview.h"
 #include "uirmlview.h"
-#include "uisurface.h"
 
 #include "data.h"
 #include "mapgen.h"
 #include "netdlg2.h"
 #include "netshare.h"
-#include "dsurface.h"
 #include "preview.h"
 #include "session.h"
-#include "xsurface.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Event.h>
 #include <RmlUi/Core/Input.h>
 
-#include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -197,58 +194,6 @@ enum { PREVIEW_WIDTH = 191, PREVIEW_HEIGHT = 128 };
 
 
 /// <summary>
-/// The map preview as a surface a document can show.
-/// The picture is scaled into the frame the way MapPreviewClass::Blit_Preview scales it into
-/// the dialog's group box, so what the document shows is what the dialog showed. The frame is
-/// filled with a color key first, so the letterbox around a picture of a different shape is
-/// transparent rather than black.
-/// </summary>
-class MapPreviewSurfaceClass : public UISurfaceBufferClass
-{
-	public:
-		MapPreviewSurfaceClass(void) :
-			UISurfaceBufferClass(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-		{
-			Set_Transparent_Color(DSurface::Build_Hicolor_Pixel(255, 0, 255));
-			Clear();
-		}
-
-		void Redraw(void);
-};
-
-
-void MapPreviewSurfaceClass::Redraw(void)
-{
-	Clear();
-
-	if (MultiplayerMapPreview == NULL) {
-		return;
-	}
-
-	XSurface * const picture = MultiplayerMapPreview->Get_Preview_Surface();
-	if (picture == NULL) {
-		return;
-	}
-
-	Rect const source = picture->Get_Rect();
-	if (source.Width <= 0 || source.Height <= 0) {
-		return;
-	}
-
-	int const scale = std::min(1000 * PREVIEW_WIDTH / source.Width, 1000 * PREVIEW_HEIGHT / source.Height);
-
-	Rect destination;
-	destination.Width = (scale * source.Width) / 1000;
-	destination.Height = (scale * source.Height) / 1000;
-	destination.X = PREVIEW_WIDTH / 2 - destination.Width / 2;
-	destination.Y = PREVIEW_HEIGHT / 2 - destination.Height / 2;
-
-	Get_Surface().Blit_From(destination, *picture, source, false, false);
-	Mark_Dirty();
-}
-
-
-/// <summary>
 /// The RmlUi half of the map selection screen.
 /// </summary>
 class ScenarioPickViewClass : public UIRmlViewClass
@@ -273,7 +218,7 @@ class ScenarioPickViewClass : public UIRmlViewClass
 		UIScenarioPickPresenterClass & Screen;
 
 		// The view owns the pixels; the presenter carries only the name they answer to.
-		MapPreviewSurfaceClass Picture;
+		MapPreviewSurfaceClass Picture{PREVIEW_WIDTH, PREVIEW_HEIGHT};
 
 		unsigned int Drawn = 0;
 };

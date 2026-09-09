@@ -1,0 +1,63 @@
+<rml>
+<head>
+	<title>Skirmish</title>
+	<link type="text/rcss" href="optionsbase.rcss"/>
+	<link type="text/rcss" href="skirmish.rcss"/>
+</head>
+<body data-model="skirmish" data-event-keydown="key()">
+	<div id="dialog" class="panel">
+		<div class="caption" id="namelabel">Name:</div>
+		<input type="text" id="name" maxlength="19" data-attr-value="handle" data-event-change="rename()"/>
+
+		<div class="caption" id="sidelabel">Side:</div>
+		<select id="side" data-attr-value="selectedside" data-event-change="chooseside()">
+			<option data-for="entry : sides" data-attr-value="it_index">{{ entry.name }}</option>
+		</select>
+
+		<div class="caption" id="colorlabel">Color:</div>
+		<select id="color" data-attr-value="selectedcolor" data-event-change="choosecolor()">
+			<option data-for="swatch : colors" data-attr-value="it_index" data-style-color="swatch.hex">{{ swatch.name }}</option>
+		</select>
+
+		<div class="caption" id="maplabel">Map:</div>
+		<div class="caption" id="scenarioname">{{ scenarioname }}</div>
+
+		<div id="previewframe">
+			<div id="previewtext">Preview</div>
+			<surface data-attr-src="preview"/>
+		</div>
+
+		<div id="optionbox"></div>
+		<div class="check" id="bases" data-class-ticked="bases" data-event-click="toggle('bases')">Bases</div>
+		<div class="check" id="crates" data-class-ticked="crates" data-event-click="toggle('crates')">Crates</div>
+		<div class="check" id="fog" data-class-ticked="fog" data-event-click="toggle('fog')">Fog Of War</div>
+		<div class="check" id="bridges" data-class-ticked="bridges" data-event-click="toggle('bridges')">Bridges Destroyable</div>
+		<div class="check" id="mcv" data-class-ticked="mcv" data-event-click="toggle('mcv')">Re-Deployable MCV</div>
+		<div class="check" id="shortgame" data-class-ticked="shortgame" data-event-click="toggle('shortgame')">Short Game</div>
+		<div class="check" id="engineer" data-class-ticked="engineer" data-event-click="toggle('engineer')">Multi Engineer</div>
+
+		<div id="sliderbox"></div>
+		<div class="caption" id="unitcountlabel">Unit Count:</div>
+		<input id="unitcount" class="slider" type="range" orientation="horizontal" data-attr-value="unitcount.value" data-event-change="move('unitcount')"/>
+
+		<div class="caption" id="creditslabel">Credits:</div>
+		<input id="credits" class="slider" type="range" orientation="horizontal" data-attr-value="credits.value" data-event-change="move('credits')"/>
+
+		<div class="caption" id="techlevellabel">Tech Level:</div>
+		<input id="techlevel" class="slider" type="range" orientation="horizontal" data-attr-value="techlevel.value" data-event-change="move('techlevel')"/>
+
+		<div class="caption" id="ailevellabel">AI Level:</div>
+		<input id="ailevel" class="slider" type="range" orientation="horizontal" data-attr-value="ailevel.value" data-event-change="move('ailevel')"/>
+
+		<div class="caption" id="aiplayerslabel">AI Players:</div>
+		<input id="aiplayers" class="slider" type="range" orientation="horizontal" data-attr-value="aiplayers.value" data-event-change="move('aiplayers')"/>
+
+		<div class="caption" id="gamespeedlabel">Game Speed</div>
+		<input id="gamespeed" class="slider" type="range" orientation="horizontal" data-attr-value="gamespeed.value" data-event-change="move('gamespeed')"/>
+
+		<div class="button" id="multimap" data-event-click="press('pickmap')">Multiplay Map</div>
+		<div class="button" id="accept" data-class-disabled="!canaccept" data-event-click="press('accept')">[[TXT_OK]]</div>
+		<div class="button" id="cancel" data-event-click="press('cancel')">[[TXT_CANCEL]]</div>
+	</div>
+</body>
+</rml>

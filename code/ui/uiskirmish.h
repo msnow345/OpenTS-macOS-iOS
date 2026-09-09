@@ -19,6 +19,10 @@
 #include <vector>
 
 
+// The artwork the map preview draws into. The map selection screen this one opens holds a
+// preview of its own at a different size, so the two register under different names.
+inline constexpr char const * UI_SKIRMISH_PREVIEW_SURFACE = "skirmishpreview";
+
 inline constexpr char const * UI_SKIRMISH_HANDLE = "handle";      // Identity: the name typed
 inline constexpr char const * UI_SKIRMISH_SIDE = "side";          // Value: row in Sides
 inline constexpr char const * UI_SKIRMISH_COLOR = "color";        // Value: row in Colors
