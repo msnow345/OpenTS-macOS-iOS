@@ -31,6 +31,9 @@ inline constexpr char const * UI_LOBBY_NEW = "new";
 inline constexpr char const * UI_LOBBY_CANCEL = "cancel";
 inline constexpr char const * UI_LOBBY_SAY = "say";
 inline constexpr char const * UI_LOBBY_COLOR = "color";
+inline constexpr char const * UI_LOBBY_SIDE = "side";
+inline constexpr char const * UI_LOBBY_IDENTITY = "identity";
+inline constexpr char const * UI_LOBBY_ACCEPT = "accept";
 
 
 class UILobbyPresenterClass : public UIPresenterClass
@@ -60,6 +63,14 @@ class UILobbyPresenterClass : public UIPresenterClass
 			std::string Name;
 			std::string SideName;
 			int Color = 0;
+
+		// The country the player is showing, which is a country rather than a row, because
+		// the side list holds only the countries that may be played.
+		int House = 0;
+
+		// Is the accept button available? A guest may accept once per change the host
+		// makes, which is what disabling the button after a press stood for.
+		bool CanAccept = false;
 			int Side = -1;
 			bool IsHost = false;
 			bool HasAccepted = false;
@@ -72,6 +83,10 @@ class UILobbyPresenterClass : public UIPresenterClass
 		// The rosters the lobby opens with, which the game list dialog built as it was
 		// created: the player's own chat entry and the lobby's own game entry.
 		void Open(void);
+
+		// The rosters and the guest's own standing when the guest screen opens: a guest
+		// arrives having accepted nothing.
+		void Open_Guest(void);
 
 		// Reads the session's rosters into the view-model. Marking the host as accepted
 		// happens here rather than while drawing, because it is a fact about the player
@@ -90,6 +105,14 @@ class UILobbyPresenterClass : public UIPresenterClass
 
 		int Color = 0;
 
+		// The country the player is showing, which is a country rather than a row, because
+		// the side list holds only the countries that may be played.
+		int House = 0;
+
+		// Is the accept button available? A guest may accept once per change the host
+		// makes, which is what disabling the button after a press stood for.
+		bool CanAccept = false;
+
 		std::vector<GameRowType> Games;
 		int SelectedGame = 0;
 
@@ -105,4 +128,6 @@ class UILobbyPresenterClass : public UIPresenterClass
 		void Rename(std::string const & name);
 		void Pick_Game(int row);
 		void Say(std::string const & text);
+		void Accept(void);
+		void Change_Identity(int color);
 };

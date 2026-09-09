@@ -746,6 +746,17 @@ bool Net2Remote_Connect(void)
 				screen.Response = UILobbyPresenterClass::RESPONSE_NONE;
 			}
 
+			// A roster an executed intent moved is put on the controls here, after the
+			// queue, which is where the other rewired drivers sync their views.
+			if (screen.UsersChanged) {
+				_Net2DisplayUsers();
+			}
+			if (screen.GamesChanged) {
+				Net2DisplayGameList();
+			}
+			screen.UsersChanged = false;
+			screen.GamesChanged = false;
+
 			if (_netresponse != 0) {
 				break;
 			}
@@ -3279,98 +3290,63 @@ INT_PTR CALLBACK MPlayer_Guest_Dialog_Proc(HWND window, UINT message, WPARAM wpa
 
 		EnableWindow(GetDlgItem(window, IDC_ACCEPT), FALSE);
 
-		int self_index = -1;
-		for (int i = 0; i < Session.Players.Count(); ++i) {
-			if (!strcmp(Session.Players[i]->Name, Session.Handle)) {
-				self_index = i;
-			}
-		}
-
-		if (self_index != -1) {
-			Session.Players[self_index]->Player.Status = 0;
+		if (_LobbyScreen != NULL) {
+			_LobbyScreen->Open_Guest();
+			EnableWindow(GetDlgItem(window, IDC_ACCEPT), _LobbyScreen->CanAccept ? TRUE : FALSE);
 		}
 
 		_Net2DisplayUsers();
-		Session.Options.ScenarioDescription[0] = '\0';
-
 		return(0);
 	}
 
 	case WM_COMMAND: {
+		if (_LobbyScreen == NULL) {
+			return(0);
+		}
+
 		switch (LOWORD(wparam)) {
 
 		case IDC_ACCEPT: {
-			Session.Players[0]->Player.Status = 1;
+			_LobbyScreen->Queue(UIIntent{UI_LOBBY_ACCEPT, "", 0});
 
-			char dest[64];
-			sprintf(dest, "A1");
-			SendPublicGameopts(dest);
-
+			// Taking the button away is the view's, the way getting out of a browser's way
+			// stayed with the view at step 7. What the host does to put it back is not
+			// extracted yet.
 			EnableWindow(GetDlgItem(window, IDC_ACCEPT), FALSE);
 			InvalidateRect(GetDlgItem(window, IDC_ACCEPT), NULL, FALSE);
-
-			_Net2DisplayUsers();
 			return(0);
 		}
 
 		case IDC_YOURSIDE:
 		case IDC_YOURCOLOR: {
 			if (HIWORD(wparam) == CBN_SELCHANGE) {
-				LRESULT color = SendDlgItemMessage(window, IDC_YOURCOLOR, CB_GETCURSEL, 0, 0);
-
-				LRESULT house = Country_From_Box(GetDlgItem(window, IDC_YOURSIDE));
-
-				Session.PrefColor = color;
-
-				char dest[64];
-				sprintf(dest, "R%d,%d", house, color);
-				SendPrivateGameopts(Session.GameName, dest);
+				// The side is recorded ahead of the color, because the dialog read both of
+				// its boxes and sent one packet carrying the pair.
+				_LobbyScreen->Queue(UIIntent{UI_LOBBY_SIDE, "",
+					Country_From_Box(GetDlgItem(window, IDC_YOURSIDE))});
+				_LobbyScreen->Queue(UIIntent{UI_LOBBY_IDENTITY, "",
+					(int)SendDlgItemMessage(window, IDC_YOURCOLOR, CB_GETCURSEL, 0, 0)});
 			}
 			return(0);
 		}
 
 		case IDCANCEL: {
 			if (!Net2GameStarted) {
-				_netresponse = IDCANCEL;
+				_LobbyScreen->Queue(UIIntent{UI_LOBBY_CANCEL, "", 0});
 			}
 			return(0);
 		}
 
 		case IDC_INPUT: {
-			char text[260];
-
-			SendDlgItemMessage(window, IDC_INPUT, WM_GETTEXT, 256, (LPARAM)text);
-
-			int len = strlen(text);
-			if (HIWORD(wparam) == EN_MAXTEXT) {
-				SendDlgItemMessage(window, IDC_INPUT, WM_SETTEXT, 0, (LPARAM)"");
-
-				if (len > 2) {
-					PMessagePrintf(ColorMe, "[%s] %s", Session.Handle, text);
-
-					GlobalPacketType gpacket;
-					memset(&gpacket, 0, sizeof(gpacket));
-
-					gpacket.Command = NET_MESSAGE;
-					strcpy(gpacket.Name, Session.Handle);
-					strcpy(gpacket.Message.Buf, text);
-					gpacket.Message.Color = Session.ColorIdx;
-					gpacket.Message.NameCRC = Compute_Name_CRC(Session.GameName);
-
-					if (JoinState == JOIN_CONFIRMED) {
-						for (int i = 1; i < Session.Players.Count(); ++i) {
-							Ipx.Send_Global_Message(&gpacket, sizeof(gpacket), 1, &Session.Players[i]->Address);
-							Call_Back();
-						}
-					} else {
-						for (int i = 1; i < Session.Chat.Count(); ++i) {
-							Ipx.Send_Global_Message(&gpacket, sizeof(gpacket), 1, &Session.Chat[i]->Address);
-							Call_Back();
-						}
-					}
-				}
+			if (HIWORD(wparam) != EN_MAXTEXT) {
+				return(0);
 			}
 
+			char text[260];
+			SendDlgItemMessage(window, IDC_INPUT, WM_GETTEXT, 256, (LPARAM)text);
+			SendDlgItemMessage(window, IDC_INPUT, WM_SETTEXT, 0, (LPARAM)"");
+
+			_LobbyScreen->Queue(UIIntent{UI_LOBBY_SAY, text, 0});
 			return(0);
 		}
 		}

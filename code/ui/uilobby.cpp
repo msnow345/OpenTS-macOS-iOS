@@ -36,6 +36,7 @@
 #include "mplayer.h"
 #include "netdlg.h"
 #include "netdlg2.h"
+#include "netdlg.h"
 #include "netshare.h"
 #include "session.h"
 #include "utf8.h"
@@ -91,6 +92,62 @@ void UILobbyPresenterClass::Open(void)
 
 	Build_Game_Rows();
 	Build_User_Rows();
+}
+
+
+/// <summary>
+/// Records where a guest stands as its screen opens: it has accepted nothing yet, and the
+/// scenario description is cleared because the host has not sent one.
+/// </summary>
+void UILobbyPresenterClass::Open_Guest(void)
+{
+	House = Session.House;
+	Color = Session.ColorIdx;
+	CanAccept = false;
+
+	for (int index = 0; index < Session.Players.Count(); index++) {
+		if (strcmp(Session.Players[index]->Name, Session.Handle) == 0) {
+			Session.Players[index]->Player.Status = 0;
+		}
+	}
+
+	Session.Options.ScenarioDescription[0] = '\0';
+
+	Build_User_Rows();
+}
+
+
+/// <summary>
+/// Tells the game that this player has accepted the host's settings.
+/// </summary>
+void UILobbyPresenterClass::Accept(void)
+{
+	if (Session.Players.Count() == 0) {
+		return;
+	}
+
+	Session.Players[0]->Player.Status = 1;
+	CanAccept = false;
+
+	SendPublicGameopts("A1");
+
+	Build_User_Rows();
+}
+
+
+/// <summary>
+/// Tells the host which country and color this player is showing. The country is whatever
+/// the model is already holding, because the side is recorded by its own intent ahead of
+/// this one, the way the dialog read both of its boxes before sending one packet.
+/// </summary>
+void UILobbyPresenterClass::Change_Identity(int color)
+{
+	Color = color;
+	Session.PrefColor = color;
+
+	char options[64];
+	std::snprintf(options, sizeof(options), "R%d,%d", House, color);
+	SendPrivateGameopts(Session.GameName, options);
 }
 
 
@@ -307,6 +364,21 @@ void UILobbyPresenterClass::Execute(UIIntent const & intent)
 	if (intent.Action == UI_LOBBY_COLOR) {
 		Session.ColorIdx = intent.Value;
 		Color = intent.Value;
+		return;
+	}
+
+	if (intent.Action == UI_LOBBY_SIDE) {
+		House = intent.Value;
+		return;
+	}
+
+	if (intent.Action == UI_LOBBY_IDENTITY) {
+		Change_Identity(intent.Value);
+		return;
+	}
+
+	if (intent.Action == UI_LOBBY_ACCEPT) {
+		Accept();
 		return;
 	}
 
