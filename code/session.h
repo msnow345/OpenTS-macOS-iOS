@@ -234,6 +234,13 @@ struct NodeNameType {
 			unsigned int LastTime;		// last time we heard from this guy
 			unsigned char LastChance;	// we're about to remove him from the list
 			int Color;					// chat player's color
+
+			/*
+			 * This is the sender's own UniqueID out of the announcement that created this
+			 * node. It identifies the machine whatever address its packets arrive from, and
+			 * it fits in the union's existing slack, so the node's size does not move.
+			 */
+			unsigned int ID;
 		} Chat;
 	};
 

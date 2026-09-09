@@ -2295,7 +2295,11 @@ static void Get_Join_Responses(void)
 				// house into the existing entry, in case they've changed it without
 				//	our knowledge; set the 'found' flag so we won't create a new entry.
 				//..................................................................
-				if (Session.Players[i]->Address==Session.GAddress) {
+				// The name settles it as well as the address, because the join path
+				// keys on the name and refuses a duplicate one, so a player already
+				// on the roster is this player however many addresses he answers from.
+				if (Session.Players[i]->Address==Session.GAddress
+					|| !strcmp(Session.Players[i]->Name, Session.GPacket.Name)) {
 					found = 1;
 					break;
 				}
@@ -2729,7 +2733,10 @@ static void Get_Join_Responses(void)
 			//.....................................................................
 			else {
 				for (i = 0; i < Session.Chat.Count(); i++) {
-					if (Session.Chat[i]->Address==Session.GAddress) {
+					// The announcement names its sender, and that identifies the machine
+					// however many addresses its packets reach us from.
+					if (Session.Chat[i]->Chat.ID == Session.GPacket.Chat.ID
+						|| Session.Chat[i]->Address==Session.GAddress) {
 						UTF8::Copy(Session.Chat[i]->Name, sizeof(Session.Chat[i]->Name), Session.GPacket.Name);
 						Session.Chat[i]->Chat.LastTime = TickCount;
 						Session.Chat[i]->Chat.LastChance = 0;
@@ -2749,6 +2756,7 @@ static void Get_Join_Responses(void)
 				who->Chat.LastTime = TickCount;
 				who->Chat.LastChance = 0;
 				who->Chat.Color = Session.GPacket.Chat.Color;
+				who->Chat.ID = Session.GPacket.Chat.ID;
 				Session.Chat.Add (who);
 			}
 
