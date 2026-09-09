@@ -75,6 +75,15 @@ class UILobbyPresenterClass : public UIPresenterClass
 			RESPONSE_GO,
 		};
 
+		// Which of the family's three screens is being shown. The driver moves between them
+		// and the presentation follows; a presenter names a screen rather than a window.
+		enum ScreenType {
+			SCREEN_NONE,
+			SCREEN_GAME_LIST,
+			SCREEN_HOST,
+			SCREEN_GUEST,
+		};
+
 		// A screen the lobby opens and comes back from. The scenario picker draws where the
 		// host screen is, so its owner takes the host screen off the screen and puts it
 		// back rather than running it underneath.
@@ -133,6 +142,10 @@ class UILobbyPresenterClass : public UIPresenterClass
 		virtual void Refresh(void) override;
 		virtual void Service(void) override;
 
+		// The scenario picker draws where the host screen is, so the host screen is stepped
+		// aside for it rather than run underneath.
+		virtual bool Suspends(void) const override { return(Pending != SUB_NONE); }
+
 		// The rosters the lobby opens with, which the game list dialog built as it was
 		// created: the player's own chat entry and the lobby's own game entry.
 		void Open(void);
@@ -153,6 +166,10 @@ class UILobbyPresenterClass : public UIPresenterClass
 		// from the network code wherever PMessagePrintf composes one.
 		void Record_Message(int color, char const * text);
 
+		// The host's settings have arrived and been written to the session. Called where the
+		// options are decoded, so a presentation that is not a window sees them too.
+		void Options_Received(void);
+
 		// Reads the session's rosters into the view-model. Marking the host as accepted
 		// happens here rather than while drawing, because it is a fact about the player
 		// rather than about the row.
@@ -162,6 +179,8 @@ class UILobbyPresenterClass : public UIPresenterClass
 		/*
 		**	The view-model.
 		*/
+		ScreenType Showing = SCREEN_NONE;
+
 		std::string Handle;
 
 		// The longest handle the name field accepts, in bytes, which is the limit the
@@ -259,3 +278,10 @@ class UILobbyPresenterClass : public UIPresenterClass
 // reaches the model through this wherever a change is produced away from a screen.
 UILobbyPresenterClass * UI_Lobby_Screen(void);
 void UI_Set_Lobby_Screen(UILobbyPresenterClass * screen);
+
+
+// Shows whichever of the three documents the screen says it is on, and runs it until the
+// player answers. The documents outlive one call, because the lobby moves between them and
+// comes back; UI_Lobby_Close_Views drops them when the lobby ends.
+UIResult UI_Lobby_Run(UILobbyPresenterClass & presenter);
+void UI_Lobby_Close_Views(void);

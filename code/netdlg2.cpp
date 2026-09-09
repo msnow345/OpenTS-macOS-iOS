@@ -44,6 +44,7 @@
 #include "timer.h"
 #include "utf8.h"
 #include "ui/uilobby.h"
+#include "ui/uishell.h"
 #include "windlg.h"
 #include "winstub.h"
 #include "wsproto.h"
@@ -85,6 +86,111 @@ int Net2_g_Col_House;
 static UILobbyPresenterClass * Lobby_Screen(void)
 {
 	return(UI_Lobby_Screen());
+}
+
+
+// Is the lobby being shown through RmlUi? Latched when the lobby opens, the way every
+// migrated screen latches its selection at screen entry.
+static bool _LobbyRml = false;
+
+
+int Net2LobbyScreenID(void)
+{
+	UILobbyPresenterClass const * const screen = Lobby_Screen();
+
+	if (_LobbyRml && screen != NULL) {
+		switch (screen->Showing) {
+			case UILobbyPresenterClass::SCREEN_GAME_LIST: return(IDD_MPLAYER_GAME_LIST);
+			case UILobbyPresenterClass::SCREEN_HOST:      return(IDD_MPLAYER_HOST);
+			case UILobbyPresenterClass::SCREEN_GUEST:     return(IDD_MPLAYER_GUEST);
+			default:                                      return(0);
+		}
+	}
+
+	return(WS_Top_Window_ID());
+}
+
+
+/// <summary>
+/// Shows one of the lobby's three screens, as a document or as its legacy dialog.
+/// The screen the lobby moved away from stays alive underneath, which is what the lobby's
+/// own dialogs did.
+/// </summary>
+static void Lobby_Open_Screen(UILobbyPresenterClass::ScreenType kind)
+{
+	UILobbyPresenterClass * const screen = Lobby_Screen();
+	if (screen == NULL) {
+		return;
+	}
+
+	screen->Showing = kind;
+
+	if (_LobbyRml) {
+		// What the legacy dialog's WM_INITDIALOG did before it put anything on a control.
+		switch (kind) {
+			case UILobbyPresenterClass::SCREEN_GAME_LIST: screen->Open(); break;
+			case UILobbyPresenterClass::SCREEN_HOST:      screen->Open_Host(); break;
+			case UILobbyPresenterClass::SCREEN_GUEST:     screen->Open_Guest(); break;
+			default: break;
+		}
+		return;
+	}
+
+	int identifier = IDD_MPLAYER_GAME_LIST;
+	DLGPROC procedure = MPlayer_Game_List_Dialog_Proc;
+	if (kind == UILobbyPresenterClass::SCREEN_HOST) {
+		identifier = IDD_MPLAYER_HOST;
+		procedure = MPlayer_Host_Dialog_Proc;
+	} else if (kind == UILobbyPresenterClass::SCREEN_GUEST) {
+		identifier = IDD_MPLAYER_GUEST;
+		procedure = MPlayer_Guest_Dialog_Proc;
+	}
+
+	HWND const dialog = WS_Create_Dialog(ProgramInstance, identifier, MainWindow, procedure, FALSE);
+	Center_Window_Within_Window(dialog);
+	OwnerDraw::Subclass_Dialog(dialog, 0);
+	if (kind == UILobbyPresenterClass::SCREEN_HOST) {
+		SendMessage(dialog, OD_SETTOP, 0, 1);
+	}
+	ShowWindow(dialog, SW_SHOWNORMAL);
+}
+
+
+/// <summary>
+/// Takes the lobby's topmost screen away.
+/// </summary>
+/// <returns>bool; Was there one to take away?</returns>
+static bool Lobby_Close_Screen(void)
+{
+	if (_LobbyRml) {
+		return(true);
+	}
+
+	return(WS_Destroy_Dialog(NULL, 0));
+}
+
+
+/// <summary>
+/// One pass of the lobby's own maintenance, which both of its drivers run through the
+/// presenter's Service.
+/// </summary>
+void Net2ServiceLobby(void)
+{
+	Ipx.Service();
+	Call_Back();
+	Ipx.Service();
+	Title_Screen_Restore();
+
+	if (Net2LobbyScreenID() == 0) {
+		return;
+	}
+
+	Send_Join_Queries(false, false, false, false);
+	Get_Join_Responses();
+	if (Net2LobbyScreenID() == IDD_MPLAYER_HOST) {
+		PumpGameopts(false);
+	}
+	Net2ServiceGameList();
 }
 
 
@@ -710,10 +816,11 @@ bool Net2Remote_Connect(void)
 	UILobbyPresenterClass screen;
 	UI_Set_Lobby_Screen(&screen);
 
-	HWND game_list_dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_GAME_LIST, MainWindow, MPlayer_Game_List_Dialog_Proc, FALSE);
-	Center_Window_Within_Window(game_list_dialog);
-	OwnerDraw::Subclass_Dialog(game_list_dialog, 0);
-	ShowWindow(game_list_dialog, SW_SHOWNORMAL);
+	// The presentation is latched here, at screen entry, and a document that will not
+	// prepare drops the whole family back to the legacy dialogs.
+	_LobbyRml = UI_Use_Rml();
+
+	Lobby_Open_Screen(UILobbyPresenterClass::SCREEN_GAME_LIST);
 	Net2DisplayUsers();
 
 	_netresponse = 0;
@@ -729,11 +836,27 @@ bool Net2Remote_Connect(void)
 		// Pop up the network Join/New dialog
 		//.....................................................................
 		while (_netresponse == 0) {
-			Ipx.Service();
+			if (_LobbyRml) {
+				UIResult const answer = UI_Lobby_Run(screen);
+				if (answer.Outcome == UIResult::OUTCOME_FAILED_TO_OPEN) {
+					// Preparation failed, so the family opens its legacy view instead, which
+					// is what every migrated screen does with a resource it cannot load.
+					UI_Lobby_Close_Views();
+					_LobbyRml = false;
+					Lobby_Open_Screen(screen.Showing);
+					continue;
+				}
+
+				screen.Result.reset();
+				if (screen.Response != UILobbyPresenterClass::RESPONSE_NONE) {
+					_netresponse = Lobby_Response_Identifier(screen.Response);
+					screen.Response = UILobbyPresenterClass::RESPONSE_NONE;
+				}
+				continue;
+			}
+
 			Sleep(0);
-			Call_Back();
-			Ipx.Service();
-			Title_Screen_Restore();
+			screen.Service();
 
 			MSG msg;
 			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -793,15 +916,6 @@ bool Net2Remote_Connect(void)
 			if (_netresponse != 0) {
 				break;
 			}
-
-			if (WS_Top_Window()) {
-				Send_Join_Queries(false, false, false, false);
-				Get_Join_Responses();
-				if (WS_Top_Window_ID() == IDD_MPLAYER_HOST) {
-					PumpGameopts(false);
-				}
-				screen.Service();
-			}
 		}
 
 		//.....................................................................
@@ -809,12 +923,13 @@ bool Net2Remote_Connect(void)
 		//.....................................................................
 		if (_netresponse == IDCANCEL) {
 			Session.Write_MultiPlayer_Settings();
-			if (WS_Top_Window_ID() == IDD_MPLAYER_GAME_LIST) {
+			if (Net2LobbyScreenID() == IDD_MPLAYER_GAME_LIST) {
 				if (JoinState > JOIN_NOTHING) {
 					Unjoin_Game(CurGame);
 					Ipx.Service();
 				}
-				WS_Destroy_Dialog(NULL, 0);
+				Lobby_Close_Screen();
+				UI_Lobby_Close_Views();
 				Clear_Vector(&Session.Players);
 				Clear_Vector(&Session.Games);
 				Clear_Vector(&Session.Chat);
@@ -824,18 +939,15 @@ bool Net2Remote_Connect(void)
 				return(false);
 			}
 
-			if (WS_Top_Window_ID() == IDD_MPLAYER_HOST) {
+			if (Net2LobbyScreenID() == IDD_MPLAYER_HOST) {
 				Unjoin_Game(CurGame);
 				JoinState = JOIN_NOTHING;
-				WS_Destroy_Dialog(WS_Top_Window(), 0);
-				game_list_dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_GAME_LIST, MainWindow, MPlayer_Game_List_Dialog_Proc, 0);
-				Center_Window_Within_Window(game_list_dialog);
-				OwnerDraw::Subclass_Dialog(game_list_dialog, 0);
-				ShowWindow(game_list_dialog, SW_SHOWNORMAL);
+				Lobby_Close_Screen();
+				Lobby_Open_Screen(UILobbyPresenterClass::SCREEN_GAME_LIST);
 				Send_Join_Queries(false, false, true, false);
 			}
 
-			if (WS_Top_Window_ID() == IDD_MPLAYER_GUEST) {
+			if (Net2LobbyScreenID() == IDD_MPLAYER_GUEST) {
 				//...............................................................
 				// If we're joined to a game, make extra sure the other players in
 				//	that game know I'm exiting; send my SIGN_OFF as an ack-required
@@ -880,14 +992,11 @@ bool Net2Remote_Connect(void)
 
 				Session.GameName[0] = '\0';
 				JoinState = JOIN_NOTHING;
-				WS_Destroy_Dialog(0, 0);
+				Lobby_Close_Screen();
 				_netresponse = 0;
 				CurGame = 0;
 				Clear_Vector(&Session.Players);
-				game_list_dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_GAME_LIST, MainWindow, MPlayer_Game_List_Dialog_Proc, 0);
-				Center_Window_Within_Window(game_list_dialog);
-				OwnerDraw::Subclass_Dialog(game_list_dialog, 0);
-				ShowWindow(game_list_dialog, SW_SHOWNORMAL);
+				Lobby_Open_Screen(UILobbyPresenterClass::SCREEN_GAME_LIST);
 			}
 		}
 
@@ -941,7 +1050,7 @@ bool Net2Remote_Connect(void)
 				Session.PlayingAgainstVersion = VerNum.Version_Number();
 				Set_Scenario_Info_From_Index(Session.Options.ScenarioIndex);
 
-				WS_Destroy_Dialog(NULL, NULL);
+				Lobby_Close_Screen();
 				_netresponse = 0;
 
 				//------------------------------------------------------------------------
@@ -975,15 +1084,11 @@ bool Net2Remote_Connect(void)
 				//	Pop up the New Network Game dialog; if user selects OK, return
 				//	'true'; otherwise, return to the Join Dialog.
 				//..................................................................
-				HWND host_dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_HOST, MainWindow, MPlayer_Host_Dialog_Proc, 0);
-				Center_Window_Within_Window(host_dialog);
-				OwnerDraw::Subclass_Dialog(host_dialog, 0);
-				SendMessage(host_dialog, OD_SETTOP, 0, 1);
-				ShowWindow(host_dialog, SW_SHOWNORMAL);
+				Lobby_Open_Screen(UILobbyPresenterClass::SCREEN_HOST);
 			}
 		}
 
-		if (_netresponse != 1 || WS_Top_Window_ID() != IDD_MPLAYER_GUEST) {
+		if (_netresponse != 1 || Net2LobbyScreenID() != IDD_MPLAYER_GUEST) {
 			if (_netresponse == IDC_GO) {
 				Net2GameStarted = 0;
 				Session.Write_MultiPlayer_Settings();
@@ -996,7 +1101,8 @@ bool Net2Remote_Connect(void)
 						PMessagePrintf(-1, Fetch_String(TXT_ONLY_ONE));
 						_netresponse = 0;
 						screen.CanStart = true;
-						EnableWindow(GetDlgItem(WS_Top_Window(), IDC_GO), TRUE);
+						Net2GameStarted = false;
+						EnableWindow(GetDlgItem(WS_Find_Dialog(IDD_MPLAYER_HOST), IDC_GO), TRUE);
 					}
 
 					if (_netresponse == IDC_GO) {
@@ -1005,7 +1111,8 @@ bool Net2Remote_Connect(void)
 								PMessagePrintf(-1, Fetch_String(TXT_ACCEPTFIRST));
 								_netresponse = 0;
 								screen.CanStart = true;
-								EnableWindow(GetDlgItem(WS_Top_Window(), IDC_GO), TRUE);
+								Net2GameStarted = false;
+								EnableWindow(GetDlgItem(WS_Find_Dialog(IDD_MPLAYER_HOST), IDC_GO), TRUE);
 								break;
 							}
 						}
@@ -1018,7 +1125,8 @@ bool Net2Remote_Connect(void)
 			 * The guest accepted the host's "go" -- tear down the dialogs, run
 			 * the pregame setup, compute the packet timing and leave the loop.
 			 */
-			while (WS_Destroy_Dialog(NULL, 0) == true) {}
+			while (Lobby_Close_Screen() == true) {}
+			UI_Lobby_Close_Views();
 			_netresponse = 0;
 
 			PregameSetup();
@@ -1041,11 +1149,17 @@ bool Net2Remote_Connect(void)
 			break;
 		}
 
+		// The AI player count this check adds in has always been zero: it is read from the
+		// game list dialog, whose template carries no IDC_AIPLAYERS, so the track bar it asks
+		// is not there to answer. Preserved rather than repaired, and reported separately.
+		int const ai_players = 0;
+
 		int waypoints = RandomMapWaypointCount(Session.Options.ScenarioIndex);
-		if (waypoints < SendDlgItemMessage(game_list_dialog, IDC_AIPLAYERS, TBM_GETPOS, 0, 0) + Session.Players.Count()) {
+		if (waypoints < ai_players + Session.Players.Count()) {
 			PMessagePrintf(-1, Fetch_String(TXT_SCENARIO_TOO_SMALL));
 			screen.CanStart = true;
-			EnableWindow(GetDlgItem(WS_Top_Window(), IDC_GO), TRUE);
+			Net2GameStarted = false;
+			EnableWindow(GetDlgItem(WS_Find_Dialog(IDD_MPLAYER_HOST), IDC_GO), TRUE);
 			_netresponse = 0;
 		} else {
 			if (_netresponse != IDC_GO) {
@@ -1167,7 +1281,8 @@ bool Net2Remote_Connect(void)
 				Hide_Mouse();
 				Draw_Menu_Background();
 				Show_Mouse();
-				WS_Destroy_Dialog(NULL, 0);
+				Lobby_Close_Screen();
+				UI_Lobby_Close_Views();
 				break;
 			}
 		}
@@ -1175,6 +1290,7 @@ bool Net2Remote_Connect(void)
 
 	Session.NetOpen = false;
 	Session.Write_MultiPlayer_Settings();
+	UI_Lobby_Close_Views();
 	UI_Set_Lobby_Screen(NULL);
 	return(true);
 
@@ -2171,6 +2287,9 @@ static void Get_Join_Responses(void)
 					NodeNameType * player = Session.Players[i];
 					if (strcmp(player->Name,Session.GameName) && player->Player.Status != 0) {
 						player->Player.Status = 0;
+						if (Lobby_Screen() != NULL) {
+							Lobby_Screen()->CanAccept = true;
+						}
 						EnableWindow(GetDlgItem(GameoptWindow(), IDC_ACCEPT), TRUE);
 					}
 				}
@@ -2211,12 +2330,9 @@ static void Get_Join_Responses(void)
 				Session.Players.Add (who);
 
 				Net2IsGameListActive = false;
-				WS_Destroy_Dialog(0, 0);
+				Lobby_Close_Screen();
 				_netresponse = 0;
-				dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_GUEST, MainWindow, MPlayer_Guest_Dialog_Proc, FALSE);
-				Center_Window_Within_Window(dialog);
-				OwnerDraw::Subclass_Dialog(dialog, 0);
-				ShowWindow(dialog, SW_SHOWNORMAL);
+				Lobby_Open_Screen(UILobbyPresenterClass::SCREEN_GUEST);
 				display_users = true;
 
 				Send_Join_Queries(1, 1, 1, 0);
@@ -2492,6 +2608,9 @@ static void Get_Join_Responses(void)
 					NodeNameType * player = Session.Players[i];
 					if (strcmp(player->Name,Session.GameName) && player->Player.Status != 0) {
 						player->Player.Status = 0;
+						if (Lobby_Screen() != NULL) {
+							Lobby_Screen()->CanAccept = true;
+						}
 						EnableWindow(GetDlgItem(GameoptWindow(), IDC_ACCEPT), TRUE);
 					}
 				}

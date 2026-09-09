@@ -34,6 +34,9 @@
 
 #include "uilobby.h"
 
+#include "uimappreview.h"
+#include "uirmlview.h"
+
 #include "_rand.h"
 #include "_rules.h"
 #include "_timer.h"
@@ -52,6 +55,11 @@
 #include "rules.h"
 #include "session.h"
 #include "utf8.h"
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Elements/ElementFormControlInput.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Input.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -136,8 +144,9 @@ void UILobbyPresenterClass::Open(void)
 /// </summary>
 void UILobbyPresenterClass::Open_Guest(void)
 {
-	House = Session.House;
-	Color = Session.ColorIdx;
+	Build_Identity_Lists();
+	Read_Options();
+
 	CanAccept = false;
 
 	for (int index = 0; index < Session.Players.Count(); index++) {
@@ -147,7 +156,25 @@ void UILobbyPresenterClass::Open_Guest(void)
 	}
 
 	Session.Options.ScenarioDescription[0] = '\0';
+	ScenarioName.clear();
 
+	Rebuild_Network_Map_Preview();
+	PreviewGeneration++;
+
+	Build_User_Rows();
+}
+
+
+/// <summary>
+/// The host's settings have arrived and been written to the session.
+/// The model is read back where they landed rather than where a control is written, which is
+/// the same split Fill_List took: a presentation that draws a different number of times
+/// cannot lose a change or repeat one.
+/// </summary>
+void UILobbyPresenterClass::Options_Received(void)
+{
+	Read_Options();
+	PreviewGeneration++;
 	Build_User_Rows();
 }
 
@@ -669,13 +696,13 @@ void UILobbyPresenterClass::Build_User_Rows(void)
 
 
 /// <summary>
-/// The maintenance the driver ran on every pass of its own loop: a game or a chat partner
-/// that has stopped answering is dropped, and a partner close to timing out is asked once
-/// more before it goes.
+/// One pass of the maintenance the lobby's driver ran on every turn of its own loop: the
+/// transport is serviced, the join protocol is answered, the host's options are broadcast if
+/// they moved, and a game or a chat partner that has stopped answering is dropped.
 /// </summary>
 void UILobbyPresenterClass::Service(void)
 {
-	Net2ServiceGameList();
+	Net2ServiceLobby();
 }
 
 
@@ -863,4 +890,637 @@ void UILobbyPresenterClass::Execute(UIIntent const & intent)
 		Response = RESPONSE_CANCEL;
 		return;
 	}
+}
+
+
+//---------------------------------------------------------------------------------------
+// The RmlUi views.
+//---------------------------------------------------------------------------------------
+
+// The picture the preview frame holds, in game logical units. The frame is the setup
+// templates' 126 x 73 dialog units, which is 189 by 118.625 at the family's 1.5 across and
+// 1.625 down, and the picture sits inside its one pixel border.
+enum { PREVIEW_WIDTH = 187, PREVIEW_HEIGHT = 116 };
+
+inline constexpr char const * UI_LOBBY_HOST_PREVIEW = "lobbyhostpreview";
+inline constexpr char const * UI_LOBBY_GUEST_PREVIEW = "lobbyguestpreview";
+
+
+/// <summary>
+/// The RmlUi half of one of the lobby's three screens.
+/// The three documents show overlapping halves of one model, so one view serves them all
+/// and binds only what its own document names. Each names its data model after its own
+/// file, which is what the base class derives the name from; a document that names another
+/// document's model gets no bindings and no events at all.
+/// </summary>
+class LobbyViewClass : public UIRmlViewClass
+{
+	public:
+		// A color a player may take, with the swatch the owner-draw combo drew its row in.
+		struct ColorRowType
+		{
+			std::string Name;
+			std::string Hex;
+		};
+
+		// A player row as its document shows it: the model's row plus the color the name is
+		// drawn in, the marker the list drew as a surface, and whether the host has picked
+		// the row out to kick.
+		struct UserViewType
+		{
+			std::string Name;
+			std::string SideName;
+			std::string Mark;
+			std::string Hex;
+			bool Picked = false;
+		};
+
+		struct MessageViewType
+		{
+			std::string Text;
+			std::string Hex;
+		};
+
+		LobbyViewClass(UILobbyPresenterClass & presenter, char const * document,
+			UILobbyPresenterClass::ScreenType kind, char const * preview);
+		virtual ~LobbyViewClass(void) override;
+
+		virtual void Bind(Rml::DataModelConstructor & model) override;
+		virtual void Sync(void) override;
+
+		// Puts the track bar ranges the rules give this screen on the controls, and lets the
+		// change handlers start reporting. A range is set before the data binding fills a
+		// value in, so a value outside a track bar's default range is not clamped away.
+		void Settle(void);
+
+		UILobbyPresenterClass::ScreenType Kind;
+
+	private:
+		void Move(char const * which, int value);
+		void Press(char const * action);
+		void Set_Range(char const * id, UILobbyPresenterClass::SliderType const & slider);
+		void Submit_Chat(void);
+		void Rebuild_Rows(void);
+
+		static std::string Swatch(int color);
+
+		UILobbyPresenterClass & Screen;
+
+		// The view owns the pixels; the presenter carries only the name they answer to.
+		std::string Preview;
+		MapPreviewSurfaceClass Picture{PREVIEW_WIDTH, PREVIEW_HEIGHT};
+
+		std::vector<ColorRowType> ColorRows;
+		std::vector<UserViewType> UserRows;
+		std::vector<UILobbyPresenterClass::GameRowType> GameRows;
+		std::vector<MessageViewType> MessageRows;
+
+		unsigned int Drawn = 0;
+		bool Settled = false;
+};
+
+
+LobbyViewClass::LobbyViewClass(UILobbyPresenterClass & presenter, char const * document,
+	UILobbyPresenterClass::ScreenType kind, char const * preview) :
+	UIRmlViewClass(presenter, document),
+	Kind(kind),
+	Screen(presenter),
+	Preview(preview != NULL ? preview : "")
+{
+	if (!Preview.empty()) {
+		UI_Register_Surface(Preview.c_str(), &Picture);
+	}
+}
+
+
+LobbyViewClass::~LobbyViewClass(void)
+{
+	if (!Preview.empty()) {
+		UI_Unregister_Surface(Preview.c_str());
+	}
+}
+
+
+/// <summary>
+/// Turns a player color into the CSS color the owner-draw list drew its row in, which is
+/// what OD_SETCOLOR was handed out of PlayerColorTable.
+/// </summary>
+std::string LobbyViewClass::Swatch(int color)
+{
+	char hex[8];
+	if (color >= 0 && color < MAX_PLAYERS) {
+		// A COLORREF holds its blue byte highest, which is the order RGB() packs.
+		unsigned long const packed = (unsigned long)PlayerColorTable[color];
+		std::snprintf(hex, sizeof(hex), "#%02x%02x%02x",
+			(unsigned)(packed & 0xFF), (unsigned)((packed >> 8) & 0xFF), (unsigned)((packed >> 16) & 0xFF));
+	} else {
+		std::snprintf(hex, sizeof(hex), "#b9bcae");
+	}
+	return(hex);
+}
+
+
+void LobbyViewClass::Set_Range(char const * id, UILobbyPresenterClass::SliderType const & slider)
+{
+	if (Element == nullptr) {
+		return;
+	}
+
+	Rml::Element * const control = Element->GetElementById(id);
+	if (control == nullptr) {
+		return;
+	}
+
+	// The range is set before the value, because a track bar clamps a value into the range
+	// it is holding and the default range stops well short of what the rules allow.
+	control->SetAttribute("min", slider.Minimum);
+	control->SetAttribute("max", slider.Maximum);
+	control->SetAttribute("step", slider.Step);
+	control->SetAttribute("value", slider.Value);
+}
+
+
+void LobbyViewClass::Settle(void)
+{
+	if (Kind != UILobbyPresenterClass::SCREEN_GAME_LIST) {
+		Set_Range("unitcount", Screen.UnitCount);
+		Set_Range("credits", Screen.Credits);
+		Set_Range("techlevel", Screen.TechLevel);
+		Set_Range("ailevel", Screen.AILevel);
+		Set_Range("aiplayers", Screen.AIPlayers);
+		Set_Range("gamespeed", Screen.GameSpeed);
+	}
+
+	Settled = true;
+}
+
+
+/// <summary>
+/// Reads the chat entry and queues what was typed, then empties the field, which is what the
+/// edit control's own handler did once its text had been taken.
+/// </summary>
+void LobbyViewClass::Submit_Chat(void)
+{
+	if (Element == nullptr) {
+		return;
+	}
+
+	Rml::ElementFormControlInput * const field =
+		rmlui_dynamic_cast<Rml::ElementFormControlInput *>(Element->GetElementById("say"));
+	if (field == nullptr) {
+		return;
+	}
+
+	Rml::String const text = field->GetValue();
+	field->SetValue("");
+
+	if (text.empty()) {
+		return;
+	}
+
+	Screen.Queue(UIIntent{UI_LOBBY_SAY, text, 0});
+}
+
+
+void LobbyViewClass::Move(char const * which, int value)
+{
+	if (!Settled) return;
+
+	UILobbyPresenterClass::SliderType const * held = NULL;
+	if (which == UI_LOBBY_UNITCOUNT) held = &Screen.UnitCount;
+	else if (which == UI_LOBBY_CREDITS) held = &Screen.Credits;
+	else if (which == UI_LOBBY_TECHLEVEL) held = &Screen.TechLevel;
+	else if (which == UI_LOBBY_AILEVEL) held = &Screen.AILevel;
+	else if (which == UI_LOBBY_AIPLAYERS) held = &Screen.AIPlayers;
+	else if (which == UI_LOBBY_GAMESPEED) held = &Screen.GameSpeed;
+
+	if (held == NULL || held->Value == value) {
+		return;
+	}
+
+	Screen.Queue(UIIntent{UI_LOBBY_SLIDER, which, value});
+}
+
+
+/// <summary>
+/// Queues what a button or its key stands for. The game list's name field is read here
+/// rather than tracked, because that is when the dialog read its edit control.
+/// </summary>
+void LobbyViewClass::Press(char const * action)
+{
+	if (Kind == UILobbyPresenterClass::SCREEN_GAME_LIST && Element != nullptr) {
+		Rml::ElementFormControlInput * const field =
+			rmlui_dynamic_cast<Rml::ElementFormControlInput *>(Element->GetElementById("yourname"));
+		if (field != nullptr) {
+			Rml::String const text = field->GetValue();
+			if (text != Screen.Handle) {
+				Screen.Queue(UIIntent{UI_LOBBY_RENAME, text, 0});
+			}
+		}
+	}
+
+	Screen.Queue(UIIntent{action, "", 0});
+}
+
+
+void LobbyViewClass::Rebuild_Rows(void)
+{
+	GameRows = Screen.Games;
+
+	UserRows.clear();
+	for (int index = 0; index < (int)Screen.Users.size(); index++) {
+		UILobbyPresenterClass::UserRowType const & row = Screen.Users[index];
+
+		UserViewType view;
+		view.Name = row.Name;
+		view.SideName = row.SideName;
+		view.Hex = Swatch(row.Color);
+
+		// The host and accepted markers, which the list drew as the wolhost.pcx and
+		// wolacpt.pcx surfaces.
+		if (row.IsHost) {
+			view.Mark = "*";
+		} else if (row.HasAccepted) {
+			view.Mark = "+";
+		}
+
+		view.Picked = std::find(Screen.PickedUsers.begin(), Screen.PickedUsers.end(), index)
+			!= Screen.PickedUsers.end();
+
+		UserRows.push_back(view);
+	}
+
+	MessageRows.clear();
+	for (UILobbyPresenterClass::ChatLineType const & line : Screen.Messages) {
+		MessageViewType view;
+		view.Text = line.Text;
+
+		if (line.Color < 0) {
+			view.Hex = "#b9bcae";
+		} else {
+			unsigned long const packed = (unsigned long)line.Color;
+			char hex[8];
+			std::snprintf(hex, sizeof(hex), "#%02x%02x%02x",
+				(unsigned)(packed & 0xFF), (unsigned)((packed >> 8) & 0xFF), (unsigned)((packed >> 16) & 0xFF));
+			view.Hex = hex;
+		}
+
+		MessageRows.push_back(view);
+	}
+}
+
+
+void LobbyViewClass::Bind(Rml::DataModelConstructor & model)
+{
+	ColorRows.clear();
+	for (int index = 0; index < (int)Screen.Colors.size(); index++) {
+		ColorRows.push_back(ColorRowType{Screen.Colors[index], Swatch(index)});
+	}
+
+	Rebuild_Rows();
+
+	if (auto row = model.RegisterStruct<UILobbyPresenterClass::GameRowType>()) {
+		row.RegisterMember("label", &UILobbyPresenterClass::GameRowType::Label);
+		row.RegisterMember("isopen", &UILobbyPresenterClass::GameRowType::IsOpen);
+	}
+	model.RegisterArray<std::vector<UILobbyPresenterClass::GameRowType>>();
+
+	if (auto row = model.RegisterStruct<UserViewType>()) {
+		row.RegisterMember("name", &UserViewType::Name);
+		row.RegisterMember("sidename", &UserViewType::SideName);
+		row.RegisterMember("mark", &UserViewType::Mark);
+		row.RegisterMember("hex", &UserViewType::Hex);
+		row.RegisterMember("picked", &UserViewType::Picked);
+	}
+	model.RegisterArray<std::vector<UserViewType>>();
+
+	if (auto row = model.RegisterStruct<MessageViewType>()) {
+		row.RegisterMember("text", &MessageViewType::Text);
+		row.RegisterMember("hex", &MessageViewType::Hex);
+	}
+	model.RegisterArray<std::vector<MessageViewType>>();
+
+	if (auto swatch = model.RegisterStruct<ColorRowType>()) {
+		swatch.RegisterMember("name", &ColorRowType::Name);
+		swatch.RegisterMember("hex", &ColorRowType::Hex);
+	}
+	model.RegisterArray<std::vector<ColorRowType>>();
+
+	if (auto side = model.RegisterStruct<UILobbyPresenterClass::SideType>()) {
+		side.RegisterMember("name", &UILobbyPresenterClass::SideType::Name);
+	}
+	model.RegisterArray<std::vector<UILobbyPresenterClass::SideType>>();
+
+	if (auto slider = model.RegisterStruct<UILobbyPresenterClass::SliderType>()) {
+		slider.RegisterMember("value", &UILobbyPresenterClass::SliderType::Value);
+		slider.RegisterMember("min", &UILobbyPresenterClass::SliderType::Minimum);
+		slider.RegisterMember("max", &UILobbyPresenterClass::SliderType::Maximum);
+		slider.RegisterMember("step", &UILobbyPresenterClass::SliderType::Step);
+	}
+
+	model.Bind("handle", &Screen.Handle);
+	model.Bind("games", &GameRows);
+	model.Bind("selectedgame", &Screen.SelectedGame);
+	model.Bind("users", &UserRows);
+	model.Bind("messages", &MessageRows);
+
+	model.Bind("sides", &Screen.Sides);
+	model.Bind("selectedside", &Screen.SelectedSide);
+	model.Bind("colors", &ColorRows);
+	model.Bind("selectedcolor", &Screen.Color);
+
+	model.Bind("scenarioname", &Screen.ScenarioName);
+	model.Bind("preview", &Preview);
+
+	model.Bind("unitcount", &Screen.UnitCount);
+	model.Bind("credits", &Screen.Credits);
+	model.Bind("techlevel", &Screen.TechLevel);
+	model.Bind("ailevel", &Screen.AILevel);
+	model.Bind("aiplayers", &Screen.AIPlayers);
+	model.Bind("gamespeed", &Screen.GameSpeed);
+
+	model.Bind("bases", &Screen.Bases);
+	model.Bind("crates", &Screen.Crates);
+	model.Bind("fog", &Screen.FogOfWar);
+	model.Bind("bridges", &Screen.Bridges);
+	model.Bind("mcv", &Screen.MCVRedeploy);
+	model.Bind("shortgame", &Screen.ShortGame);
+	model.Bind("engineer", &Screen.MultiEngineer);
+	model.Bind("allies", &Screen.Allies);
+	model.Bind("harvtruce", &Screen.HarvTruce);
+
+	model.Bind("canaccept", &Screen.CanAccept);
+	model.Bind("canstart", &Screen.CanStart);
+
+	// The field is bound one way, so a value the model already holds is never queued back as
+	// a change the player did not type.
+	model.BindEventCallback("rename",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			Rml::String const value = event.GetParameter<Rml::String>("value", Rml::String());
+			if (value == Screen.Handle) return;
+			Screen.Queue(UIIntent{UI_LOBBY_RENAME, value, 0});
+		});
+
+	model.BindEventCallback("pickgame",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_LOBBY_PICK_GAME, "", arguments[0].Get<int>()});
+		});
+
+	model.BindEventCallback("pickuser",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_LOBBY_PICK_USER, "", arguments[0].Get<int>()});
+		});
+
+	model.BindEventCallback("chooseside",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			if (!Settled) return;
+			int const row = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
+			if (row == Screen.SelectedSide) return;
+
+			if (Kind == UILobbyPresenterClass::SCREEN_HOST) {
+				Screen.Queue(UIIntent{UI_LOBBY_HOST_SIDE, "", row});
+				return;
+			}
+
+			// The guest records the side ahead of the color, because the dialog read both of
+			// its boxes and sent one packet carrying the pair.
+			Screen.SelectedSide = row;
+			if (row >= 0 && row < (int)Screen.Sides.size()) {
+				Screen.Queue(UIIntent{UI_LOBBY_SIDE, "", Screen.Sides[row].Country});
+			}
+			Screen.Queue(UIIntent{UI_LOBBY_IDENTITY, "", Screen.Color});
+		});
+
+	model.BindEventCallback("choosecolor",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			if (!Settled) return;
+			int const row = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
+			if (row == Screen.Color) return;
+
+			if (Kind == UILobbyPresenterClass::SCREEN_HOST) {
+				Screen.Queue(UIIntent{UI_LOBBY_HOST_COLOR, "", row});
+				return;
+			}
+
+			if (Screen.SelectedSide >= 0 && Screen.SelectedSide < (int)Screen.Sides.size()) {
+				Screen.Queue(UIIntent{UI_LOBBY_SIDE, "", Screen.Sides[Screen.SelectedSide].Country});
+			}
+			Screen.Queue(UIIntent{UI_LOBBY_IDENTITY, "", row});
+		});
+
+	model.BindEventCallback("move",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const which = arguments[0].Get<Rml::String>();
+			int const value = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
+
+			if (which == UI_LOBBY_UNITCOUNT) Move(UI_LOBBY_UNITCOUNT, value);
+			else if (which == UI_LOBBY_CREDITS) Move(UI_LOBBY_CREDITS, value);
+			else if (which == UI_LOBBY_TECHLEVEL) Move(UI_LOBBY_TECHLEVEL, value);
+			else if (which == UI_LOBBY_AILEVEL) Move(UI_LOBBY_AILEVEL, value);
+			else if (which == UI_LOBBY_AIPLAYERS) Move(UI_LOBBY_AIPLAYERS, value);
+			else if (which == UI_LOBBY_GAMESPEED) Move(UI_LOBBY_GAMESPEED, value);
+		});
+
+	// A check box is a class plus a click that queues a toggle, not a two-way bound control.
+	model.BindEventCallback("toggle",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+			Screen.Queue(UIIntent{UI_LOBBY_TOGGLE, arguments[0].Get<Rml::String>(), 0});
+		});
+
+	model.BindEventCallback("press",
+		[this](Rml::DataModelHandle, Rml::Event &, Rml::VariantList const & arguments) {
+			if (arguments.empty()) return;
+
+			Rml::String const action = arguments[0].Get<Rml::String>();
+			if (action == UI_LOBBY_JOIN) Press(UI_LOBBY_JOIN);
+			else if (action == UI_LOBBY_NEW) Press(UI_LOBBY_NEW);
+			else if (action == UI_LOBBY_CANCEL) Press(UI_LOBBY_CANCEL);
+			else if (action == UI_LOBBY_ACCEPT) Press(UI_LOBBY_ACCEPT);
+			else if (action == UI_LOBBY_GO) Press(UI_LOBBY_GO);
+			else if (action == UI_LOBBY_KICK) Press(UI_LOBBY_KICK);
+			else if (action == UI_LOBBY_PICK_MAP) Press(UI_LOBBY_PICK_MAP);
+		});
+
+	// Enter in the chat field sends the line, which is what EN_MAXTEXT stood for on an
+	// ES_WANTRETURN edit control. Escape backs out of the screen.
+	model.BindEventCallback("submit",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) {
+				Submit_Chat();
+				event.StopPropagation();
+			}
+		});
+
+	model.BindEventCallback("key",
+		[this](Rml::DataModelHandle, Rml::Event & event, Rml::VariantList const &) {
+			int const key = event.GetParameter<int>("key_identifier", Rml::Input::KI_UNKNOWN);
+			if (key == Rml::Input::KI_ESCAPE) {
+				Press(UI_LOBBY_CANCEL);
+			}
+		});
+}
+
+
+void LobbyViewClass::Sync(void)
+{
+	if (!Model) return;
+
+	Rebuild_Rows();
+
+	Model.DirtyVariable("games");
+	Model.DirtyVariable("selectedgame");
+	Model.DirtyVariable("users");
+	Model.DirtyVariable("messages");
+	Model.DirtyVariable("scenarioname");
+	Model.DirtyVariable("canaccept");
+	Model.DirtyVariable("canstart");
+
+	// The track bar, combo box and field values are not dirtied, because each already
+	// carries what its own change event reported. The options are, because the host's
+	// coupling and the guest's packets both move them from underneath.
+	Model.DirtyVariable("bases");
+	Model.DirtyVariable("crates");
+	Model.DirtyVariable("fog");
+	Model.DirtyVariable("bridges");
+	Model.DirtyVariable("mcv");
+	Model.DirtyVariable("shortgame");
+	Model.DirtyVariable("engineer");
+	Model.DirtyVariable("allies");
+	Model.DirtyVariable("harvtruce");
+
+	// The guest never moves a track bar -- every one of them is WS_DISABLED on its template
+	// -- so its values come from the host's packets and have to be dirtied. The host's own
+	// bars already carry what their change events reported.
+	if (Kind == UILobbyPresenterClass::SCREEN_GUEST) {
+		Model.DirtyVariable("unitcount");
+		Model.DirtyVariable("credits");
+		Model.DirtyVariable("techlevel");
+		Model.DirtyVariable("ailevel");
+		Model.DirtyVariable("aiplayers");
+		Model.DirtyVariable("gamespeed");
+		Model.DirtyVariable("selectedside");
+		Model.DirtyVariable("selectedcolor");
+	}
+
+	// The picture is redrawn where it changed, not every pass, so the element uploads once
+	// per map rather than once per present.
+	if (!Preview.empty() && Screen.PreviewGeneration != Drawn) {
+		Drawn = Screen.PreviewGeneration;
+		Picture.Redraw();
+	}
+}
+
+
+// The three documents, kept alive across the driver's passes because the lobby moves
+// between them and comes back, the way it kept its host and game list dialogs alive
+// together.
+static LobbyViewClass * _GameListView = NULL;
+static LobbyViewClass * _HostView = NULL;
+static LobbyViewClass * _GuestView = NULL;
+static LobbyViewClass * _ShownView = NULL;
+
+
+static LobbyViewClass ** Lobby_View_Slot(UILobbyPresenterClass::ScreenType kind)
+{
+	switch (kind) {
+		case UILobbyPresenterClass::SCREEN_GAME_LIST: return(&_GameListView);
+		case UILobbyPresenterClass::SCREEN_HOST:      return(&_HostView);
+		case UILobbyPresenterClass::SCREEN_GUEST:     return(&_GuestView);
+		default:                                      return(NULL);
+	}
+}
+
+
+void UI_Lobby_Close_Views(void)
+{
+	delete _GameListView;
+	delete _HostView;
+	delete _GuestView;
+
+	_GameListView = NULL;
+	_HostView = NULL;
+	_GuestView = NULL;
+	_ShownView = NULL;
+}
+
+
+/// <summary>
+/// Shows whichever of the three documents the screen says it is on, and runs it until the
+/// player answers.
+/// </summary>
+UIResult UI_Lobby_Run(UILobbyPresenterClass & presenter)
+{
+	UIResult failed;
+	failed.Outcome = UIResult::OUTCOME_FAILED_TO_OPEN;
+
+	LobbyViewClass ** const slot = Lobby_View_Slot(presenter.Showing);
+	if (slot == NULL) {
+		return(failed);
+	}
+
+	if (*slot == NULL) {
+		char const * document = "gamelist.rml";
+		char const * preview = NULL;
+		if (presenter.Showing == UILobbyPresenterClass::SCREEN_HOST) {
+			document = "mphost.rml";
+			preview = UI_LOBBY_HOST_PREVIEW;
+		} else if (presenter.Showing == UILobbyPresenterClass::SCREEN_GUEST) {
+			document = "mpguest.rml";
+			preview = UI_LOBBY_GUEST_PREVIEW;
+		}
+
+		LobbyViewClass * const view = new LobbyViewClass(presenter, document, presenter.Showing, preview);
+		if (!view->Prepare(true)) {
+			delete view;
+			return(failed);
+		}
+
+		view->Settle();
+		*slot = view;
+	}
+
+	// The screen the lobby moved away from steps aside rather than being torn down, because
+	// it is come back to and its document is the same one.
+	if (_ShownView != NULL && _ShownView != *slot) {
+		_ShownView->Hide();
+	}
+	if (!(*slot)->Is_Visible()) {
+		(*slot)->Show();
+	}
+	_ShownView = *slot;
+
+	// The ranges go back on the controls every time a screen is shown, because a screen that
+	// is come back to opens on what the model holds now rather than on what it held when the
+	// document was first loaded.
+	(*slot)->Settle();
+
+	// A family reopened in a loop resets the close mark and the held result, since a close
+	// marks the presenter closing and a marked presenter drains nothing.
+	presenter.Result.reset();
+	presenter.IsClosing = false;
+
+	(*slot)->Sync();
+
+	while (!presenter.Result.has_value()) {
+		UI_Run_Modal(presenter, **slot);
+
+		if (presenter.Pending == UILobbyPresenterClass::SUB_NONE) {
+			break;
+		}
+
+		// The scenario picker draws where the host screen is, so the document steps aside
+		// for it, which is what the dialog's own ShowWindow did.
+		(*slot)->Hide();
+		presenter.Run_Pending();
+		(*slot)->Show();
+		(*slot)->Sync();
+	}
+
+	return(presenter.Result.value_or(UIResult{}));
 }

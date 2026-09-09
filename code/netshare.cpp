@@ -941,6 +941,12 @@ bool DecodePubGameopt(char * options, char * name)
 
 	free(string);
 
+	// The settings the host sent are on the model where they arrived, not where a control is
+	// written, so a presentation that is not a window sees them too.
+	if (UILobbyPresenterClass * const lobby = UI_Lobby_Screen()) {
+		lobby->Options_Received();
+	}
+
 	DisplayGameopts(GameoptWindow(), false);
 
 	if (_last_unit_count != Session.Options.UnitCount) do_decode = true;
@@ -972,9 +978,15 @@ bool DecodePubGameopt(char * options, char * name)
 			sprintf(buffer, "A0");
 			SendPublicGameopts(buffer);
 
+			if (UILobbyPresenterClass * const lobby = UI_Lobby_Screen()) {
+				lobby->CanAccept = true;
+			}
 			EnableWindow(GetDlgItem(GameoptWindow(), IDC_ACCEPT), TRUE);
 			InvalidateRect(GetDlgItem(GameoptWindow(), IDC_ACCEPT), NULL, FALSE);
 		} else {
+			if (UILobbyPresenterClass * const lobby = UI_Lobby_Screen()) {
+				lobby->CanAccept = true;
+			}
 			if (!IsWindowEnabled(GetDlgItem(GameoptWindow(), IDC_ACCEPT))) {
 				EnableWindow(GetDlgItem(GameoptWindow(), IDC_ACCEPT), TRUE);
 				InvalidateRect(GetDlgItem(GameoptWindow(), IDC_ACCEPT), NULL, FALSE);
@@ -1379,7 +1391,7 @@ void Rebuild_Network_Map_Preview(void)
 
 	switch (Session.Type) {
 		case GAME_IPX:
-			if (WS_Top_Window_ID() == IDD_MPLAYER_GUEST && !Find_Local_Scenario(Session.ScenarioFileName, Session.ScenarioFileLength, Session.ScenarioDigest, Session.ScenarioIsOfficial)) {
+			if (Net2LobbyScreenID() == IDD_MPLAYER_GUEST && !Find_Local_Scenario(Session.ScenarioFileName, Session.ScenarioFileLength, Session.ScenarioDigest, Session.ScenarioIsOfficial)) {
 				GlobalPacketType packet;
 				memset(&packet, 0, sizeof(packet));
 				packet.Command = NET_REQ_PREVIEW;
