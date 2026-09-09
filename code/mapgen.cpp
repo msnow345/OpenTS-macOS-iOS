@@ -54,6 +54,8 @@
 #include "terrtype.h"
 #include "tiberium.h"
 #include "trigtype.h"
+#include "ui/uimapgen.h"
+#include "ui/uishell.h"
 #include "unit.h"
 #include "unittype.h"
 #include "vector.h"
@@ -3266,11 +3268,24 @@ int Do_Random_Map_Dialog(bool (*callback)())
 		wdt = WDT_Get_Territory(Session.WDTTerritory);
 	}
 
-	HWND dialog;
-	if (Addon_Enabled(ADDON_FIRESTORM)) {
-		dialog = OwnerDraw::Begin_Dialog(wdt != NULL ? IDD_MAPGEN_WDT : IDD_MAPGEN_FS, Map_Seed_Dialog_Proc);
-	} else {
-		dialog = OwnerDraw::Begin_Dialog(IDD_MAPGEN, Map_Seed_Dialog_Proc);
+	// The presentation is latched here, at screen entry. A document that will not prepare
+	// drops the screen back to the dialog, which works from the same settings.
+	if (UI_Use_Rml()) {
+		UIMapGenPresenterClass screen;
+		screen.Open(callback);
+
+		RMGCallback = callback;
+		RandomMapGen.SeedData.Callback = callback;
+		res = UI_MapGen_Run(screen);
+	}
+
+	HWND dialog = NULL;
+	if (res == 0) {
+		if (Addon_Enabled(ADDON_FIRESTORM)) {
+			dialog = OwnerDraw::Begin_Dialog(wdt != NULL ? IDD_MAPGEN_WDT : IDD_MAPGEN_FS, Map_Seed_Dialog_Proc);
+		} else {
+			dialog = OwnerDraw::Begin_Dialog(IDD_MAPGEN, Map_Seed_Dialog_Proc);
+		}
 	}
 
 	if (dialog) {
@@ -4704,6 +4719,22 @@ double Sample_Truncated_Normal(double mean, double scale, double lower_bound, do
 /// <param name="full_init">Should the scenario be rebuilt from scratch and the preview redrawn
 /// between phases?</param>
 /// <param name="dialog">The map generator dialog to repaint as the preview is refreshed.</param>
+/// <summary>
+/// Puts the freshly drawn preview on screen while a map is being built.
+/// </summary>
+/// <param name="dialog">The dialog to repaint, or NULL when a document is showing the
+/// picture instead.</param>
+static void Repaint_Map_Preview(HWND dialog)
+{
+	if (dialog != NULL) {
+		Repaint_Map_Preview(dialog);
+		return;
+	}
+
+	UI_MapGen_Preview_Changed();
+}
+
+
 void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 {
 	if (RMGCallback != NULL) RMGCallback();
@@ -4731,7 +4762,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	if (RMGCallback != NULL) RMGCallback();
@@ -4748,7 +4779,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	if (RMGCallback != NULL) RMGCallback();
@@ -4764,7 +4795,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	if (RMGCallback != NULL) RMGCallback();
@@ -4791,7 +4822,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	if (RMGCallback != NULL) RMGCallback();
@@ -4852,7 +4883,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	if (RMGCallback != NULL) RMGCallback();
@@ -4871,7 +4902,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	if (RMGCallback != NULL) RMGCallback();
@@ -4895,7 +4926,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	if (RMGCallback != NULL) RMGCallback();
@@ -4918,7 +4949,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 
 	if (full_init) {
 		RandomMapGen.MapPreview->Create_Preview();
-		SendMessage(dialog, WM_PAINT, 0, 0);
+		Repaint_Map_Preview(dialog);
 	}
 
 	ScenarioInit--;
