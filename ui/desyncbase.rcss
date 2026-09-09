@@ -37,7 +37,14 @@
 /* A scrolling container gives its children no width to be a proportion of, so the row
    states its own, and the columns stand where OD_ADDCOLUMN put them: the marker at 2, the
    name at 20, and the status against the list's right edge less 56. */
-#players .row { width: 168dp; }
+#players .row
+{
+	position: relative;
+	width: 168dp;
+	height: 16dp;
+	line-height: 16dp;
+	padding: 0dp;
+}
 
 #players .mark
 {
