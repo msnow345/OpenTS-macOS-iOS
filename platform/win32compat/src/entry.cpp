@@ -9,6 +9,14 @@
 
 #include "win32compat.h"
 
+#ifdef OPENTS_IOS
+// UIKit, not the C runtime, starts an iOS application. This header renames main to SDL_main
+// and supplies the real entry point, which creates the UIApplication and its delegate and
+// then calls back here. Without it the process has no application object, and so no view
+// controller and no events.
+#include <SDL3/SDL_main.h>
+#endif
+
 // Windows enters the game at WinMain. Nothing else does, so the host's entry point records
 // the arguments the shell handed over and hands control to the same function the supported
 // build starts in.

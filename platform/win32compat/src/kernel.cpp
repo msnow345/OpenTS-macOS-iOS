@@ -121,6 +121,12 @@ extern "C" HMODULE LoadLibrary(LPCSTR name)
 		return(NULL);
 	}
 
+#ifdef OPENTS_IOS
+	// An application bundle carries no loose libraries beside its executable, and the only
+	// module the game loads is the language library, which holds no code on this host. The
+	// caller gets the handle that stands for the running program, as GetModuleHandle returns.
+	return((HMODULE)(ULONG_PTR)1);
+#else
 	std::string const library = Host_Library_Name(name);
 
 	char executable[MAX_PATH];
@@ -134,6 +140,7 @@ extern "C" HMODULE LoadLibrary(LPCSTR name)
 	}
 
 	return((HMODULE)dlopen(library.c_str(), RTLD_LAZY));
+#endif
 }
 
 

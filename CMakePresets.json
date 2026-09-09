@@ -1,0 +1,73 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ios-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_SYSTEM_PROCESSOR": "arm64",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "16.0",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "OPENTS_EXPERIMENTAL_NATIVE": "ON"
+      }
+    },
+    {
+      "name": "ios-device",
+      "displayName": "iOS device (arm64, iOS 16.0)",
+      "inherits": "ios-base",
+      "binaryDir": "${sourceDir}/build/ios-device",
+      "cacheVariables": {
+        "CMAKE_OSX_SYSROOT": "iphoneos"
+      }
+    },
+    {
+      "name": "ios-simulator",
+      "displayName": "iOS simulator (arm64, iOS 16.0)",
+      "inherits": "ios-base",
+      "binaryDir": "${sourceDir}/build/ios-simulator",
+      "cacheVariables": {
+        "CMAKE_OSX_SYSROOT": "iphonesimulator"
+      }
+    },
+    {
+      "name": "ios-device-xcode",
+      "displayName": "iOS device (arm64, iOS 16.0, Xcode generator)",
+      "inherits": "ios-device",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/ios-device-xcode"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "ios-device",
+      "configurePreset": "ios-device",
+      "targets": [
+        "OpenTS"
+      ]
+    },
+    {
+      "name": "ios-simulator",
+      "configurePreset": "ios-simulator",
+      "targets": [
+        "OpenTS"
+      ]
+    },
+    {
+      "name": "ios-device-xcode",
+      "configurePreset": "ios-device-xcode",
+      "configuration": "Release",
+      "targets": [
+        "OpenTS"
+      ]
+    }
+  ]
+}

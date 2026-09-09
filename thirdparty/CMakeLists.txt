@@ -76,6 +76,20 @@ if(WIN32)
     )
 endif()
 
+if(IOS)
+    # The iOS device layer reaches AVAudioSession, so the implementation reads its headers as
+    # Objective-C. macOS keeps the plain C translation unit.
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/miniaudio-impl.c" PROPERTIES
+        LANGUAGE OBJC
+    )
+
+    target_link_libraries(miniaudio PUBLIC
+        "-framework AVFoundation"
+        "-framework AudioToolbox"
+        "-framework CoreFoundation"
+    )
+endif()
+
 if(MSVC)
     # Match the engine's floating-point model so the resampler behaves the same in both.
     target_compile_options(miniaudio PRIVATE /arch:SSE2 /fp:precise)

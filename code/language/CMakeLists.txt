@@ -3,30 +3,36 @@ file(GLOB_RECURSE LANG_SRC CONFIGURE_DEPENDS
     "*.h" "*.hpp" "*.hm"
 )
 
-add_library(Language SHARED ${LANG_SRC})
-target_compile_features(Language PRIVATE cxx_std_20)
-target_compile_definitions(Language PRIVATE NOMINMAX)
+# An iOS bundle holds no loose libraries beside its executable, and off Windows this one
+# carries no code anyway: only the resource compiler turns language.rc into a module resource,
+# and every other host reads the same strings out of Language.dat. The compatibility layer
+# answers the load with the handle that stands for the running program instead.
+if(NOT IOS)
+    add_library(Language SHARED ${LANG_SRC})
+    target_compile_features(Language PRIVATE cxx_std_20)
+    target_compile_definitions(Language PRIVATE NOMINMAX)
 
-# The version resource is stamped from the generated headers, which the resource compiler
-# reaches through the target's include paths.
-target_include_directories(Language PRIVATE "${OPENTS_GENERATED_DIR}")
-add_dependencies(Language OpenTSBuildStamp)
+    # The version resource is stamped from the generated headers, which the resource compiler
+    # reaches through the target's include paths.
+    target_include_directories(Language PRIVATE "${OPENTS_GENERATED_DIR}")
+    add_dependencies(Language OpenTSBuildStamp)
 
-# The game loads its strings from this library at runtime, so building the executable alone
-# would leave a stale Language.dll beside it.
-add_dependencies(OpenTS Language)
+    # The game loads its strings from this library at runtime, so building the executable alone
+    # would leave a stale Language.dll beside it.
+    add_dependencies(OpenTS Language)
 
-if(MSVC)
-    target_link_options(Language PRIVATE "/NOENTRY" "/NODEFAULTLIB")
+    if(MSVC)
+        target_link_options(Language PRIVATE "/NOENTRY" "/NODEFAULTLIB")
+    endif()
+
+    # The game loads this library by name from its own directory, so it is built beside the
+    # executable rather than copied there. A shared library is a runtime artifact only on
+    # Windows; everywhere else it is placed by the library output path.
+    set_target_properties(Language PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
 endif()
-
-# The game loads this library by name from its own directory, so it is built beside the
-# executable rather than copied there. A shared library is a runtime artifact only on
-# Windows; everywhere else it is placed by the library output path.
-set_target_properties(Language PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-)
 
 # A UI document names a string by its symbolic name, so the same script that reads the resource
 # script writes the table that turns a name back into its identifier. Every platform needs it,

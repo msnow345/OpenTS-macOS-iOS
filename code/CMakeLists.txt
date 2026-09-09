@@ -82,6 +82,42 @@ set_target_properties(OpenTS PROPERTIES
     PDB_NAME_RELEASE "Game"
 )
 
+#
+# ---------------------------------------------------------
+# iOS application bundle
+# ---------------------------------------------------------
+#
+# An iOS application is its bundle, and everything the game links is static, so the executable
+# target carries the bundle metadata itself instead of handing a binary to a separate shell
+# project. Both configurations build OpenTS.app, because signing and installation identify one
+# product by name.
+if(IOS)
+    set(OPENTS_IOS_BUNDLE_ID "org.opents.OpenTS" CACHE STRING "iOS bundle identifier")
+    set(OPENTS_IOS_BUNDLE_VERSION "1" CACHE STRING "iOS CFBundleVersion")
+
+    set_target_properties(OpenTS PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/cmake/ios/Info.plist.in"
+        MACOSX_BUNDLE_BUNDLE_NAME "OpenTS"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${OPENTS_IOS_BUNDLE_ID}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${OPENTS_IOS_BUNDLE_VERSION}"
+
+        OUTPUT_NAME "OpenTS"
+        OUTPUT_NAME_DEBUG "OpenTS"
+        OUTPUT_NAME_RELEASE "OpenTS"
+
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${OPENTS_IOS_BUNDLE_ID}"
+        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+        XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
+    )
+
+    # The staged copy an installer produces is what gets signed and pushed to a device. It is
+    # its own component because the vendored libraries carry install rules of their own, and a
+    # staging prefix must hold the bundle alone.
+    install(TARGETS OpenTS BUNDLE DESTINATION "." COMPONENT OpenTS)
+endif()
+
 set_target_properties(OpenTS PROPERTIES
     VS_DEBUGGER_COMMAND "$<TARGET_FILE:OpenTS>"
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:OpenTS>"
@@ -172,11 +208,20 @@ add_dependencies(OpenTS OpenTSBuildStamp)
 # Only the renderer's own translation unit sees bgfx, so its headers and the shaders it
 # embeds are put on that file rather than on the whole target.
 set(BGFX_ROOT "${CMAKE_SOURCE_DIR}/thirdparty/bgfx.cmake/bgfx")
+
+# The Debug configuration turns on bx's own debug build, except under Xcode, which refuses a
+# definition that varies by configuration on a single source file. That generator takes the
+# value bgfx was configured with for every configuration.
+if(CMAKE_GENERATOR STREQUAL "Xcode")
+    set(OPENTS_BX_CONFIG_DEBUG "BX_CONFIG_DEBUG=$<BOOL:${BX_CONFIG_DEBUG}>")
+else()
+    set(OPENTS_BX_CONFIG_DEBUG "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>")
+endif()
+
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/bgfxbackend.cpp" PROPERTIES
     INCLUDE_DIRECTORIES
         "${BGFX_ROOT}/include;${CMAKE_SOURCE_DIR}/thirdparty/bgfx.cmake/bx/include;${BGFX_ROOT}/examples/common/imgui"
-    COMPILE_DEFINITIONS
-        "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
+    COMPILE_DEFINITIONS "${OPENTS_BX_CONFIG_DEBUG}"
     COMPILE_OPTIONS "$<$<BOOL:${MSVC}>:/Zc:preprocessor>"
 )
 
@@ -204,10 +249,10 @@ set_property(SOURCE
 )
 
 set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uirender.cpp" APPEND PROPERTY
-    COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
+    COMPILE_DEFINITIONS "${OPENTS_BX_CONFIG_DEBUG}"
 )
 set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ui/uitexture.cpp" APPEND PROPERTY
-    COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=$<IF:$<CONFIG:Debug>,1,$<BOOL:${BX_CONFIG_DEBUG}>>"
+    COMPILE_DEFINITIONS "${OPENTS_BX_CONFIG_DEBUG}"
 )
 
 # bx rewrites __stdcall while its headers are being parsed by clang-cl.  Force the
@@ -348,12 +393,26 @@ source_group("Header Files" REGULAR_EXPRESSION ".*\\.(h|hpp)$")
 message(STATUS "${PROJECT_NAME}: Creating post-build commands...")
 
 # The shipped UI documents, styles and font travel with the game data. They are read
-# through the game's file system, so this directory is what the search path points at.
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/ui"
-        "${OPENTS_GAME_DIR}/ui"
-)
+# through the game's file system, so this directory is what the search path points at. An
+# iOS bundle is the read-only half of that search path and carries them itself.
+if(IOS)
+    # The string table code/language generates goes in with them, since the bundle is the
+    # directory the game finds beside its executable.
+    add_custom_command(TARGET OpenTS POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/ui"
+            "$<TARGET_BUNDLE_DIR:OpenTS>/ui"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${OPENTS_GENERATED_DIR}/Language.dat"
+            "$<TARGET_BUNDLE_DIR:OpenTS>/Language.dat"
+    )
+else()
+    add_custom_command(TARGET OpenTS POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/ui"
+            "${OPENTS_GAME_DIR}/ui"
+    )
+endif()
 
 #
 # ---------------------------------------------------------

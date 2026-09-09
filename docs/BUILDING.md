@@ -182,6 +182,46 @@ with its audio, render and camera subsystems off. Audio stays on miniaudio.
 That library is added to the build only when the target is not Windows, so a
 Windows configure neither builds nor links it.
 
+## Experimental iOS cross-build
+
+An unsupported iOS build cross-compiles from macOS for porting work. It does
+not expand the supported build matrix or establish runtime behavior. Nothing it
+produces has been signed or run on a device.
+
+It needs Xcode with the iOS SDK, Ninja, and CMake 3.23 or newer. `CMakePresets.json`
+carries the three configurations:
+
+```bash
+cmake --preset ios-device
+cmake --build --preset ios-device
+```
+
+| Preset | Result |
+| --- | --- |
+| `ios-device` | Ninja, `iphoneos` sysroot, `build/ios-device/bin/OpenTS.app` |
+| `ios-simulator` | Ninja, `iphonesimulator` sysroot |
+| `ios-device-xcode` | Xcode generator, for tooling that needs an `.xcodeproj` |
+
+Each pins arm64 and `CMAKE_OSX_DEPLOYMENT_TARGET`, and every dependency is
+compiled from `thirdparty/` by the same invocation, so one preset variable sets
+the minimum OS version of the executable and of every static library it links.
+The presets set `OPENTS_EXPERIMENTAL_NATIVE=ON`, since iOS reaches the game
+through the same non-Windows path.
+
+An iOS application is its bundle, so the executable target carries the bundle
+metadata and `cmake/ios/Info.plist.in` rather than handing a binary to a
+separate Xcode shell project. The build stages `ui/` and `Language.dat` inside
+the bundle, where the game finds them beside its executable.
+`cmake --install <build> --prefix <dir> --component OpenTS` stages the bundle
+alone for signing. `OPENTS_IOS_BUNDLE_ID` and `OPENTS_IOS_BUNDLE_VERSION` name
+the bundle identifier and `CFBundleVersion`.
+
+Two targets differ from the desktop native build. miniaudio's device layer
+reaches AVAudioSession, so its translation unit compiles as Objective-C. The
+`Language` library is not built at all: it carries no code off Windows, an
+application bundle holds no loose libraries beside its executable, and the
+strings come from `Language.dat` either way.
+
 ## Build from Visual Studio Code
 
 With the recommended extensions installed, the repository provides:
