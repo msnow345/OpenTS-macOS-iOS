@@ -55,6 +55,17 @@ void Win32_Post_Message(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 // measures its frame in. The two agree on a display whose pixel density is one.
 float Win32_Pixel_Density(void);
 
+// The one pointer this layer owns. A position is in the main window's client area, in the
+// host's own coordinates; the buttons are an SDL button mask. A host mouse writes it, and a
+// host without one leaves the writing to whatever stands in for a mouse there. Everything
+// the engine polls or receives about the pointer is answered from it, so the message queue
+// and the polled state cannot disagree.
+void Win32_Pointer_Move(float x, float y);
+void Win32_Pointer_Button(Uint8 button, bool down);
+void Win32_Pointer_Position(float * x, float * y);
+SDL_MouseButtonFlags Win32_Pointer_Buttons(void);
+void Win32_Pointer_Follow_Host_Mouse(void);
+
 // The layer bgfx presents into, which SDL owns and this layer only hands over.
 extern "C" void * Win32Compat_Native_Window_Handle(HWND window);
 extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);

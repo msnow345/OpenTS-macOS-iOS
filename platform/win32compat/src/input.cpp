@@ -114,11 +114,12 @@ static SDL_Scancode Scancode_For_Virtual_Key(int key)
 }
 
 
-// The engine polls held keys through this rather than through the message queue, so it has
-// to answer from the host's live keyboard state and not from anything this layer buffers.
+// The engine polls held keys through this rather than through the message queue, so the
+// keyboard is answered from the host's live state. The mouse buttons are answered from the
+// pointer this layer owns instead, because a host may have no mouse to ask.
 extern "C" SHORT GetAsyncKeyState(int key)
 {
-	SDL_MouseButtonFlags const buttons = SDL_GetMouseState(NULL, NULL);
+	SDL_MouseButtonFlags const buttons = Win32_Pointer_Buttons();
 
 	switch (key) {
 		case VK_LBUTTON_CODE: return((buttons & SDL_BUTTON_LMASK) != 0 ? (SHORT)0x8000 : 0);
@@ -234,19 +235,39 @@ extern "C" BOOL GetCursorPos(LPPOINT point)
 
 	float x = 0.0f;
 	float y = 0.0f;
-	SDL_GetGlobalMouseState(&x, &y);
+	Win32_Pointer_Position(&x, &y);
 
 	float const density = Win32_Pixel_Density();
 	point->x = (LONG)(x * density);
 	point->y = (LONG)(y * density);
-	return(TRUE);
+
+	// The same conversion the engine's own round trips use, so a position that goes back
+	// through ScreenToClient lands where it started.
+	return(ClientToScreen(Win32_Main_Window(), point));
 }
 
 
+// Windows moves the pointer at once, so the position this layer owns is written here rather
+// than waited for. A host with a mouse of its own is asked to move it as well, because the
+// host is what draws it.
 extern "C" BOOL SetCursorPos(int x, int y)
 {
+	POINT point;
+	point.x = (LONG)x;
+	point.y = (LONG)y;
+
+	if (!ScreenToClient(Win32_Main_Window(), &point)) {
+		return(FALSE);
+	}
+
 	float const density = Win32_Pixel_Density();
+	Win32_Pointer_Move((float)point.x / density, (float)point.y / density);
+
+#ifndef OPENTS_IOS
 	return(SDL_WarpMouseGlobal(x / density, y / density) ? TRUE : FALSE);
+#else
+	return(TRUE);
+#endif
 }
 
 
@@ -324,7 +345,8 @@ extern "C" int ShowCursor(BOOL show)
 
 // Confining the pointer is what the game does at the window's edge while scrolling. SDL
 // confines to a window rather than to a desktop rectangle, so the request is honoured at
-// window granularity and a rectangle smaller than the window is not.
+// window granularity and a rectangle smaller than the window is not. A host with no mouse
+// has nothing to confine, and the pointer this layer owns never leaves the window anyway.
 extern "C" BOOL ClipCursor(RECT const * rect)
 {
 	Win32Window * main = Win32_Lookup(Win32_Main_Window());
@@ -333,15 +355,26 @@ extern "C" BOOL ClipCursor(RECT const * rect)
 		return(FALSE);
 	}
 
+#ifndef OPENTS_IOS
 	return(SDL_SetWindowMouseGrab(main->Handle, rect != NULL) ? TRUE : FALSE);
+#else
+	(void)rect;
+	return(TRUE);
+#endif
 }
 
 
+// The capture is what the message router asks about to keep a drag going, so it is recorded
+// whatever the host does with its own mouse.
 extern "C" HWND SetCapture(HWND window)
 {
 	HWND const previous = _Capture;
 	_Capture = window;
+
+#ifndef OPENTS_IOS
 	SDL_CaptureMouse(true);
+#endif
+
 	return(previous);
 }
 
@@ -349,7 +382,11 @@ extern "C" HWND SetCapture(HWND window)
 extern "C" BOOL ReleaseCapture(void)
 {
 	_Capture = NULL;
+
+#ifndef OPENTS_IOS
 	SDL_CaptureMouse(false);
+#endif
+
 	return(TRUE);
 }
 

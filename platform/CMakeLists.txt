@@ -18,6 +18,7 @@ add_library(win32compat STATIC
     "${CMAKE_CURRENT_SOURCE_DIR}/win32compat/src/input.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/win32compat/src/kernel.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/win32compat/src/message.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/win32compat/src/pointer.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/win32compat/src/strings.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/win32compat/src/window.cpp"
 )
