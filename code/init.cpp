@@ -416,6 +416,11 @@ int Init_Game(int , char * [])
 	Options.Load_Settings();
 	SaveManager.Autosave.Set_Interval(Options.AutoSaveInterval);
 
+	// The session speed starts at the player's own saved setting rather than at zero, which
+	// is the "fastest" end of the scale. The skirmish screen seeds its slider from it and so
+	// opened every match at that end, whatever the player had settled on.
+	Session.Options.GameSpeed = Options.GameSpeed;
+
 	/*
 	**	Initialize the animation system.
 	*/
