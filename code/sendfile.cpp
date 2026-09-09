@@ -48,8 +48,11 @@
 #include "progress.h"
 #include "session.h"
 #include "stimer.h"
+#include "utf8.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstring>
 
 bool Receive_Remote_File ( char *file_name, unsigned int file_length, bool show_progress);
 bool Send_Remote_File ( char const *file_name );
@@ -120,7 +123,14 @@ bool Get_File_From_Host(char *return_name, bool show_progress)
 
 			//DebugString ("RA95 - Got packet from host\n");
 			if (net_receive_packet.Command == NET_FILE_INFO && sender_address == Session.HostAddress) {
-				strcpy (return_name, net_receive_packet.ScenarioInfo.ShortFileName);
+				// The field is documented as not necessarily terminated, so the name is taken
+				// from it by length rather than by a terminator the host may not have sent.
+				char const * const short_name = net_receive_packet.ScenarioInfo.ShortFileName;
+				std::size_t const short_length = static_cast<std::size_t>(
+					std::find(short_name, short_name + sizeof(net_receive_packet.ScenarioInfo.ShortFileName), '\0')
+					- short_name);
+				std::memcpy(return_name, short_name, short_length);
+				return_name[short_length] = '\0';
 				file_length = net_receive_packet.ScenarioInfo.FileLength;
 				DebugString("Host responded with file info\n");
 				DebugString("File name is %s\n", return_name);
@@ -247,14 +257,23 @@ bool Receive_Remote_File ( char *file_name, unsigned int file_length, bool show_
 
 			if (receive_packet->Command == NET_FILE_CHUNK && sender_address == Session.HostAddress){
 
-				char *flag = &block_received[receive_packet->BlockNumber];
-				if (!block_received[receive_packet->BlockNumber]) {
+				// The block index and length name where in the reassembly buffer this chunk
+				// lands, and the host is not trusted to keep either inside it.
+				std::size_t const block_offset = static_cast<std::size_t>(MAX_SEND_FILE_PACKET_SIZE) * receive_packet->BlockNumber;
+				bool const block_fits = receive_packet->BlockNumber < total_blocks
+					&& receive_packet->BlockLength <= sizeof(receive_packet->RawData)
+					&& block_offset <= file_length
+					&& receive_packet->BlockLength <= file_length - block_offset;
+				if (!block_fits) {
+					DebugString("Discarding file chunk %u of length %u\n", (unsigned)receive_packet->BlockNumber, (unsigned)receive_packet->BlockLength);
+				} else if (!block_received[receive_packet->BlockNumber]) {
+					char *flag = &block_received[receive_packet->BlockNumber];
 					*flag = true;
 					received_count++;
 					progress += 100;
 					response_timer = RESPONSE_TIMEOUT/2;
 					DebugString("Received file chunk %d\n", receive_packet->BlockNumber);
-					memcpy (file_buffer + (MAX_SEND_FILE_PACKET_SIZE) * receive_packet->BlockNumber,
+					memcpy (file_buffer + block_offset,
 						receive_packet->RawData, receive_packet->BlockLength);
 
 					if (show_progress){
@@ -358,7 +377,7 @@ bool Send_Remote_File ( char const *file_name, bool send_to_all, bool show_progr
 	**	Send the file info to the remote machine(s)
 	*/
 	net_file_info.Command = NET_FILE_INFO;
-	strcpy (net_file_info.ScenarioInfo.ShortFileName, file_name);
+	UTF8::Copy(net_file_info.ScenarioInfo.ShortFileName, sizeof(net_file_info.ScenarioInfo.ShortFileName), file_name);
 //		DebugString( "Uploading '%s'\n", file_name );
 //		DebugString( "ShortFileName is '%s'\n", net_file_info.ScenarioInfo.ShortFileName );
 	net_file_info.ScenarioInfo.FileLength = file_length;
