@@ -776,6 +776,11 @@ void Set_Window_Fullscreen(bool fullscreen)
 /// <param name="name">The name of the picture file to load.</param>
 /// <param name="surface">The surface to draw the title screen upon.</param>
 /// <param name="palette">The palette to load the picture's colors into.</param>
+// Where the last title page landed after being centred on its surface. Text printed over
+// the page is authored in the page's own coordinates and has to be moved by the same amount.
+Point2D TitleScreenOffset(0, 0);
+
+
 void Load_Title_Screen(char const * name, Surface * surface, PaletteClass * palette)
 {
 	Surface *load_buffer;
@@ -786,6 +791,10 @@ void Load_Title_Screen(char const * name, Surface * surface, PaletteClass * pale
 		Point2D point;
 		int x = (surface->Get_Width() - load_buffer->Get_Width()) / 2;
 		int y = (surface->Get_Height() - load_buffer->Get_Height()) / 2;
+
+		// Whatever is printed over this page is placed in the page's own coordinates, so the
+		// offset that centred it has to reach that caller as well.
+		TitleScreenOffset = Point2D(x, y);
 		if (palette && load_buffer->Bytes_Per_Pixel() == 1) {
 			ConvertClass *drawer = new ConvertClass(*palette, *palette, *surface);
 			Blit_Block(*surface, *drawer, *load_buffer, load_buffer->Get_Rect(), Point2D(x, y), surface->Get_Rect());

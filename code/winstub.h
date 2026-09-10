@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "point.h"
 #include "win.h"
 
 class Surface;
@@ -33,6 +34,8 @@ bool Win_Window_Safe_Area(HWND window, RECT & area);
 bool Win_Pointer_Take_Scroll(int & x, int & y);
 void Win_Set_Movie_Playing(bool playing);
 void Set_Window_Fullscreen(bool fullscreen);
+
+extern Point2D TitleScreenOffset;
 
 void Load_Title_Screen(char const * name, Surface * surface, PaletteClass * palette);
 

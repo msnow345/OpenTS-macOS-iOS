@@ -30,6 +30,7 @@
 #include "ui/uiprogress.h"
 #include "ui/uishell.h"
 #include "voc.h"
+#include "winstub.h"
 
 #include <algorithm>
 
@@ -132,9 +133,12 @@ void ProgressScreenClass::Set_Graphic_Data(const char * progbar, const char * ba
 	if (pt.X == -1 && pt.Y == -1) {
 		Pos = Point2D(HiddenSurface->Get_Width() / 2, HiddenSurface->Get_Height() / 2);
 	} else {
-		Pos.X = pt.X;
-		Pos.Y = pt.Y;
+		// The authored position is in the title page's own coordinates. Load_Title_Screen
+		// centres that page on the surface, so anything printed over it moves with it.
+		Pos.X = pt.X + TitleScreenOffset.X;
+		Pos.Y = pt.Y + TitleScreenOffset.Y;
 	}
+
 
 	if (progbar != NULL && IsOverlay) {
 		UI_Progress_Wait_Set_Bar(progbar);
