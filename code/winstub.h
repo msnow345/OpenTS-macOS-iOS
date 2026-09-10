@@ -27,6 +27,8 @@ bool Win_Log_Directory(char * path, int size);
 int Win_Window_Refresh_Rate(HWND window);
 bool Win_Set_Window_Fullscreen(HWND window, bool fullscreen);
 bool Win_Pointer_Can_Warp(void);
+bool Win_Pointer_Is_Drawn(void);
+bool Win_Window_Safe_Area(HWND window, RECT & area);
 bool Win_Pointer_Take_Scroll(int & x, int & y);
 void Win_Set_Movie_Playing(bool playing);
 void Set_Window_Fullscreen(bool fullscreen);

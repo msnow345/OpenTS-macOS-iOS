@@ -74,6 +74,19 @@ bool Win32_Pointer_Can_Warp(void)
 }
 
 
+// The pointer's shape is where the engine says what a click would do, so a host that draws
+// no pointer at all loses that. Nothing here decides what stands in for it; the answer is
+// what lets the game decide.
+bool Win32_Pointer_Is_Drawn(void)
+{
+#ifdef OPENTS_IOS
+	return(false);
+#else
+	return(true);
+#endif
+}
+
+
 // A host reports motion only while its mouse is over a window it is delivering input to, and
 // the engine polls a position whether it is or not, so the host is asked directly while it is
 // not. The same call gives the pointer its opening position before the player has moved the

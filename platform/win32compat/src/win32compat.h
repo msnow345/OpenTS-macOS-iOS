@@ -70,6 +70,10 @@ void Win32_Pointer_Follow_Host_Mouse(void);
 // dragging scroll methods are built on, so a host that answers no cannot offer them.
 bool Win32_Pointer_Can_Warp(void);
 
+// Whether the host draws a pointer on screen at all. Where nothing does, what the shape of
+// a cursor would have told the player has to reach them some other way.
+bool Win32_Pointer_Is_Drawn(void);
+
 // Posts a message carrying the pointer's current position and buttons, and a key message
 // the same shape the host's own keys arrive in.
 void Win32_Post_Pointer_Message(UINT message);

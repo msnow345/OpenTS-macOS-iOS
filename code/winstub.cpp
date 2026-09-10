@@ -379,7 +379,9 @@ extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
 extern "C" BOOL Win32Compat_Preferred_Frame_Size(int * width, int * height);
 extern "C" BOOL Win32Compat_Log_Directory(char * buffer, int size);
+extern "C" BOOL Win32Compat_Window_Safe_Area(HWND window, LPRECT rect);
 bool Win32_Pointer_Can_Warp(void);
+bool Win32_Pointer_Is_Drawn(void);
 bool Win32_Touch_Take_Scroll(int * x, int * y);
 void Win32_Touch_Set_Movie_Mode(bool playing);
 #endif
@@ -486,6 +488,39 @@ bool Win_Pointer_Can_Warp(void)
 	return(true);
 #else
 	return(Win32_Pointer_Can_Warp());
+#endif
+}
+
+
+/// <summary>
+/// Answers whether the host draws a pointer on the display.
+/// The shape of the pointer is where the game says what a click would do, so a display that
+/// draws none has to be given that somewhere else. Windows and the desktop hosts draw one.
+/// </summary>
+bool Win_Pointer_Is_Drawn(void)
+{
+#ifdef _WIN32
+	return(true);
+#else
+	return(Win32_Pointer_Is_Drawn());
+#endif
+}
+
+
+/// <summary>
+/// Answers the part of the client area that nothing of the host's own covers.
+/// The rectangle is in the same physical client pixels GetClientRect reports, so it is
+/// compared with the frame's destination rectangle directly. A host that covers nothing
+/// answers false and leaves the rectangle alone.
+/// </summary>
+bool Win_Window_Safe_Area(HWND window, RECT & area)
+{
+#ifdef _WIN32
+	(void)window;
+	(void)area;
+	return(false);
+#else
+	return(Win32Compat_Window_Safe_Area(window, &area) != FALSE);
 #endif
 }
 
