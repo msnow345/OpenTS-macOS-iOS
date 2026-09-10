@@ -32,8 +32,10 @@
 #include "dbgprint.h"
 #include "globals.h"
 #include "mouse.h"
+#include "object.h"
 #include "stimer.h"
 #include "suprtype.h"
+#include "techno.h"
 #include "timer.h"
 #include "vector.h"
 #include "video.h"
@@ -158,10 +160,12 @@ static MouseType Armed_Super_Shape(SuperWeaponType super)
 
 
 /// <summary>
-/// Which shape reports the mode the player has armed, or MOUSE_COUNT while none is.
-/// Each mode is a flag the player set from the sidebar, and it stays set wherever the pointer
-/// goes until they act or cancel, which is what makes it worth reporting. A building being
-/// placed is deliberately not one of them: its own picture is already under the finger.
+/// Which shape reports what the player can do next, or MOUSE_COUNT while there is nothing to
+/// report. Most of these are modes the player armed from the sidebar, which stay set wherever
+/// the pointer goes until they act or cancel. A unit that can deploy is not a mode but belongs
+/// here for the same reason: without a hovering pointer there is nothing else on screen to say
+/// that tapping it turns it into a building. A building being placed is deliberately absent —
+/// its own picture is already under the finger.
 /// </summary>
 static MouseType Armed_Shape(void)
 {
@@ -183,6 +187,23 @@ static MouseType Armed_Shape(void)
 
 	if (Map.IsTargettingMode != SUPER_NONE) {
 		return(Armed_Super_Shape(Map.IsTargettingMode));
+	}
+
+	// Can_Deploy_Now is the same question the engine asks before it offers ACTION_SELF, so the
+	// icon appears exactly when a tap would deploy and not merely when a deployable unit is
+	// selected somewhere it cannot unfold.
+	for (int index = 0; index < CurrentObject.Count(); index++) {
+		ObjectClass const * object = CurrentObject[index];
+
+		if (object == NULL) {
+			continue;
+		}
+
+		TechnoClass const * techno = object->As_TechnoClass();
+
+		if (techno != NULL && techno->Can_Deploy_Now()) {
+			return(MOUSE_DEPLOY);
+		}
 	}
 
 	return(MOUSE_COUNT);
