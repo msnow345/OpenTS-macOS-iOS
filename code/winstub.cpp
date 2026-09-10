@@ -379,6 +379,7 @@ extern "C" int Win32Compat_Window_Refresh_Rate(HWND window);
 extern "C" BOOL Win32Compat_Set_Window_Fullscreen(HWND window, BOOL fullscreen);
 extern "C" BOOL Win32Compat_Preferred_Frame_Size(int * width, int * height);
 extern "C" BOOL Win32Compat_Log_Directory(char * buffer, int size);
+extern "C" BOOL Win32Compat_Shipped_Data_Directory(char * buffer, int size);
 extern "C" BOOL Win32Compat_Window_Safe_Area(HWND window, LPRECT rect);
 bool Win32_Pointer_Can_Warp(void);
 bool Win32_Pointer_Is_Drawn(void);
@@ -457,6 +458,25 @@ bool Win_Log_Directory(char * path, int size)
 	return(false);
 #else
 	return(Win32Compat_Log_Directory(path, size) != FALSE);
+#endif
+}
+
+
+/// <summary>
+/// Names the directory the read-only files shipped with the program are kept in.
+/// A host that keeps them beside the executable, as Windows and the desktop hosts do,
+/// answers false and leaves the path alone: the game's own directory already reaches them.
+/// One that keeps the program apart from the player's files names the shipped half here so
+/// that it is searched too.
+/// </summary>
+bool Win_Shipped_Data_Directory(char * path, int size)
+{
+#ifdef _WIN32
+	(void)path;
+	(void)size;
+	return(false);
+#else
+	return(Win32Compat_Shipped_Data_Directory(path, size) != FALSE);
 #endif
 }
 

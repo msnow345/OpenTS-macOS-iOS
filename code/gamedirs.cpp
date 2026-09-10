@@ -13,6 +13,7 @@
 
 #include "cdfile.h"
 #include "dbgprint.h"
+#include "winstub.h"
 
 // Included after the file classes: it defines READ and WRITE as macros that would otherwise
 // swallow the identically named enumerators in wwfile.h.
@@ -263,6 +264,17 @@ bool Apply_Game_Directories(void)
 	std::string const uipath = Terminate_Path(Data_Directory() + "ui");
 	CDFileClass::Add_Search_Drive(uipath.c_str());
 	DebugString("[GameDirs] UI directory is %s.\n", uipath.c_str());
+
+	// A host that keeps the program apart from the player's files ships its own copy of that
+	// directory, and the data directory is then someone else's. Searching it after the data
+	// directory keeps an installed or modded document ahead of the shipped one while letting
+	// the documents a build ships travel with the executable that expects them.
+	char shipped[MAX_PATH];
+	if (Win_Shipped_Data_Directory(shipped, sizeof(shipped))) {
+		std::string const path = Terminate_Path(Terminate_Path(shipped) + "ui");
+		CDFileClass::Add_Search_Drive(path.c_str());
+		DebugString("[GameDirs] Shipped UI directory is %s.\n", path.c_str());
+	}
 
 	return(true);
 }

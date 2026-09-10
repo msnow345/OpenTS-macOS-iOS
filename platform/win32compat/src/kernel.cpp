@@ -261,6 +261,39 @@ extern "C" BOOL Win32Compat_Log_Directory(char * buffer, int size)
 }
 
 
+extern "C" BOOL Win32Compat_Shipped_Data_Directory(char * buffer, int size)
+{
+#ifdef OPENTS_IOS
+	// An application bundle is read-only and is not the directory the game reads its data
+	// from, so the files shipped with the executable have to be named separately or nothing
+	// ever looks at them.
+	if (buffer == NULL || size <= 0) {
+		return(FALSE);
+	}
+
+	char path[PATH_MAX];
+	uint32_t length = sizeof(path);
+
+	if (_NSGetExecutablePath(path, &length) != 0) {
+		return(FALSE);
+	}
+
+	std::string const folder = std::filesystem::path(path).parent_path().string();
+
+	if (folder.empty() || (int)folder.length() >= size) {
+		return(FALSE);
+	}
+
+	strcpy(buffer, folder.c_str());
+	return(TRUE);
+#else
+	(void)buffer;
+	(void)size;
+	return(FALSE);
+#endif
+}
+
+
 void Win32_Record_Arguments(int argc, char ** argv)
 {
 	_Arguments.clear();
