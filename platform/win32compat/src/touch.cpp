@@ -69,6 +69,14 @@ constexpr int TOUCH_VK_ESCAPE = 0x1B;
 // held back for longer than a frame at the slowest rate the engine is expected to present.
 constexpr Uint64 TOUCH_PRESS_FLASH_NS = 33ULL * 1000000ULL;
 
+// The engine samples the pointer once a frame, before it drains the message queue, and hands
+// that sample to the screen's own input chain. A mouse has crossed its target over many
+// frames by the time its button goes down, so the sample already names the target. A finger
+// has not: a move and a button posted into one pass are read against wherever the pointer
+// rested before the finger arrived. So a press waits out a frame after the move that carries
+// the pointer to it, which is what the top of screen tab bar tests its click against.
+constexpr Uint64 TOUCH_POINTER_SETTLE_NS = 33ULL * 1000000ULL;
+
 // People ease off as they lift, so the release speed is measured over a window of
 // timestamped samples rather than taken from the last motion.
 constexpr Uint64 TOUCH_VELOCITY_WINDOW_NS = 60ULL * 1000000ULL;
@@ -102,7 +110,7 @@ struct FingerRecord
 	float Y;
 };
 
-struct DeferredRelease
+struct DeferredButton
 {
 	Uint8 Button;
 	Uint64 Due;
@@ -141,7 +149,8 @@ bool _Coasting;
 double _ScrollX;
 double _ScrollY;
 
-DeferredRelease _Release;
+DeferredButton _Press;
+DeferredButton _Release;
 bool _MovieMode;
 
 // Which button this layer is holding down, so that nothing here ever releases a button a
@@ -429,6 +438,40 @@ void Defer_Release(Uint8 button, Uint64 now)
 }
 
 
+void Flush_Press(void)
+{
+	if (!_Press.Pending) {
+		return;
+	}
+
+	_Press.Pending = false;
+	Press(_Press.Button);
+	Defer_Release(_Press.Button, SDL_GetTicksNS());
+}
+
+
+// Delivers a click that is still being held back, in order and without its wait. Anything
+// that would dispatch ahead of one calls this first, so a click is never dropped, split or
+// reordered by the gesture that followed it.
+void Flush_Click(void)
+{
+	Flush_Press();
+	Flush_Release();
+}
+
+
+void Defer_Press(Uint8 button, Uint64 now)
+{
+	Flush_Click();
+	_Press.Button = button;
+	_Press.Due = now + TOUCH_POINTER_SETTLE_NS;
+	_Press.Pending = true;
+	Log("hold %s back %llu ms so the pointer arrives first",
+		button == SDL_BUTTON_RIGHT ? "WM_RBUTTONDOWN" : "WM_LBUTTONDOWN",
+		(unsigned long long)(TOUCH_POINTER_SETTLE_NS / 1000000ULL));
+}
+
+
 void Stop_Coast(void)
 {
 	_Coasting = false;
@@ -565,7 +608,7 @@ void Begin_Pan(Uint64 now)
 {
 	if (_Phase == PHASE_DRAG) {
 		Log("drag abandoned for a pan");
-		Flush_Release();
+		Flush_Click();
 		Release_Now(SDL_BUTTON_LEFT);
 	}
 
@@ -616,7 +659,7 @@ void Finger_Down(SDL_FingerID id, float x, float y, Uint64 now)
 		return;
 	}
 
-	Flush_Release();
+	Flush_Click();
 	_PressX = x;
 	_PressY = y;
 	_PressTime = now;
@@ -669,7 +712,7 @@ void Finger_Motion(SDL_FingerID id, float x, float y, Uint64 now)
 
 		Log("drag: moved %.1f points from the press point, past %.1f",
 			std::hypot(x - _PressX, y - _PressY), Dead_Zone());
-		Flush_Release();
+		Flush_Click();
 		Move_To(_PressX, _PressY);
 		Press(SDL_BUTTON_LEFT);
 		Move_To(x, y);
@@ -697,10 +740,9 @@ void Finger_Up(SDL_FingerID id, Uint64 now)
 			// A tap is delivered where the finger landed rather than where it left, because
 			// a finger rolls as it lifts and a dense row of buttons is unforgiving about it.
 			Log("tap after %llu ms", (unsigned long long)((now - _PressTime) / 1000000ULL));
-			Flush_Release();
+			Flush_Click();
 			Move_To(_PressX, _PressY);
-			Press(SDL_BUTTON_LEFT);
-			Defer_Release(SDL_BUTTON_LEFT, now);
+			Defer_Press(SDL_BUTTON_LEFT, now);
 			End_Gesture();
 			break;
 
@@ -712,7 +754,7 @@ void Finger_Up(SDL_FingerID id, Uint64 now)
 			break;
 
 		case PHASE_DRAG:
-			Flush_Release();
+			Flush_Click();
 			Release_Now(SDL_BUTTON_LEFT);
 			End_Gesture();
 			break;
@@ -744,11 +786,16 @@ void Win32_Touch_Cancel(void)
 {
 	// Nothing here may touch a pointer this layer is not driving: on a host with a mouse
 	// this is reached with a real button held, and releasing it would end the player's drag.
-	if (_Phase == PHASE_IDLE && _Fingers.empty() && _HeldButton == 0 && !_Release.Pending && !_Coasting) {
+	if (_Phase == PHASE_IDLE && _Fingers.empty() && _HeldButton == 0
+	&&	!_Press.Pending && !_Release.Pending && !_Coasting) {
 		return;
 	}
 
 	Log("cancel");
+
+	// A click still waiting for the pointer to settle is abandoned rather than delivered:
+	// the gesture it belonged to is the thing being cancelled.
+	_Press.Pending = false;
 	Flush_Release();
 
 	if (_HeldButton != 0) {
@@ -844,11 +891,15 @@ void Win32_Touch_Service(void)
 		Log_Open();
 	}
 
+	if (_Press.Pending && now >= _Press.Due) {
+		Flush_Press();
+	}
+
 	if (_Release.Pending && now >= _Release.Due) {
 		Flush_Release();
 	}
 
-	if (_ParkPending && !_Release.Pending && _HeldButton == 0) {
+	if (_ParkPending && !_Press.Pending && !_Release.Pending && _HeldButton == 0) {
 		_ParkPending = false;
 		Park();
 	}
@@ -859,10 +910,9 @@ void Win32_Touch_Service(void)
 	&&	std::hypot(_Fingers.front().X - _PressX, _Fingers.front().Y - _PressY) < Dead_Zone()) {
 		Log("long press held %llu ms without leaving the dead zone",
 			(unsigned long long)((now - _PressTime) / 1000000ULL));
-		Flush_Release();
+		Flush_Click();
 		Move_To(_PressX, _PressY);
-		Press(SDL_BUTTON_RIGHT);
-		Defer_Release(SDL_BUTTON_RIGHT, now);
+		Defer_Press(SDL_BUTTON_RIGHT, now);
 		Set_Phase(PHASE_PRESSED, "long press fired");
 	}
 
