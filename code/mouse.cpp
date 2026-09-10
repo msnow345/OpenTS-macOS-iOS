@@ -647,6 +647,16 @@ int MouseClass::Get_Mouse_Frame_Count(MouseType mouse) const
 }
 
 
+/// <summary>
+/// Fetches how many timer ticks a mouse shape holds each animation frame for.
+/// </summary>
+/// <returns>Returns with the frame delay, or zero for a shape that does not animate.</returns>
+int MouseClass::Get_Mouse_Frame_Rate(MouseType mouse) const
+{
+	return(MouseControl[mouse].FrameRate);
+}
+
+
 /*
 **	This array of structures is used to control the mouse animation
 **	sequences.

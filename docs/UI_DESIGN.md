@@ -269,6 +269,7 @@ today.
 | `uitexture.cpp` | image decoding, SHP and PCX conversion, surface-backed textures |
 | `uiscreen.h`, `uirmlview.h` | presenter, intent, and result contracts; the RmlUi view base |
 | `uidev.cpp` | ImGui context and developer overlays |
+| `uimodeicon.cpp` | the mode icon: the armed mode's cursor, drawn in the corner where a display has no pointer |
 | one file per screen | presenter, view-model binding, and the RmlUi view glue |
 
 Shipped UI files (documents, styles, images, the font) live in `ui/` at the

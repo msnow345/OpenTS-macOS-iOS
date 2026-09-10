@@ -1,0 +1,20 @@
+/* The mode icon. It stands over the tactical view in the corner the sidebar and the message
+   lines leave free, and carries the game's own cursor artwork at the size the frame draws
+   it. uimodeicon.cpp writes the offsets, because how much of the corner the host keeps for
+   itself is not something a stylesheet can know. */
+
+body
+{
+	width: 100%;
+	height: 100%;
+
+	/* Nothing here can be pressed, so every press belongs to the game underneath. */
+	pointer-events: none;
+}
+
+#icon
+{
+	position: absolute;
+	left: 0;
+	bottom: 0;
+}

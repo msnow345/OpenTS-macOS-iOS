@@ -69,6 +69,7 @@ class MouseClass: public ScrollClass
 		Point2D Get_Mouse_Hotspot(MouseType mouse) const;
 		int Get_Mouse_Start_Frame(MouseType mouse) const;
 		int Get_Mouse_Frame_Count(MouseType mouse) const;
+		int Get_Mouse_Frame_Rate(MouseType mouse) const;
 
 		/*
 		**	This allows the tactical map input gadget access to change the

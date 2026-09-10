@@ -1,0 +1,9 @@
+<rml>
+<head>
+	<title>Mode icon</title>
+	<link type="text/rcss" href="modeicon.rcss"/>
+</head>
+<body>
+	<img id="icon" src="mouse.shp#0#mousepal.pal"/>
+</body>
+</rml>

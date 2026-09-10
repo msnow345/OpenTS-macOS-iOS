@@ -260,6 +260,14 @@ refuses to start without one. The engine's own log is written to
 `Documents/OpenTS/Debug`, because the application bundle it would otherwise sit
 beside cannot be written to.
 
+A display that draws no pointer of its own loses what the pointer's shape said. Nothing else
+on screen reports the modes a player arms from the sidebar: sell, repair, power, a waypoint
+path, a super weapon. So the game draws that mode's own cursor, animated, in the bottom left
+corner of the frame, held clear of whatever the host keeps for its own gestures, and draws
+nothing at all while no mode is armed. The host decides whether it appears: a display with a
+visible pointer gets no icon. `OPENTS_MODE_ICON` overrides that for working on it, `1` to
+draw the icon and `0` to leave it off.
+
 Fingers reach the engine as the pointer every other host writes. One finger taps
 and drags, a held finger is the right button, and two fingers scroll the tactical
 view. The recognizer writes down every finger, every decision and every message

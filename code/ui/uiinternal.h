@@ -19,6 +19,7 @@
 struct ImDrawData;
 
 namespace Rml {
+	class Context;
 	class RenderInterface;
 	class SystemInterface;
 	class FileInterface;
@@ -56,9 +57,23 @@ void UI_Render_ImGui(ImDrawData * data);
 // uimessagebox.cpp
 void UI_Message_Box_Service(void);
 
+// uimodeicon.cpp. The mouse shape the engine last chose, drawn in the corner for a display
+// that draws no pointer of its own. Serviced from the shell's tick and closed with it.
+void UI_Mode_Icon_Service(void);
+void UI_Mode_Icon_Shutdown(void);
+
 // uisurface.cpp
 void UI_Surface_Element_Init(void);
 void UI_Surface_Element_Shutdown(void);
+
+// uishell.cpp. The context every overlay document is shown on, and the flag that keeps a
+// present happening while one of them has changed. Null before the shell has started.
+Rml::Context * UI_Overlay_Context(void);
+void UI_Mark_Overlay_Dirty(void);
+
+// Is a modal screen holding the input scope? The coexistence rule in docs/UI_DESIGN.md gives
+// it the region it stands on, so a document that floats over the game gets out of its way.
+bool UI_Modal_Is_Shown(void);
 
 // uishell.cpp. Puts what the shell draws on screen, which is the synchronous repaint a
 // modeless dialog got from SendMessage(WM_PAINT). Only a screen with no loop of its own
