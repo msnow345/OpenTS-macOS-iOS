@@ -15,9 +15,12 @@ OpenTS is a community-led, open-source reconstruction of *Command & Conquer:
 Tiberian Sun*. Instead of patching or extending the retail executable, it
 rebuilds the engine as a standalone program.
 
-This fork carries a native Apple Silicon macOS build of that engine. See
-[Running on macOS](#running-on-macos) for the data script, the build and how to
-start it. Everything below describes OpenTS itself and applies here too.
+This fork carries native Apple Silicon builds of that engine for **macOS and
+iOS**. The iPad build is played by touch: it has no mouse pointer, a gesture
+layer in place of one, and an on-screen indicator that reports the mode the
+cursor would otherwise have shown. See [Running on macOS](#running-on-macos)
+and [Running on iOS](#running-on-ios). Everything below describes OpenTS itself
+and applies here too.
 
 OpenTS gives equal weight to two goals: maintaining a playable engine and
 providing a capable platform for modding and engine development. Work on one
@@ -126,6 +129,65 @@ Windows supplies the window, message loop and cursor itself; every other
 platform gets them from `platform/win32compat`, which serves the Win32 surface
 the engine is written against out of [SDL](https://github.com/libsdl-org/SDL).
 [Building OpenTS](docs/BUILDING.md) covers the build in full.
+
+## Running on iOS
+
+The same engine runs on iPad. It needs an Apple developer account to sign with
+and a device paired to the Mac; a paid account provisions for a year, a free
+one for seven days.
+
+Copy the signing template and fill it in. The real file is git-ignored, so no
+team identifier, signing identity or device UDID is ever committed:
+
+```bash
+cp scripts/build/ios/ios-signing.env.example scripts/build/ios/ios-signing.env
+```
+
+It names `OPENTS_IOS_TEAM_ID`, `OPENTS_IOS_CODESIGN_IDENTITY` (use an **Apple
+Development** identity — a Distribution one will not install directly),
+`OPENTS_IOS_BUNDLE_ID` and `OPENTS_IOS_DEVICE`. Then build, sign, install, and
+copy the game data into the app's own container:
+
+```bash
+./scripts/build/ios/package-ios.sh --clean --install --push-data --launch
+```
+
+`--push-data` is only needed the first time, or when the data changes. After
+that `--resign-only --install` is the fast loop. **Unlock the device first** —
+a locked iPad refuses the install.
+
+`docs/BUILDING.md` covers the presets, the on-device data layout and how the
+bundle is put together.
+
+### Playing by touch
+
+There is no mouse pointer on iOS, so the cursor's two jobs are split: gestures
+do what the pointer did, and an indicator reports what its shape used to say.
+
+| Gesture | Action |
+| --- | --- |
+| Tap | Select, or give the order under your finger |
+| Drag with one finger | Rubber-band select |
+| Drag with two fingers | Pan the map, 1:1, with a coasting flick |
+| Press and hold | Cancel the current mode, then deselect |
+| Tap during a movie | Skip it |
+
+Nothing is dispatched until a gesture is known, so a second finger arriving
+turns a pending tap into a pan without leaving a stray click behind — which in
+this game would otherwise issue an order or place a building. Pinch zoom is
+deliberately absent: the tactical view magnifies an already-drawn frame rather
+than revealing more map, so pinching out would only blur it.
+
+An icon in the bottom left corner shows the game's own cursor artwork,
+animated, whenever it is saying something a finger cannot: sell, repair, power,
+waypoint and super weapon modes while they are armed, and a unit that is
+standing somewhere it can deploy. It stays empty the rest of the time, because
+with no hover the shapes that merely describe what is under the pointer can
+only appear after the tap that already acted.
+
+The frame is laid out for the device's own display rather than a fixed
+resolution, and the frame rate is capped by `MaxFrameRate` in the `[Video]`
+section of `SUN.INI`.
 
 ## Documentation
 
