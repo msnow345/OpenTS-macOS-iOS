@@ -250,12 +250,25 @@ need_device() {
   }
 }
 
+# devicectl states the result of a command in its own report as well as in its exit status,
+# and the report is the one that cannot be lost. An attempt counts as successful only when
+# both agree; a subcommand that writes no report is judged on its exit status alone.
+devicectl_outcome_ok() {
+  local outcome
+  outcome=$(/usr/bin/plutil -extract info.outcome raw -o - "$1" 2>/dev/null) || return 0
+  [[ $outcome == success ]]
+}
+
 # A device paired over Wi-Fi drops its tunnel when it locks, which fails a long transfer
 # partway through. Retrying is normal operation rather than an error to abort on.
 devicectl_retry() {
+  local report="$ROOT/build/ios-devicectl.json"
   local attempt=1
   while true; do
-    if xcrun devicectl "$@"; then return 0; fi
+    rm -f "$report"
+    if xcrun devicectl "$@" --json-output "$report" && devicectl_outcome_ok "$report"; then
+      return 0
+    fi
     if [[ $attempt -ge 3 ]]; then
       echo "package-ios: devicectl $1 $2 failed after $attempt attempts" >&2
       echo "             (a locked device refuses a launch; unlock it and retry)" >&2
