@@ -942,6 +942,8 @@ restart:
 
 	Session.ProcessTicks = 0;
 	Session.ProcessFrames = 0;
+	Session.WorstStallTicks = 0;
+	Session.PreviousWorstStallTicks = 0;
 	Session.DesiredFrameRate = 30;
 	NewMaxAheadFrame1 = 0;
 	NewMaxAheadFrame2 = 0;
@@ -1355,6 +1357,8 @@ restart:
 				Ipx.Set_Timing(std::max<unsigned>(TIMER_SECOND, Ipx.Global_Response_Time() + 2), (unsigned int) -1, 10 * TIMER_SECOND);
 			}
 		}
+	} else if (Session.Play && (Session.Type == GAME_IPX || Session.Type == GAME_INTERNET)) {
+		Session.Reset_Network_Timing(Frame >= 0 ? static_cast<unsigned int>(Frame) : 0u);
 	}
 
 	/*
@@ -5860,9 +5864,9 @@ void Init_Theater(TheaterType theater)
 	/*
 	**	Unload old mixfiles, and cache the new ones
 	*/
-	wsprintf(fullname, "%s.MIX", data.Root.c_str());
-	wsprintf(isofullname, "%s.MIX", data.IsoRoot.c_str());
-	wsprintf(shortname, "%s.MIX", data.Suffix.c_str());
+	snprintf(fullname, sizeof(fullname), "%s.MIX", data.Root.c_str());
+	snprintf(isofullname, sizeof(isofullname), "%s.MIX", data.IsoRoot.c_str());
+	snprintf(shortname, sizeof(shortname), "%s.MIX", data.Suffix.c_str());
 
 	DebugString("Init theater %s\n", data.Name());
 
@@ -5898,7 +5902,7 @@ void Init_Theater(TheaterType theater)
 		**	Load the custom palette associated with this theater.
 		**	The fading palettes will have to be generated as well.
 		*/
-		wsprintf(fullname, "%s.PAL", data.Root.c_str());
+		snprintf(fullname, sizeof(fullname), "%s.PAL", data.Root.c_str());
 
 		unsigned char * ptr = (unsigned char *)MFCD::Retrieve(fullname);
 
@@ -5922,7 +5926,7 @@ void Init_Theater(TheaterType theater)
 
 		if (!data.Suffix.empty()) {
 			char palname[_MAX_PATH];
-			wsprintf(palname, "UNIT%s.PAL", data.Suffix.c_str());
+			snprintf(palname, sizeof(palname), "UNIT%s.PAL", data.Suffix.c_str());
 			unitpal = (PaletteClass *)MFCD::Retrieve(palname);
 		}
 
