@@ -441,7 +441,7 @@ BOOL CALLBACK read_view_from_ini(HWND window, INIClass const &ini)
 			HTREEITEM item = TreeView_GetRoot(window);
 			while (item != NULL) {
 				i++;
-				wsprintf(buffer, "TV%d", i);
+				snprintf(buffer, sizeof(buffer), "TV%d", i);
 
 				if (ini.Get_Bool(section, buffer, false)) {
 					TreeView_Expand(window, item, TVE_EXPAND);
@@ -461,7 +461,7 @@ BOOL CALLBACK read_view_from_ini(HWND window, INIClass const &ini)
 		section = last_view_ini_section_name;
 		if (window != NULL) {
 			for (int i = 0; i < 10; i++) {
-				wsprintf(buffer, "LV%d", i);
+				snprintf(buffer, sizeof(buffer), "LV%d", i);
 				unsigned int width = ListView_GetColumnWidth(window, i);
 				width = ini.Get_Int(section, buffer, width);
 				if (width < 1000) {
@@ -544,7 +544,7 @@ BOOL CALLBACK write_view_to_ini(HWND window, INIClass &ini)
 
 			while (item != NULL) {
 				i++;
-				wsprintf(buf, "TV%d", i);
+				snprintf(buf, sizeof(buf), "TV%d", i);
 
 				TVITEM *tmp = (TVITEM *)buffer;
 				tmp->mask = TVIF_HANDLE|TVIF_STATE;
@@ -571,7 +571,7 @@ BOOL CALLBACK write_view_to_ini(HWND window, INIClass &ini)
 		section = last_view_ini_section_name;
 		if (window != NULL) {
 			for (int i = 0; i < 10; i++) {
-				wsprintf(buf, "LV%d", i);
+				snprintf(buf, sizeof(buf), "LV%d", i);
 				unsigned int width = ListView_GetColumnWidth(window, i);
 				if (width < 1000) {
 					ini.Put_Int(section, buf, width);
@@ -620,11 +620,11 @@ const char *Make_Identifier(char *str, int num)
 
 	if ( str )
 	{
-		wsprintf(_buffer, "%s%d", str, num);
+		snprintf(_buffer, sizeof(_buffer), "%s%d", str, num);
 	}
 	else
 	{
-		wsprintf(_buffer, "%d", num);
+		snprintf(_buffer, sizeof(_buffer), "%d", num);
 	}
 	return(_buffer);
 }

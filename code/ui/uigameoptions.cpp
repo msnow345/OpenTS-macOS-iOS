@@ -33,7 +33,9 @@
 #include "globals.h"
 #include "house.h"
 #include "language/language.h"
+#include "goptions.h"
 #include "loaddlg.h"
+#include "nettiming.h"
 #include "options.h"
 #include "savemgr.h"
 #include "scenario.h"
@@ -49,15 +51,6 @@
 #include <cstring>
 
 
-// The connection quality labels, best first, which is the order the slider counts in.
-static int const _ConnectionNames[] = {
-	TXT_WORST_CONNECTION,
-	TXT_POOR_CONNECTION,
-	TXT_GOOD_CONNECTION,
-	TXT_BEST_CONNECTION
-};
-
-static int const CONNECTION_STEPS = 4;
 
 
 static bool Is_Solo_Session(void)
@@ -90,16 +83,20 @@ void UIGameOptionsPresenterClass::Refresh(void)
 	CanBrief = (Session.Type != GAME_SKIRMISH);
 
 	SpeedStep = (OptionsClass::MAX_SPEED_SETTING - 1) - Options.GameSpeed;
-	ConnectionStep = (CONNECTION_STEPS - 1) - Session.LatencyFudge;
+
+	NetTiming::TimingSettings const timing{Session.FrameSendRate, Session.MaxAhead};
+	unsigned int const rung = (timing.FrameSendRate >= NetTiming::MINIMUM_TIMING_RUNG
+		&& timing.FrameSendRate <= NetTiming::MAXIMUM_TIMING_RUNG)
+			? timing.FrameSendRate : NetTiming::MAXIMUM_TIMING_RUNG;
+
+	ConnectionRung = (int)rung;
+	ConnectionQualityTextID = Network_Quality_Text_ID(NetTiming::Connection_Quality_For_Settings(timing));
+	// The template's slider runs worst to best from left to right, so rung 1 sits at its right end.
+	ConnectionStep = (int)(NetTiming::MINIMUM_TIMING_RUNG + NetTiming::MAXIMUM_TIMING_RUNG - rung);
 
 	SpeedLabels.clear();
 	for (int step = 0; step < OptionsClass::MAX_SPEED_SETTING; step++) {
 		SpeedLabels.push_back(Fetch_String(GameSpeedNames[step]));
-	}
-
-	ConnectionLabels.clear();
-	for (int step = 0; step < CONNECTION_STEPS; step++) {
-		ConnectionLabels.push_back(Fetch_String(_ConnectionNames[step]));
 	}
 }
 
@@ -120,11 +117,6 @@ void UIGameOptionsPresenterClass::Execute(UIIntent const & intent)
 		// Dragging only moves the label. The setting is applied when the player resumes,
 		// which is where the dialog read the slider back.
 		SpeedStep = intent.Value;
-		return;
-	}
-
-	if (intent.Action == UI_GAMEOPT_CONNECTION) {
-		ConnectionStep = intent.Value;
 		return;
 	}
 
@@ -165,12 +157,6 @@ void UIGameOptionsPresenterClass::Execute(UIIntent const & intent)
 
 	if (intent.Action == UI_GAMEOPT_RESUME) {
 		if (Session.Type == GAME_INTERNET) {
-			int const fudge = (CONNECTION_STEPS - 1) - ConnectionStep;
-			if (fudge != Session.LatencyFudge) {
-				OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::LATENCYFUDGE, fudge));
-				DebugString("LATENCYFUDGE event created - %d\n", fudge);
-			}
-
 			int const speed = (OptionsClass::MAX_SPEED_SETTING - 1) - SpeedStep;
 			if (Options.GameSpeed != speed) {
 				OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::GAMESPEED, speed));
@@ -279,10 +265,10 @@ void GameOptionsViewClass::Update_Labels(void)
 		SpeedLabel = Screen.SpeedLabels[Screen.SpeedStep];
 	}
 
-	ConnectionLabel.clear();
-	if (Screen.ConnectionStep >= 0 && Screen.ConnectionStep < (int)Screen.ConnectionLabels.size()) {
-		ConnectionLabel = Screen.ConnectionLabels[Screen.ConnectionStep];
-	}
+	char connection[64];
+	snprintf(connection, sizeof(connection), Fetch_String(TXT_CONNECTION_QUALITY_RUNG),
+		Fetch_String(Screen.ConnectionQualityTextID), (unsigned int)Screen.ConnectionRung);
+	ConnectionLabel = connection;
 }
 
 
@@ -293,7 +279,6 @@ void GameOptionsViewClass::Move(char const * which, int step)
 	// A position the screen already holds raises no intent, so setting a slider from the
 	// model cannot look like a move the player did not make.
 	if (which == UI_GAMEOPT_SPEED && step == Screen.SpeedStep) return;
-	if (which == UI_GAMEOPT_CONNECTION && step == Screen.ConnectionStep) return;
 
 	Screen.Queue(UIIntent{which, "", step});
 }
@@ -326,7 +311,6 @@ void GameOptionsViewClass::Bind(Rml::DataModelConstructor & model)
 			int const step = (int)(event.GetParameter<float>("value", 0.0f) + 0.5f);
 
 			if (which == UI_GAMEOPT_SPEED) Move(UI_GAMEOPT_SPEED, step);
-			else if (which == UI_GAMEOPT_CONNECTION) Move(UI_GAMEOPT_CONNECTION, step);
 		});
 
 	// Escape resumes, which is the IDCANCEL the dialog answered with its resume arm. Enter

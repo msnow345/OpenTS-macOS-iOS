@@ -15,7 +15,7 @@
 		<div id="group">Internet Game Controls</div>
 
 		<div class="caption" id="connectionlabel">Connection</div>
-		<input id="connection" class="slider" type="range" orientation="horizontal" min="0" max="3" step="1" data-attr-value="connection" data-event-change="move('connection')"/>
+		<input id="connection" class="slider" type="range" orientation="horizontal" min="1" max="10" step="1" data-attr-value="connection"/>
 		<div class="caption value" id="connectionvalue">{{ connectionlabel }}</div>
 
 		<div class="caption" id="speedlabel">Game Speed</div>

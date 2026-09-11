@@ -78,6 +78,18 @@ static void Game_Options_Finish(UIGameOptionsPresenterClass const & screen)
 }
 
 
+int Network_Quality_Text_ID(NetTiming::ConnectionQuality quality)
+{
+	switch (quality) {
+		case NetTiming::ConnectionQuality::Fast: return(TXT_BEST_CONNECTION);
+		case NetTiming::ConnectionQuality::Normal: return(TXT_GOOD_CONNECTION);
+		case NetTiming::ConnectionQuality::Poor: return(TXT_POOR_CONNECTION);
+		case NetTiming::ConnectionQuality::Bad: return(TXT_WORST_CONNECTION);
+	}
+	return(TXT_WORST_CONNECTION);
+}
+
+
 /// <summary>
 /// Displays the in game options dialog.
 /// This routine is used by the special dialog handler when the player calls up the options
