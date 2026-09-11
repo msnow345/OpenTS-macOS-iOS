@@ -91,3 +91,10 @@
 	font-family: dlgsys;
 	font-size: 18dp;
 }
+
+
+/* The connection slider reports the timing the session negotiated; it takes no setting. */
+#connection
+{
+	pointer-events: none;
+}

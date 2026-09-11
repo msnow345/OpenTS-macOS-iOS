@@ -30,7 +30,6 @@ inline constexpr char const * UI_GAMEOPT_RESUME = "resume";
 inline constexpr char const * UI_GAMEOPT_ABORT = "abort";
 inline constexpr char const * UI_GAMEOPT_SETTINGS = "settings";
 inline constexpr char const * UI_GAMEOPT_SPEED = "speed";            // Value: slider step
-inline constexpr char const * UI_GAMEOPT_CONNECTION = "connection";  // Value: slider step
 
 
 class UIGameOptionsPresenterClass : public UIPresenterClass
@@ -82,15 +81,23 @@ class UIGameOptionsPresenterClass : public UIPresenterClass
 		// paths differ in what the buttons mean, not only in whether they are enabled.
 		bool IsMultiplayer = false;
 
-		// Slider steps, counted the way the templates count them: the fastest game speed and
-		// the best connection sit at step zero, so a step is the setting counted backward. A
-		// view shows steps; only this class knows what they mean.
+		// Slider steps, counted the way the templates count them: the fastest game speed sits
+		// at step zero, so a step is the setting counted backward. A view shows steps; only
+		// this class knows what they mean.
 		int SpeedStep = 0;
+
+		// The connection slider reports the timing the session negotiated rather than taking
+		// a setting, so its step is the rung mirrored into the template's worst-to-best order
+		// and the player cannot move it.
 		int ConnectionStep = 0;
 
-		// The label beside each slider, indexed by step.
+		// The rung itself and the name of the quality it falls in, which the caption states
+		// together.
+		int ConnectionRung = 0;
+		int ConnectionQualityTextID = 0;
+
+		// The label beside the speed slider, indexed by step.
 		std::vector<std::string> SpeedLabels;
-		std::vector<std::string> ConnectionLabels;
 
 		ChoiceType Choice = CHOICE_NONE;
 		SubScreenType Pending = SUB_NONE;
