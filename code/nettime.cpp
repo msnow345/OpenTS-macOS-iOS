@@ -10,8 +10,7 @@
 
 #include "nettime.h"
 
-#include <windows.h>
-#include <mmsystem.h>
+#include "hostclock.h"
 
 
 namespace NetTiming
@@ -29,7 +28,7 @@ namespace NetTiming
 	/// <summary>Reads the system's wrapping millisecond clock.</summary>
 	Milliseconds SystemMillisecondClock::Now(void) const
 	{
-		return(static_cast<Milliseconds>(::timeGetTime()));
+		return(static_cast<Milliseconds>(Host_Milliseconds()));
 	}
 
 
